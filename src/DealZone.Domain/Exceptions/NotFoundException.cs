@@ -1,0 +1,14 @@
+namespace DealZone.Domain.Exceptions;
+
+public class NotFoundException : DomainException
+{
+    public NotFoundException(string message) : base(message)
+    {
+    }
+
+    public NotFoundException(string entityName, object key)
+        : base($"Entity \"{entityName}\" ({key}) was not found.")
+    {
+    }
+}
+
