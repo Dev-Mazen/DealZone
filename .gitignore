@@ -1,57 +1,39 @@
-## .NET Core / C# .gitignore
+# Dependencies
+frontend/node_modules/
 
-# Build and output directories
-[Bb]in/
-[Oo]bj/
-[Oo]ut/
-msbuild.log
-msbuild.err
-msbuild.wrn
+# Build output
+frontend/dist/
+frontend/dist-ssr/
+frontend/.output/
 
-# Visual Studio
-.vs/
-*.user
-*.userosscache
-*.sln.docstates
-*.suo
+# Vite cache
+frontend/.vite/
 
-# Visual Studio Code
-.vscode/*
-!.vscode/settings.json
-!.vscode/tasks.json
-!.vscode/launch.json
-!.vscode/extensions.json
+# Environment files (keep .env.example, ignore actual secrets)
+frontend/.env.local
+frontend/.env.*.local
 
-# JetBrains Rider
+# Editor
+.vscode/settings.json
 .idea/
-*.sln.iml
-
-# Test results and code coverage
-[Tt]est[Rr]esult*/
-[Bb]uild[Ll]og.*
-coverage.cobertura.xml
-*.coverage
-*.coveragexml
-
-# User-specific files & local settings
-*.rsuser
-*.suo
-*.user
-*.userprefs
-appsettings.*.local.json
-
-# Operating System Files
+*.swp
+*.swo
 .DS_Store
 Thumbs.db
-ehthumbs.db
-[Dd]esktop.ini
 
-# Crash dumps and logs
-*.stackdump
-*.dmp
-*.crash
+# Logs
 *.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
 
-# Private file storage (verification documents)
-private-storage/
+# Test coverage
+frontend/coverage/
 
+# Backend build artifacts (not needed in frontend branch)
+backend/bin/
+backend/obj/
+backend/**/bin/
+backend/**/obj/
+backend/private-storage/

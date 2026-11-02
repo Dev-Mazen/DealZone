@@ -1,0 +1,57 @@
+## .NET Core / C# .gitignore
+
+# Build and output directories
+[Bb]in/
+[Oo]bj/
+[Oo]ut/
+msbuild.log
+msbuild.err
+msbuild.wrn
+
+# Visual Studio
+.vs/
+*.user
+*.userosscache
+*.sln.docstates
+*.suo
+
+# Visual Studio Code
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# JetBrains Rider
+.idea/
+*.sln.iml
+
+# Test results and code coverage
+[Tt]est[Rr]esult*/
+[Bb]uild[Ll]og.*
+coverage.cobertura.xml
+*.coverage
+*.coveragexml
+
+# User-specific files & local settings
+*.rsuser
+*.suo
+*.user
+*.userprefs
+appsettings.*.local.json
+
+# Operating System Files
+.DS_Store
+Thumbs.db
+ehthumbs.db
+[Dd]esktop.ini
+
+# Crash dumps and logs
+*.stackdump
+*.dmp
+*.crash
+*.log
+
+# Private file storage (verification documents)
+private-storage/
+
