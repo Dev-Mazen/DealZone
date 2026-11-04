@@ -8,13 +8,28 @@
     "marketplace": "السوق",
     "catalog": "الكتالوج",
     "rfqs": "طلبات الأسعار",
+    "myRfqs": "طلباتي",
+    "createRfq": "طلب جديد",
+    "rfqMarketplace": "سوق العروض",
+    "myOffers": "عروضي",
+    "myDeals": "صفقاتي",
     "offers": "العروض",
     "deals": "الصفقات",
     "notifications": "الإشعارات",
     "profile": "الملف الشخصي",
     "logout": "تسجيل الخروج",
     "dashboard": "لوحة التحكم",
-    "admin": "الإدارة"
+    "admin": "الإدارة",
+    "verification": "التوثيق",
+    "catalogMgmt": "إدارة الكتالوج",
+    "disputes": "النزاعات",
+    "shipping": "الشحن",
+    "section": {
+      "buyer": "مشتري",
+      "supplier": "مورّد",
+      "general": "عام",
+      "admin": "إدارة"
+    }
   },
   "actions": {
     "save": "حفظ",
