@@ -8,13 +8,28 @@
     "marketplace": "Marketplace",
     "catalog": "Catalog",
     "rfqs": "RFQs",
+    "myRfqs": "My RFQs",
+    "createRfq": "New RFQ",
+    "rfqMarketplace": "RFQ Marketplace",
+    "myOffers": "My Offers",
+    "myDeals": "My Deals",
     "offers": "Offers",
     "deals": "Deals",
     "notifications": "Notifications",
     "profile": "Profile",
     "logout": "Logout",
     "dashboard": "Dashboard",
-    "admin": "Admin"
+    "admin": "Admin",
+    "verification": "Verification",
+    "catalogMgmt": "Catalog Mgmt",
+    "disputes": "Disputes",
+    "shipping": "Shipping",
+    "section": {
+      "buyer": "Buyer",
+      "supplier": "Supplier",
+      "general": "General",
+      "admin": "Administration"
+    }
   },
   "actions": {
     "save": "Save",
