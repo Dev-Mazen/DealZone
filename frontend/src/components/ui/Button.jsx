@@ -1,63 +1,113 @@
-import { forwardRef } from 'react';
-import { Loader2 } from 'lucide-react';
+import { forwardRef } from 'react'
 
-const sizeClasses = {
-  sm: { padding: '6px 16px', fontSize: '0.8125rem', gap: '6px', iconSize: 14 },
-  md: { padding: '10px 24px', fontSize: '0.9375rem', gap: '8px', iconSize: 16 },
-  lg: { padding: '13px 32px', fontSize: '1.0625rem', gap: '10px', iconSize: 18 },
-};
+const styles = {
+  primary: `
+    bg-[#00D9F5] text-[#06245B] font-semibold
+    hover:bg-[#00C4DE] active:scale-[0.98]
+    focus-visible:ring-2 focus-visible:ring-[#00D9F5] focus-visible:ring-offset-2
+    disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100
+    shadow-sm hover:shadow-md
+  `,
+  secondary: `
+    bg-[#06245B] text-white font-semibold
+    hover:bg-[#123878] active:scale-[0.98]
+    focus-visible:ring-2 focus-visible:ring-[#06245B] focus-visible:ring-offset-2
+    disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100
+    shadow-sm hover:shadow-md
+  `,
+  outline: `
+    bg-transparent text-[#06245B] font-semibold
+    border-2 border-[#06245B]
+    hover:bg-[#EAF4FF] active:scale-[0.98]
+    focus-visible:ring-2 focus-visible:ring-[#06245B] focus-visible:ring-offset-2
+    disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100
+  `,
+  ghost: `
+    bg-transparent text-[#06245B] font-medium
+    hover:bg-[#EAF4FF] active:scale-[0.98]
+    focus-visible:ring-2 focus-visible:ring-[#06245B] focus-visible:ring-offset-2
+    disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100
+  `,
+  danger: `
+    bg-[#EF4444] text-white font-semibold
+    hover:bg-[#DC2626] active:scale-[0.98]
+    focus-visible:ring-2 focus-visible:ring-[#EF4444] focus-visible:ring-offset-2
+    disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100
+    shadow-sm hover:shadow-md
+  `,
+}
 
-const variantClass = {
-  primary:   'dz-btn-primary',
-  secondary: 'dz-btn-secondary',
-  ghost:     'dz-btn-ghost',
-  danger:    'dz-btn-danger',
-};
+const sizes = {
+  sm: 'h-8 px-3 text-sm rounded-lg gap-1.5',
+  md: 'h-10 px-5 text-sm rounded-xl gap-2',
+  lg: 'h-12 px-7 text-base rounded-xl gap-2.5',
+}
 
-const Button = forwardRef(({
-  variant = 'primary',
-  size = 'md',
-  loading = false,
-  disabled = false,
-  leftIcon: LeftIcon,
-  rightIcon: RightIcon,
-  fullWidth = false,
-  as: Tag = 'button',
-  className = '',
-  children,
-  ...rest
-}, ref) => {
-  const sz = sizeClasses[size] || sizeClasses.md;
-  const isDisabled = disabled || loading;
+const Button = forwardRef(
+  (
+    {
+      as: Component = 'button',
+      variant = 'primary',
+      size = 'md',
+      loading = false,
+      icon,
+      iconEnd,
+      fullWidth = false,
+      className = '',
+      children,
+      disabled,
+      ...props
+    },
+    ref,
+  ) => {
+    const isButton = Component === 'button'
+    const buttonProps = isButton ? { disabled: disabled || loading, type: props.type || 'button' } : {}
 
-  return (
-    <Tag
-      ref={ref}
-      className={`${variantClass[variant] || variantClass.primary} ${className}`}
-      disabled={Tag === 'button' ? isDisabled : undefined}
-      aria-disabled={isDisabled}
-      style={{
-        padding: sz.padding,
-        fontSize: sz.fontSize,
-        gap: sz.gap,
-        width: fullWidth ? '100%' : undefined,
-        opacity: isDisabled && variant !== 'primary' ? 0.5 : undefined,
-        pointerEvents: isDisabled ? 'none' : undefined,
-        justifyContent: 'center',
-      }}
-      {...rest}
-    >
-      {loading ? (
-        <Loader2 size={sz.iconSize} style={{ animation: 'spinCycle 0.8s linear infinite' }} />
-      ) : LeftIcon ? (
-        <LeftIcon size={sz.iconSize} />
-      ) : null}
-      {children}
-      {!loading && RightIcon && <RightIcon size={sz.iconSize} />}
-    </Tag>
-  );
-});
+    return (
+      <Component
+        ref={ref}
+        {...buttonProps}
+        className={[
+          'inline-flex items-center justify-center transition-all duration-150 select-none whitespace-nowrap cursor-pointer',
+          styles[variant],
+          sizes[size],
+          fullWidth ? 'w-full' : '',
+          className,
+        ]
+          .filter(Boolean)
+          .join(' ')}
+        {...props}
+      >
+        {loading ? (
+          <svg
+            className="w-4 h-4 animate-spin shrink-0"
+            viewBox="0 0 24 24"
+            fill="none"
+          >
+            <circle
+              className="opacity-25"
+              cx="12"
+              cy="12"
+              r="10"
+              stroke="currentColor"
+              strokeWidth="4"
+            />
+            <path
+              className="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h4z"
+            />
+          </svg>
+        ) : (
+          icon && <span className="shrink-0">{icon}</span>
+        )}
+        {children && <span>{children}</span>}
+        {!loading && iconEnd && <span className="shrink-0">{iconEnd}</span>}
+      </Component>
+    )
+  },
+)
 
-Button.displayName = 'Button';
-export { Button };
-export default Button;
+Button.displayName = 'Button'
+export default Button
+

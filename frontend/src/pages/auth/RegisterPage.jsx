@@ -1,209 +1,204 @@
-import { useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { Link, useNavigate } from 'react-router-dom';
-import { useTranslation } from 'react-i18next';
-import { Mail, Lock, User, Phone, AlertCircle, Building2, Store } from 'lucide-react';
-import { register as registerApi } from '../../api/auth';
-import Button from '../../components/ui/Button';
-import Input from '../../components/ui/Input';
-import { AuthLayout } from './LoginPage';
+import { useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
+import { Mail, Lock, User, Phone, Factory, Building2, Layers } from 'lucide-react'
+import { authService } from '../../shared/api/services/authService'
+import { useToast } from '../../hooks/useToast'
+import { useTranslation } from '../../hooks/useTranslation'
+import Input from '../../components/ui/Input'
+import Button from '../../components/ui/Button'
+import Logo from '../../components/common/Logo'
 
-const schema = z.object({
-  fullName:        z.string().min(2, 'الاسم يجب أن يكون حرفين على الأقل'),
-  email:           z.string().min(1, 'البريد الإلكتروني مطلوب').email('البريد الإلكتروني غير صحيح'),
-  phoneNumber:     z.string().optional().refine(v => !v || /^\+?[0-9\s\-()]{7,15}$/.test(v), 'رقم الجوال غير صحيح'),
-  password:        z.string().min(8, 'كلمة المرور يجب أن تكون 8 أحرف على الأقل'),
-  confirmPassword: z.string(),
-}).refine(d => d.password === d.confirmPassword, {
-  message: 'كلمتا المرور غير متطابقتين',
-  path: ['confirmPassword'],
-});
+const registerSchema = z.object({
+  fullName: z.string().min(3, 'Name must be at least 3 characters'),
+  email: z.string().email('Invalid email address'),
+  phoneNumber: z.string().optional(),
+  password: z.string().min(8, 'Password must be at least 8 characters'),
+})
 
 export default function RegisterPage() {
-  const { t } = useTranslation('auth');
-  const navigate = useNavigate();
-  const [role, setRole] = useState('');
-  const [roleError, setRoleError] = useState('');
-  const [apiError, setApiError] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [termsAccepted, setTermsAccepted] = useState(false);
-  const [termsError, setTermsError] = useState('');
+  const navigate = useNavigate()
+  const { t, language } = useTranslation()
+  const isAr = language === 'ar'
+  const toast = useToast()
+  const [isLoading, setIsLoading] = useState(false)
+  const [accountIntent, setAccountIntent] = useState('buyer') // 'buyer' | 'supplier' | 'dual'
 
-  const { register, handleSubmit, formState: { errors } } = useForm({ resolver: zodResolver(schema) });
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm({
+    resolver: zodResolver(registerSchema),
+  })
 
   const onSubmit = async (data) => {
-    let valid = true;
-    if (!role) { setRoleError('الرجاء اختيار دورك'); valid = false; }
-    else setRoleError('');
-    if (!termsAccepted) { setTermsError('يجب الموافقة على الشروط والأحكام'); valid = false; }
-    else setTermsError('');
-    if (!valid) return;
-
-    setApiError('');
-    setLoading(true);
+    setIsLoading(true)
     try {
-      await registerApi({ ...data, role });
-      navigate(`/confirm-email?email=${encodeURIComponent(data.email)}`);
+      // Store intent locally to streamline post-registration onboarding
+      localStorage.setItem('dz_user_intent', accountIntent)
+      await authService.register(data)
+      toast.success(
+        isAr
+          ? 'تم إنشاء الحساب بنجاح! يرجى مراجعة بريدك الإلكتروني للتأكيد.'
+          : 'Account created successfully! Please check your email to verify.',
+      )
+      navigate('/login')
     } catch (err) {
-      setApiError(err.response?.data?.message || err.message || 'فشل إنشاء الحساب');
+      toast.error(err?.problem?.detail || (isAr ? 'فشل إنشاء الحساب. حاول مجدداً.' : 'Registration failed. Please try again.'))
     } finally {
-      setLoading(false);
+      setIsLoading(false)
     }
-  };
-
-  const roleCard = (value, labelAr, labelEn, Icon) => {
-    const isSelected = role === value;
-    return (
-      <button
-        type="button"
-        onClick={() => { setRole(value); setRoleError(''); }}
-        style={{
-          flex: 1, padding: '20px 16px', borderRadius: '12px', cursor: 'pointer',
-          border: `2px solid ${isSelected ? 'var(--dz-cyan)' : 'var(--border)'}`,
-          background: isSelected ? 'rgba(0,217,245,0.07)' : 'var(--bg-card)',
-          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px',
-          transition: 'all 200ms ease',
-        }}
-      >
-        <div style={{
-          width: '44px', height: '44px', borderRadius: '12px',
-          background: isSelected ? 'rgba(0,217,245,0.15)' : 'var(--bg-elevated)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          color: isSelected ? 'var(--dz-cyan)' : 'var(--text-muted)',
-          transition: 'all 200ms',
-        }}>
-          <Icon size={22} />
-        </div>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ fontWeight: 700, fontSize: '0.9375rem', color: isSelected ? 'var(--dz-cyan)' : 'var(--text-primary)' }}>
-            {labelAr}
-          </div>
-          <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '2px' }}>{labelEn}</div>
-        </div>
-      </button>
-    );
-  };
+  }
 
   return (
-    <AuthLayout
-      title={t('register.title', 'إنشاء حساب جديد')}
-      subtitle={t('register.subtitle', 'انضم إلى أكبر سوق للمواد الخام الصناعية في مصر')}
-    >
-      <form onSubmit={handleSubmit(onSubmit)} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }} noValidate>
-        {apiError && (
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: '10px',
-            padding: '12px 16px', borderRadius: '8px',
-            background: 'var(--error-bg)', border: '1px solid var(--error)',
-            color: 'var(--error-text)', fontSize: '0.875rem',
-          }}>
-            <AlertCircle size={16} style={{ flexShrink: 0 }} />
-            {apiError}
+    <div className="min-h-screen flex items-center justify-center px-4 py-12 bg-[#F4F7FB]">
+      <div className="w-full max-w-lg">
+        <div className="bg-white rounded-3xl shadow-xl p-8 sm:p-10 border border-slate-200/80">
+          {/* Official DealZone Logo */}
+          <div className="flex justify-center mb-6">
+            <Logo size="lg" link={true} />
           </div>
-        )}
 
-        {/* Role selector */}
-        <div>
-          <label style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--text-primary)', display: 'block', marginBottom: '10px' }}>
-            دورك في المنصة <span style={{ color: 'var(--error)' }}>*</span>
-          </label>
-          <div style={{ display: 'flex', gap: '12px' }}>
-            {roleCard('Buyer', 'مشتري', 'Buyer', Building2)}
-            {roleCard('Supplier', 'مورّد', 'Supplier', Store)}
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-[#06245B] text-center mb-2 tracking-tight">
+            {t('auth.register.title')}
+          </h1>
+          <p className="text-sm text-[#64748B] text-center mb-8">
+            {isAr
+              ? 'انضم إلى أكبر شبكة صناعية للمصانع وموردي المواد الخام في مصر'
+              : 'Join Egypt’s premier B2B industrial raw materials marketplace'}
+          </p>
+
+          {/* Account Intent Selector */}
+          <div className="mb-6">
+            <label className="block text-xs font-bold text-[#06245B] mb-2 uppercase tracking-wider">
+              {isAr ? 'ما هو النشاط الأساسي لشركتك؟' : 'Primary Business Activity'}
+            </label>
+            <div className="grid grid-cols-3 gap-2">
+              <button
+                type="button"
+                onClick={() => setAccountIntent('buyer')}
+                className={`p-3 rounded-2xl border text-center transition-all flex flex-col items-center gap-1.5 ${
+                  accountIntent === 'buyer'
+                    ? 'border-[#1266D6] bg-[#EAF4FF] text-[#06245B] shadow-xs ring-2 ring-[#1266D6]/20'
+                    : 'border-slate-200 hover:border-slate-300 text-slate-600 bg-slate-50/50'
+                }`}
+              >
+                <Factory size={20} className={accountIntent === 'buyer' ? 'text-[#1266D6]' : 'text-slate-400'} />
+                <span className="text-xs font-bold leading-tight">
+                  {isAr ? 'مشتري / مصنع' : 'Buyer / Factory'}
+                </span>
+                <span className="text-[10px] text-slate-500 leading-none">
+                  {isAr ? 'شراء خامات' : 'Procure Raw Materials'}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setAccountIntent('supplier')}
+                className={`p-3 rounded-2xl border text-center transition-all flex flex-col items-center gap-1.5 ${
+                  accountIntent === 'supplier'
+                    ? 'border-[#1266D6] bg-[#EAF4FF] text-[#06245B] shadow-xs ring-2 ring-[#1266D6]/20'
+                    : 'border-slate-200 hover:border-slate-300 text-slate-600 bg-slate-50/50'
+                }`}
+              >
+                <Building2 size={20} className={accountIntent === 'supplier' ? 'text-[#1266D6]' : 'text-slate-400'} />
+                <span className="text-xs font-bold leading-tight">
+                  {isAr ? 'مورد خامات' : 'Raw Supplier'}
+                </span>
+                <span className="text-[10px] text-slate-500 leading-none">
+                  {isAr ? 'توريد وبيع' : 'Supply & Quoting'}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setAccountIntent('dual')}
+                className={`p-3 rounded-2xl border text-center transition-all flex flex-col items-center gap-1.5 ${
+                  accountIntent === 'dual'
+                    ? 'border-[#1266D6] bg-[#EAF4FF] text-[#06245B] shadow-xs ring-2 ring-[#1266D6]/20'
+                    : 'border-slate-200 hover:border-slate-300 text-slate-600 bg-slate-50/50'
+                }`}
+              >
+                <Layers size={20} className={accountIntent === 'dual' ? 'text-[#1266D6]' : 'text-slate-400'} />
+                <span className="text-xs font-bold leading-tight">
+                  {isAr ? 'كلاهما (شراء وتوريد)' : 'Dual Enterprise'}
+                </span>
+                <span className="text-[10px] text-slate-500 leading-none">
+                  {isAr ? 'شراء وتوزيع' : 'Buy & Sell'}
+                </span>
+              </button>
+            </div>
           </div>
-          {roleError && (
-            <span style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.8125rem', color: 'var(--error-text)', marginTop: '6px' }}>
-              <AlertCircle size={13} />{roleError}
-            </span>
-          )}
-        </div>
 
-        <Input
-          label={t('register.full_name', 'الاسم الكامل')}
-          type="text"
-          placeholder="أحمد محمد"
-          leftIcon={User}
-          error={errors.fullName?.message}
-          required
-          {...register('fullName')}
-        />
-
-        <Input
-          label={t('register.email', 'البريد الإلكتروني')}
-          type="email"
-          placeholder="your@company.com"
-          leftIcon={Mail}
-          error={errors.email?.message}
-          required
-          {...register('email')}
-        />
-
-        <Input
-          label={t('register.phone', 'رقم الجوال')}
-          type="tel"
-          placeholder="+201012345678"
-          leftIcon={Phone}
-          error={errors.phoneNumber?.message}
-          hint="اختياري"
-          {...register('phoneNumber')}
-        />
-
-        <Input
-          label={t('register.password', 'كلمة المرور')}
-          type="password"
-          placeholder="8 أحرف على الأقل"
-          leftIcon={Lock}
-          error={errors.password?.message}
-          required
-          {...register('password')}
-        />
-
-        <Input
-          label={t('register.confirm_password', 'تأكيد كلمة المرور')}
-          type="password"
-          placeholder="أعد كتابة كلمة المرور"
-          leftIcon={Lock}
-          error={errors.confirmPassword?.message}
-          required
-          {...register('confirmPassword')}
-        />
-
-        {/* Terms */}
-        <div>
-          <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
-            <input
-              type="checkbox"
-              checked={termsAccepted}
-              onChange={e => { setTermsAccepted(e.target.checked); setTermsError(''); }}
-              style={{ width: '16px', height: '16px', accentColor: 'var(--dz-cyan)', cursor: 'pointer', flexShrink: 0 }}
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            <Input
+              {...register('fullName')}
+              label={t('auth.register.fullName')}
+              placeholder="Ahmed Hassan"
+              startIcon={<User size={18} />}
+              error={errors.fullName?.message}
+              required
+              autoComplete="name"
             />
-            <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-              {t('register.terms', 'أوافق على')}{' '}
-              <span style={{ color: 'var(--dz-cyan)', fontWeight: 500, cursor: 'pointer' }}>
-                {t('register.terms_link', 'الشروط والأحكام')}
-              </span>
-            </span>
-          </label>
-          {termsError && (
-            <span style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.8125rem', color: 'var(--error-text)', marginTop: '6px' }}>
-              <AlertCircle size={13} />{termsError}
-            </span>
-          )}
+
+            <Input
+              {...register('email')}
+              type="email"
+              label={t('auth.register.email')}
+              placeholder="ahmed@company.com"
+              startIcon={<Mail size={18} />}
+              error={errors.email?.message}
+              required
+              autoComplete="email"
+            />
+
+            <Input
+              {...register('phoneNumber')}
+              type="tel"
+              label={t('auth.register.phone')}
+              placeholder="+20 1xx xxx xxxx"
+              startIcon={<Phone size={18} />}
+              error={errors.phoneNumber?.message}
+              autoComplete="tel"
+            />
+
+            <Input
+              {...register('password')}
+              type="password"
+              label={t('auth.register.password')}
+              placeholder="••••••••"
+              startIcon={<Lock size={18} />}
+              error={errors.password?.message}
+              required
+              autoComplete="new-password"
+            />
+
+            <Button
+              type="submit"
+              variant="primary"
+              size="lg"
+              fullWidth
+              loading={isLoading}
+              className="mt-6 font-bold shadow-lg shadow-cyan-500/20"
+            >
+              {t('auth.register.submit')}
+            </Button>
+          </form>
+
+          <div className="mt-8 pt-6 border-t border-slate-100 text-center text-sm text-[#64748B]">
+            {t('auth.register.hasAccount')}{' '}
+            <Link
+              to="/login"
+              className="text-[#1266D6] font-bold hover:text-[#06245B] transition-colors"
+            >
+              {t('auth.register.login')}
+            </Link>
+          </div>
         </div>
-
-        <Button type="submit" variant="primary" fullWidth loading={loading} disabled={loading}>
-          {t('register.submit', 'إنشاء الحساب')}
-        </Button>
-
-        <p style={{ textAlign: 'center', fontSize: '0.9rem', color: 'var(--text-secondary)', margin: 0 }}>
-          {t('register.has_account', 'لديك حساب بالفعل؟')}{' '}
-          <Link to="/login" style={{ color: 'var(--dz-cyan)', fontWeight: 600 }}>
-            {t('register.login_link', 'تسجيل الدخول')}
-          </Link>
-        </p>
-      </form>
-    </AuthLayout>
-  );
+      </div>
+    </div>
+  )
 }

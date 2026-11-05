@@ -1,117 +1,111 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { useTranslation } from 'react-i18next';
-import { Mail, AlertCircle, CheckCircle, ArrowLeft } from 'lucide-react';
-import { forgotPassword } from '../../api/auth';
-import Button from '../../components/ui/Button';
-import Input from '../../components/ui/Input';
-import { AuthLayout } from './LoginPage';
+import { useState } from 'react'
+import { Link } from 'react-router-dom'
+import { Mail, ArrowLeft, CheckCircle } from 'lucide-react'
+import { authService } from '../../shared/api/services/authService'
+import { useTranslation } from '../../hooks/useTranslation'
+import Button from '../../components/ui/Button'
+import Logo from '../../components/common/Logo'
+import Input from '../../components/ui/Input'
 
 export default function ForgotPasswordPage() {
-  const { t } = useTranslation('auth');
-  const [email, setEmail] = useState('');
-  const [emailError, setEmailError] = useState('');
-  const [apiError, setApiError] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [sent, setSent] = useState(false);
-
-  const validate = () => {
-    if (!email) { setEmailError('البريد الإلكتروني مطلوب'); return false; }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setEmailError('البريد الإلكتروني غير صحيح'); return false; }
-    setEmailError('');
-    return true;
-  };
+  const { language } = useTranslation()
+  const isAr = language === 'ar'
+  const [email, setEmail] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [sent, setSent] = useState(false)
+  const [error, setError] = useState('')
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!validate()) return;
-    setApiError('');
-    setLoading(true);
+    e.preventDefault()
+    if (!email) return
+    setLoading(true)
+    setError('')
     try {
-      await forgotPassword({ email });
-      setSent(true);
+      await authService.forgotPassword(email)
+      setSent(true)
     } catch (err) {
-      setApiError(err.response?.data?.message || 'فشل إرسال رابط الاستعادة');
+      // Backend returns 200 regardless — but handle network errors
+      setError(err?.problem?.detail || (isAr ? 'حدث خطأ. حاول مجدداً.' : 'An error occurred. Please try again.'))
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
-
-  if (sent) {
-    return (
-      <AuthLayout title={t('forgot_password.title', 'استعادة كلمة المرور')}>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '24px', textAlign: 'center' }}>
-          <div style={{
-            width: '72px', height: '72px', borderRadius: '50%',
-            background: 'var(--success-bg)', border: '2px solid var(--success)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
-            <CheckCircle size={36} style={{ color: 'var(--success)' }} />
-          </div>
-          <div>
-            <h2 style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '8px' }}>
-              تم الإرسال!
-            </h2>
-            <p style={{ color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-              {t('forgot_password.success', 'تم إرسال رابط الاستعادة إلى بريدك الإلكتروني')}
-              <br />
-              <strong style={{ color: 'var(--text-primary)' }}>{email}</strong>
-            </p>
-          </div>
-          <Link to="/login">
-            <Button variant="secondary" leftIcon={ArrowLeft}>
-              {t('forgot_password.back_to_login', 'العودة لتسجيل الدخول')}
-            </Button>
-          </Link>
-        </div>
-      </AuthLayout>
-    );
   }
 
   return (
-    <AuthLayout
-      title={t('forgot_password.title', 'استعادة كلمة المرور')}
-      subtitle={t('forgot_password.subtitle', 'أدخل بريدك الإلكتروني وسنرسل لك رابط الاستعادة')}
-    >
-      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-        {apiError && (
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: '10px',
-            padding: '12px 16px', borderRadius: '8px',
-            background: 'var(--error-bg)', border: '1px solid var(--error)',
-            color: 'var(--error-text)', fontSize: '0.875rem',
-          }}>
-            <AlertCircle size={16} style={{ flexShrink: 0 }} />
-            {apiError}
+    <div className="min-h-screen flex items-center justify-center px-4 py-12">
+      <div className="w-full max-w-md">
+        <div className="bg-white rounded-2xl shadow-xl p-8 border border-[rgba(6,36,91,0.06)]">
+          <div className="flex justify-center mb-6">
+            <Logo size="md" link={true} />
           </div>
-        )}
 
-        <Input
-          label={t('forgot_password.email', 'البريد الإلكتروني')}
-          type="email"
-          placeholder="your@company.com"
-          leftIcon={Mail}
-          value={email}
-          onChange={e => { setEmail(e.target.value); setEmailError(''); }}
-          error={emailError}
-          required
-        />
+          {sent ? (
+            <>
+              <div className="w-16 h-16 mx-auto mb-6 bg-[#D1FAE5] rounded-2xl flex items-center justify-center">
+                <CheckCircle size={36} className="text-[#10B981]" />
+              </div>
+              <h1 className="text-2xl font-bold text-[#06245B] text-center mb-2">
+                {isAr ? 'تم الإرسال!' : 'Email Sent!'}
+              </h1>
+              <p className="text-[#64748B] text-center mb-8 text-sm">
+                {isAr
+                  ? `إذا كان الحساب موجوداً، سيصلك رابط إعادة تعيين كلمة المرور على ${email}`
+                  : `If an account exists for ${email}, a password reset link has been sent.`}
+              </p>
+              <Link to="/login">
+                <Button variant="outline" fullWidth icon={<ArrowLeft size={16} />}>
+                  {isAr ? 'العودة لتسجيل الدخول' : 'Back to Login'}
+                </Button>
+              </Link>
+            </>
+          ) : (
+            <>
+              <div className="w-16 h-16 mx-auto mb-6 bg-[#06245B] rounded-2xl flex items-center justify-center">
+                <Mail size={28} className="text-white" />
+              </div>
+              <h1 className="text-2xl font-bold text-[#06245B] text-center mb-2">
+                {isAr ? 'نسيت كلمة المرور؟' : 'Forgot Password?'}
+              </h1>
+              <p className="text-[#64748B] text-center mb-8 text-sm">
+                {isAr
+                  ? 'أدخل بريدك الإلكتروني وسنرسل لك رابط إعادة التعيين.'
+                  : "Enter your email and we'll send you a reset link."}
+              </p>
 
-        <Button type="submit" variant="primary" fullWidth loading={loading} disabled={loading}>
-          {t('forgot_password.submit', 'إرسال رابط الاستعادة')}
-        </Button>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <Input
+                  type="email"
+                  label={isAr ? 'البريد الإلكتروني' : 'Email Address'}
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@company.com"
+                  startIcon={<Mail size={18} />}
+                  required
+                  autoComplete="email"
+                />
 
-        <Link
-          to="/login"
-          style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
-            fontSize: '0.875rem', color: 'var(--text-secondary)', textDecoration: 'none',
-          }}
-        >
-          <ArrowLeft size={14} />
-          {t('forgot_password.back_to_login', 'العودة لتسجيل الدخول')}
-        </Link>
-      </form>
-    </AuthLayout>
-  );
+                {error && (
+                  <p className="text-[#EF4444] text-sm text-center">{error}</p>
+                )}
+
+                <Button type="submit" variant="primary" fullWidth loading={loading}>
+                  {isAr ? 'إرسال رابط الإعادة' : 'Send Reset Link'}
+                </Button>
+              </form>
+
+              <div className="mt-6 text-center">
+                <Link
+                  to="/login"
+                  className="inline-flex items-center gap-1.5 text-sm text-[#1266D6] hover:text-[#06245B] transition-colors"
+                >
+                  <ArrowLeft size={14} />
+                  {isAr ? 'العودة لتسجيل الدخول' : 'Back to Login'}
+                </Link>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  )
 }

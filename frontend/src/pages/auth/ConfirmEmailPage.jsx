@@ -1,152 +1,165 @@
-import { useState, useEffect } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
-import { useTranslation } from 'react-i18next';
-import { AlertCircle, CheckCircle, Mail } from 'lucide-react';
-import { confirmEmail, resendConfirmation } from '../../api/auth';
-import Button from '../../components/ui/Button';
-import Input from '../../components/ui/Input';
-import { AuthLayout } from './LoginPage';
+import { useEffect, useState } from 'react'
+import { useSearchParams, Link, useNavigate } from 'react-router-dom'
+import { CheckCircle, AlertCircle, Mail, ArrowLeft } from 'lucide-react'
+import { authService } from '../../shared/api/services/authService'
+import { useTranslation } from '../../hooks/useTranslation'
+import Button from '../../components/ui/Button'
+import Input from '../../components/ui/Input'
+import { PageSpinner } from '../../components/ui/Spinner'
 
 export default function ConfirmEmailPage() {
-  const { t } = useTranslation('auth');
-  const [params] = useSearchParams();
-  const email = params.get('email') || '';
-
-  const [token, setToken] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [resending, setResending] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState(false);
-  const [cooldown, setCooldown] = useState(0);
+  const { language } = useTranslation()
+  const isAr = language === 'ar'
+  const navigate = useNavigate()
+  const [params] = useSearchParams()
+  const email = params.get('email') || ''
+  const token = params.get('token') || ''
+  const [step, setStep] = useState(!email || !token ? 'resend' : 'confirming')
+  const [errorMsg, setErrorMsg] = useState('')
+  const [resendEmail, setResendEmail] = useState(params.get('email') || '')
+  const [resendLoading, setResendLoading] = useState(false)
+  const [resendSent, setResendSent] = useState(false)
 
   useEffect(() => {
-    if (cooldown <= 0) return;
-    const timer = setTimeout(() => setCooldown(c => c - 1), 1000);
-    return () => clearTimeout(timer);
-  }, [cooldown]);
+    if (!email || !token) return
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!token.trim()) { setError('رمز التأكيد مطلوب'); return; }
-    setError('');
-    setLoading(true);
-    try {
-      await confirmEmail({ email, token: token.trim() });
-      setSuccess(true);
-    } catch (err) {
-      setError(err.response?.data?.message || 'رمز التأكيد غير صحيح أو منتهي الصلاحية');
-    } finally {
-      setLoading(false);
-    }
-  };
+    authService
+      .confirmEmail(email, token)
+      .then(() => setStep('success'))
+      .catch((err) => {
+        setErrorMsg(err.problem?.detail || (isAr ? 'فشل تأكيد البريد الإلكتروني' : 'Email confirmation failed'))
+        setStep('error')
+      })
+  }, [email, token, isAr])
 
   const handleResend = async () => {
-    setResending(true);
+    if (!resendEmail) return
+    setResendLoading(true)
     try {
-      await resendConfirmation({ email });
-      setCooldown(60);
-      setError('');
+      await authService.resendConfirmation(resendEmail)
+      setResendSent(true)
     } catch (err) {
-      setError(err.response?.data?.message || 'فشل إعادة الإرسال');
+      setErrorMsg(err?.problem?.detail || (isAr ? 'فشل إعادة الإرسال' : 'Failed to resend'))
     } finally {
-      setResending(false);
+      setResendLoading(false)
     }
-  };
+  }
 
-  if (success) {
+  if (step === 'confirming') {
     return (
-      <AuthLayout title={t('confirm_email.title', 'تأكيد البريد الإلكتروني')}>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '24px', textAlign: 'center' }}>
-          <div style={{
-            width: '72px', height: '72px', borderRadius: '50%',
-            background: 'var(--success-bg)', border: '2px solid var(--success)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
-            <CheckCircle size={36} style={{ color: 'var(--success)' }} />
-          </div>
-          <div>
-            <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '8px' }}>
-              تم التأكيد بنجاح! 🎉
-            </h2>
-            <p style={{ color: 'var(--text-secondary)' }}>يمكنك الآن تسجيل الدخول إلى حسابك</p>
-          </div>
-          <Link to="/login">
-            <Button variant="primary" size="lg">الذهاب لتسجيل الدخول</Button>
-          </Link>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <PageSpinner />
+          <p className="text-[#64748B] mt-4">{isAr ? 'جاري تأكيد بريدك الإلكتروني...' : 'Confirming your email...'}</p>
         </div>
-      </AuthLayout>
-    );
+      </div>
+    )
   }
 
   return (
-    <AuthLayout
-      title={t('confirm_email.title', 'تأكيد البريد الإلكتروني')}
-      subtitle={t('confirm_email.subtitle', 'أدخل رمز التأكيد المرسل إلى بريدك الإلكتروني')}
-    >
-      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-        {/* Email display */}
-        {email && (
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: '10px',
-            padding: '12px 16px', borderRadius: '8px',
-            background: 'var(--info-bg)', border: '1px solid var(--info)',
-            color: 'var(--info-text)', fontSize: '0.875rem',
-          }}>
-            <Mail size={16} style={{ flexShrink: 0 }} />
-            تم إرسال الرمز إلى: <strong>{email}</strong>
-          </div>
-        )}
+    <div className="min-h-screen flex items-center justify-center px-4 py-12">
+      <div className="w-full max-w-md">
+        <div className="bg-white rounded-2xl shadow-xl p-8 border border-[rgba(6,36,91,0.06)]">
 
-        {error && (
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: '10px',
-            padding: '12px 16px', borderRadius: '8px',
-            background: 'var(--error-bg)', border: '1px solid var(--error)',
-            color: 'var(--error-text)', fontSize: '0.875rem',
-          }}>
-            <AlertCircle size={16} style={{ flexShrink: 0 }} />
-            {error}
-          </div>
-        )}
+          {step === 'success' && (
+            <>
+              <div className="w-16 h-16 mx-auto mb-6 bg-[#D1FAE5] rounded-2xl flex items-center justify-center">
+                <CheckCircle size={36} className="text-[#10B981]" />
+              </div>
+              <h1 className="text-2xl font-bold text-[#06245B] text-center mb-2">
+                {isAr ? 'تم التأكيد بنجاح!' : 'Email Confirmed!'}
+              </h1>
+              <p className="text-[#64748B] text-center mb-8 text-sm">
+                {isAr
+                  ? 'تم تأكيد بريدك الإلكتروني. يمكنك الآن تسجيل الدخول.'
+                  : 'Your email has been confirmed. You can now log in.'}
+              </p>
+              <Button variant="primary" fullWidth onClick={() => navigate('/login')}>
+                {isAr ? 'تسجيل الدخول' : 'Go to Login'}
+              </Button>
+            </>
+          )}
 
-        <Input
-          label={t('confirm_email.token', 'رمز التأكيد')}
-          type="text"
-          placeholder="أدخل الرمز المكوّن من 6 أرقام"
-          value={token}
-          onChange={e => { setToken(e.target.value); setError(''); }}
-          maxLength={10}
-          error={!token.trim() && error ? error : undefined}
-          required
-        />
+          {step === 'error' && (
+            <>
+              <div className="w-16 h-16 mx-auto mb-6 bg-[#FEE2E2] rounded-2xl flex items-center justify-center">
+                <AlertCircle size={36} className="text-[#EF4444]" />
+              </div>
+              <h1 className="text-2xl font-bold text-[#06245B] text-center mb-2">
+                {isAr ? 'فشل التأكيد' : 'Confirmation Failed'}
+              </h1>
+              <p className="text-[#64748B] text-center mb-6 text-sm">{errorMsg}</p>
+              <div className="space-y-3">
+                <Button variant="primary" fullWidth onClick={() => setStep('resend')}>
+                  {isAr ? 'إعادة إرسال رابط التأكيد' : 'Resend Confirmation'}
+                </Button>
+                <Link to="/login">
+                  <Button variant="ghost" fullWidth icon={<ArrowLeft size={16} />}>
+                    {isAr ? 'العودة لتسجيل الدخول' : 'Back to Login'}
+                  </Button>
+                </Link>
+              </div>
+            </>
+          )}
 
-        <Button type="submit" variant="primary" fullWidth loading={loading} disabled={loading}>
-          {t('confirm_email.submit', 'تأكيد')}
-        </Button>
+          {step === 'resend' && (
+            <>
+              <div className="w-16 h-16 mx-auto mb-6 bg-[#EAF4FF] rounded-2xl flex items-center justify-center">
+                <Mail size={36} className="text-[#1266D6]" />
+              </div>
+              <h1 className="text-2xl font-bold text-[#06245B] text-center mb-2">
+                {isAr ? 'تأكيد البريد الإلكتروني' : 'Confirm Your Email'}
+              </h1>
 
-        <div style={{ textAlign: 'center' }}>
-          <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-            لم يصلك الرمز؟{' '}
-          </span>
-          {cooldown > 0 ? (
-            <span style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>
-              إعادة الإرسال بعد {cooldown} ثانية
-            </span>
-          ) : (
-            <button
-              type="button"
-              onClick={handleResend}
-              disabled={resending}
-              style={{
-                fontSize: '0.875rem', color: 'var(--dz-cyan)', fontWeight: 600,
-                background: 'none', border: 'none', cursor: 'pointer', padding: 0,
-              }}
-            >
-              {resending ? 'جاري الإرسال...' : t('confirm_email.resend', 'إعادة الإرسال')}
-            </button>
+              {resendSent ? (
+                <div className="text-center">
+                  <p className="text-[#10B981] font-medium mb-4">
+                    {isAr ? 'تم إرسال رابط التأكيد!' : 'Confirmation link sent!'}
+                  </p>
+                  <p className="text-sm text-[#64748B]">
+                    {isAr ? 'تحقق من صندوق الوارد الخاص بك.' : 'Check your inbox.'}
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <p className="text-[#64748B] text-center mb-6 text-sm">
+                    {isAr
+                      ? 'أدخل بريدك الإلكتروني لإعادة إرسال رابط التأكيد.'
+                      : 'Enter your email to resend the confirmation link.'}
+                  </p>
+                  <div className="space-y-4">
+                    <Input
+                      type="email"
+                      label={isAr ? 'البريد الإلكتروني' : 'Email Address'}
+                      value={resendEmail}
+                      onChange={(e) => setResendEmail(e.target.value)}
+                      placeholder="you@company.com"
+                    />
+                    <Button
+                      variant="primary"
+                      fullWidth
+                      loading={resendLoading}
+                      onClick={handleResend}
+                      disabled={!resendEmail}
+                    >
+                      {isAr ? 'إعادة الإرسال' : 'Resend Confirmation'}
+                    </Button>
+                  </div>
+                  {errorMsg && (
+                    <p className="text-[#EF4444] text-sm text-center mt-3">{errorMsg}</p>
+                  )}
+                </>
+              )}
+
+              <div className="mt-6 text-center">
+                <Link to="/login" className="text-sm text-[#1266D6] hover:text-[#06245B] transition-colors">
+                  {isAr ? 'العودة لتسجيل الدخول' : 'Back to Login'}
+                </Link>
+              </div>
+            </>
           )}
         </div>
-      </form>
-    </AuthLayout>
-  );
+      </div>
+    </div>
+  )
 }

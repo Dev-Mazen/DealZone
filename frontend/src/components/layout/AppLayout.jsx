@@ -1,69 +1,42 @@
-import { useState, useEffect } from 'react';
-import { Outlet, useLocation } from 'react-router-dom';
-import Navbar from './Navbar';
-import Sidebar from './Sidebar';
+import { Outlet } from 'react-router-dom'
+import Navbar from './Navbar'
+import Sidebar from './Sidebar'
+import { useUIStore } from '../../store/uiStore'
 
-export default function AppLayout() {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const location = useLocation();
-
-  // Close sidebar on route change (mobile)
-  useEffect(() => {
-    if (window.innerWidth < 769) {
-      setSidebarOpen(false);
-    }
-  }, [location.pathname]);
-
-  // Close sidebar on resize to desktop
-  useEffect(() => {
-    const handler = () => {
-      if (window.innerWidth >= 769) {
-        setSidebarOpen(false);
-      }
-    };
-    window.addEventListener('resize', handler);
-    return () => window.removeEventListener('resize', handler);
-  }, []);
+export default function AppLayout({ children }) {
+  const sidebarCollapsed = useUIStore((s) => s.sidebarCollapsed)
 
   return (
-    <div style={{ display: 'flex', minHeight: '100svh', background: 'var(--bg-canvas)' }}>
-      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-
-      {/* Main content area — offset by sidebar width on desktop */}
-      <div
-        id="main-content"
-        style={{
-          flex: 1,
-          display: 'flex',
-          flexDirection: 'column',
-          minWidth: 0,
-        }}
-      >
-        <Navbar onMenuToggle={() => setSidebarOpen(v => !v)} />
+    <div className="min-h-screen bg-[#F4F7FB]">
+      <Navbar />
+      
+      <div className="flex">
+        <Sidebar />
+        
         <main
-          style={{
-            flex: 1,
-            padding: 'clamp(16px, 3vw, 32px)',
-            maxWidth: '100%',
-          }}
+          className={[
+            'flex-1 transition-all duration-300 pt-20',
+            sidebarCollapsed ? 'md:ms-20' : 'md:ms-64',
+          ].join(' ')}
         >
-          <Outlet />
+          <div className="container py-6">
+            {children || <Outlet />}
+          </div>
         </main>
       </div>
-
-      {/* Desktop sidebar spacing — RTL aware via CSS logical property */}
-      <style>{`
-        @media (min-width: 769px) {
-          #main-content {
-            margin-inline-start: 240px;
-          }
-        }
-        /* Sidebar fixed on inline-start (left in LTR, right in RTL) */
-        #sidebar-panel {
-          inset-inline-start: 0;
-          inset-inline-end: auto;
-        }
-      `}</style>
     </div>
-  );
+  )
 }
+
+// Public layout (no sidebar, no auth)
+export function PublicLayout({ children }) {
+  return (
+    <div className="min-h-screen bg-[#F4F7FB]">
+      <Navbar />
+      <main className="pt-20">
+        {children || <Outlet />}
+      </main>
+    </div>
+  )
+}
+
