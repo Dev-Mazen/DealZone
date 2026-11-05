@@ -1,283 +1,428 @@
-import { Bell, Sun, Moon, LogOut, User, ChevronDown, Menu } from 'lucide-react';
-import logo from '../../assets/logo.jpeg';
-import { useTranslation } from 'react-i18next';
-import { Link, useNavigate } from 'react-router-dom';
-import { useState, useRef, useEffect } from 'react';
-import { useAuth } from '../../context/AuthContext';
-import { useTheme } from '../../context/ThemeContext';
-import { useLang } from '../../context/LangContext';
-import { useUnreadCount } from '../../hooks/useNotifications';
+import { useState, useEffect } from 'react'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
+import {
+  Bell,
+  User,
+  LogOut,
+  Menu,
+  X,
+  Globe,
+  Building2,
+  ChevronDown,
+  LayoutDashboard,
+  Package,
+  FileText,
+  Handshake,
+  Truck,
+  ShieldCheck,
+  Info,
+} from 'lucide-react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useAuthStore } from '../../store/authStore'
+import { useUIStore } from '../../store/uiStore'
+import { useTranslation } from '../../hooks/useTranslation'
+import { usePermissions } from '../../hooks/usePermissions'
+import { notificationService } from '../../shared/api/services/notificationService'
+import { authService } from '../../shared/api/services/authService'
+import { tokenStore } from '../../shared/api/axios'
+import Button from '../ui/Button'
+import Logo from '../common/Logo'
 
-export default function Navbar({ onMenuToggle }) {
-  const { t } = useTranslation('common');
-  const { user, logout } = useAuth();
-  const { theme, toggleTheme } = useTheme();
-  const { lang, toggleLang } = useLang();
-  const { data: unreadCount = 0 } = useUnreadCount();
-  const navigate = useNavigate();
-  const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const userMenuRef = useRef(null);
+export default function Navbar() {
+  const navigate = useNavigate()
+  const location = useLocation()
+  const { t, language } = useTranslation()
+  const isAr = language === 'ar'
 
-  // Close on outside click
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
+  const user = useAuthStore((s) => s.user)
+  const clearAuth = useAuthStore((s) => s.clearAuth)
+  const setLanguage = useUIStore((s) => s.setLanguage)
+
+  const {
+    isSystemAdmin,
+    hasCompany,
+    isVerified,
+    canManageRfqs,
+    canSubmitOffers,
+    canViewCommercial,
+    role,
+  } = usePermissions()
+
+  const [userMenuOpen, setUserMenuOpen] = useState(false)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [isScrolled, setIsScrolled] = useState(false)
+
+  // Track scroll position for header glassmorphism
   useEffect(() => {
-    const handler = (e) => {
-      if (userMenuRef.current && !userMenuRef.current.contains(e.target)) {
-        setUserMenuOpen(false);
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 10)
+    }
+    window.addEventListener('scroll', handleScroll)
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [])
+
+  // Close mobile drawer on route change
+  useEffect(() => {
+    setMobileMenuOpen(false)
+    setUserMenuOpen(false)
+  }, [location.pathname])
+
+  // Poll unread notification count every 30s when authenticated
+  const { data: unreadData } = useQuery({
+    queryKey: ['notifications', 'unread-count'],
+    queryFn: () => notificationService.getUnreadCount(),
+    enabled: isAuthenticated,
+    refetchInterval: 30_000,
+    staleTime: 20_000,
+  })
+  const unreadCount = unreadData?.unreadCount ?? 0
+
+  const qc = useQueryClient()
+
+  const handleLogout = async () => {
+    try {
+      const rt = tokenStore.getRefresh()
+      if (rt) {
+        await authService.logout(rt)
       }
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, []);
+    } catch {
+      // Continue client cleanup even if network fails
+    } finally {
+      qc.clear()
+      clearAuth()
+      navigate('/')
+    }
+  }
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
-  };
+  const toggleLanguage = () => {
+    setLanguage(language === 'en' ? 'ar' : 'en')
+  }
 
-  const initials = user?.name?.charAt(0)?.toUpperCase() || 'U';
+  // Define public navigation items
+  const publicLinks = [
+    { label: isAr ? 'الرئيسية' : 'Home', path: '/' },
+    { label: isAr ? 'عن المنصة' : 'About', path: '/about' },
+    { label: isAr ? 'الكتالوج الصناعي' : 'Catalog', path: '/catalog' },
+  ]
+
+  // Define authenticated quick links
+  const authLinks = [
+    { label: isAr ? 'لوحة التحكم' : 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
+    hasCompany && { label: isAr ? 'الكتالوج' : 'Catalog', path: '/catalog', icon: Package },
+    (canManageRfqs || canSubmitOffers) && { label: isAr ? 'طلبات الأسعار' : 'RFQs', path: '/rfqs', icon: FileText },
+    canSubmitOffers && { label: isAr ? 'عروضي' : 'My Offers', path: '/offers', icon: FileText },
+    canViewCommercial && { label: isAr ? 'الصفقات' : 'Deals', path: '/deals', icon: Handshake },
+    canViewCommercial && { label: isAr ? 'الشحنات' : 'Shipments', path: '/shipments', icon: Truck },
+    isSystemAdmin && { label: isAr ? 'الإدارة' : 'Admin', path: '/admin', icon: ShieldCheck },
+  ].filter(Boolean)
+
+  const activeLinks = isAuthenticated ? authLinks : publicLinks
 
   return (
-    <header className="glass-nav" style={{ position: 'sticky', top: 0, zIndex: 100, height: '64px' }}>
-      <div style={{
-        height: '100%',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingInline: '16px',
-        gap: '12px',
-      }}>
-        {/* Left: Hamburger (mobile) + Logo */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <button
-            className="dz-btn-ghost"
-            style={{ padding: '8px', display: 'none' }}
-            onClick={onMenuToggle}
-            aria-label="Toggle menu"
-            id="menu-toggle"
-          >
-            <Menu size={20} />
-          </button>
-
-          {/* Logo */}
-          <Link
-            to="/dashboard"
-            style={{ display: 'flex', alignItems: 'center', gap: '10px', textDecoration: 'none' }}
-          >
-            <img
-              src={logo}
-              alt="DealZone"
-              style={{ height: '38px', width: '38px', borderRadius: '10px', objectFit: 'cover', flexShrink: 0 }}
-            />
-            <span style={{
-              fontWeight: 800,
-              fontSize: '1.125rem',
-              color: '#FFFFFF',
-              letterSpacing: '-0.01em',
-            }}>
-              DEAL ZONE
-            </span>
-          </Link>
-        </div>
-
-        {/* Right: Controls */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-          {/* Theme Toggle */}
-          <button
-            className="dz-btn-ghost"
-            style={{ padding: '8px', borderRadius: '8px', transition: 'all 150ms' }}
-            onClick={toggleTheme}
-            aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-          >
-            {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
-          </button>
-
-          {/* Language Toggle */}
-          <button
-            className="dz-btn-ghost"
-            style={{
-              padding: '8px 10px',
-              borderRadius: '8px',
-              fontSize: '0.8125rem',
-              fontWeight: 600,
-              transition: 'all 150ms',
-              minWidth: '40px',
-            }}
-            onClick={toggleLang}
-            aria-label="Toggle language"
-          >
-            {lang === 'ar' ? 'EN' : 'عر'}
-          </button>
-
-          {/* Notifications Bell */}
-          <Link
-            to="/notifications"
-            className="dz-btn-ghost"
-            style={{
-              padding: '8px',
-              borderRadius: '8px',
-              position: 'relative',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              transition: 'all 150ms',
-            }}
-            aria-label={`Notifications${unreadCount > 0 ? ` (${unreadCount} unread)` : ''}`}
-          >
-            <Bell size={18} />
-            {unreadCount > 0 && (
-              <span style={{
-                position: 'absolute',
-                top: '4px',
-                insetInlineEnd: '4px',
-                background: 'var(--error, #ef4444)',
-                color: '#fff',
-                fontSize: '10px',
-                fontWeight: 700,
-                lineHeight: 1,
-                minWidth: '16px',
-                height: '16px',
-                borderRadius: '9999px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: '0 3px',
-              }}>
-                {unreadCount > 99 ? '99+' : unreadCount}
-              </span>
-            )}
-          </Link>
-
-          {/* User Avatar Dropdown */}
-          <div ref={userMenuRef} style={{ position: 'relative' }}>
+    <>
+      <nav
+        className={`fixed top-0 inset-x-0 z-[1030] h-20 transition-all duration-300 ${
+          isScrolled
+            ? 'bg-white/95 backdrop-blur-md shadow-md border-b border-slate-200/80'
+            : 'bg-white border-b border-[rgba(6,36,91,0.06)] shadow-xs'
+        }`}
+      >
+        <div className="h-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-4">
+          {/* Left: Brand Logo + Mobile Hamburger Button */}
+          <div className="flex items-center gap-3">
             <button
-              className="dz-btn-ghost"
-              style={{
-                padding: '4px 8px',
-                borderRadius: '8px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                transition: 'all 150ms',
-              }}
-              onClick={() => setUserMenuOpen(v => !v)}
-              aria-expanded={userMenuOpen}
-              aria-haspopup="true"
+              onClick={() => setMobileMenuOpen(true)}
+              className="lg:hidden p-2 rounded-xl text-[#06245B] hover:bg-[#EAF4FF] transition-colors focus:outline-none"
+              aria-label="Open mobile navigation menu"
             >
-              <div style={{
-                width: '32px',
-                height: '32px',
-                borderRadius: '50%',
-                background: 'var(--dz-navy)',
-                border: '2px solid var(--dz-cyan)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '13px',
-                fontWeight: 700,
-                color: 'var(--dz-cyan)',
-                flexShrink: 0,
-              }}>
-                {initials}
-              </div>
-              <span style={{
-                fontSize: '0.875rem',
-                fontWeight: 500,
-                color: 'var(--text-on-sidebar, white)',
-                maxWidth: '120px',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-              }}>
-                {user?.name || 'User'}
-              </span>
-              <ChevronDown
-                size={14}
-                style={{
-                  color: 'var(--text-muted)',
-                  transition: 'transform 150ms',
-                  transform: userMenuOpen ? 'rotate(180deg)' : 'none',
-                }}
-              />
+              <Menu size={24} />
             </button>
 
-            {/* Dropdown Menu */}
-            {userMenuOpen && (
-              <div
-                className="dz-card animate-scale-in"
-                style={{
-                  position: 'absolute',
-                  insetBlockStart: 'calc(100% + 8px)',
-                  insetInlineEnd: 0,
-                  minWidth: '200px',
-                  zIndex: 200,
-                  padding: '8px',
-                  boxShadow: 'var(--shadow-lg)',
-                }}
-              >
-                {/* User info header */}
-                <div style={{
-                  padding: '8px 12px 12px',
-                  borderBottom: '1px solid var(--border)',
-                  marginBottom: '8px',
-                }}>
-                  <div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                    {user?.name}
-                  </div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-                    {user?.email}
-                  </div>
-                </div>
+            {/* Official DealZone Logo */}
+            <Logo size="md" link={true} />
+          </div>
 
+          {/* Center: Desktop Navigation Links */}
+          <div className="hidden lg:flex items-center gap-1.5">
+            {activeLinks.map((item) => {
+              const isActive =
+                item.path === '/'
+                  ? location.pathname === '/'
+                  : location.pathname.startsWith(item.path)
+
+              return (
                 <Link
-                  to="/profile"
-                  className="dz-btn-ghost"
-                  style={{
-                    width: '100%',
-                    justifyContent: 'flex-start',
-                    padding: '8px 12px',
-                    borderRadius: '6px',
-                    gap: '10px',
-                    textDecoration: 'none',
-                    display: 'flex',
-                    alignItems: 'center',
-                    transition: 'all 150ms',
-                  }}
-                  onClick={() => setUserMenuOpen(false)}
+                  key={item.path}
+                  to={item.path}
+                  className={`px-3.5 py-2 rounded-xl text-sm font-semibold transition-all duration-200 relative flex items-center gap-1.5 ${
+                    isActive
+                      ? 'text-[#06245B] bg-[#EAF4FF] shadow-xs'
+                      : 'text-slate-600 hover:text-[#06245B] hover:bg-slate-100/70'
+                  }`}
                 >
-                  <User size={16} />
-                  <span>{t('nav.profile', 'Profile')}</span>
+                  {item.icon && <item.icon size={16} className={isActive ? 'text-[#1266D6]' : 'text-slate-400'} />}
+                  <span>{item.label}</span>
+                  {isActive && (
+                    <span className="absolute bottom-1 inset-x-3.5 h-0.5 bg-[#00D9F5] rounded-full" />
+                  )}
+                </Link>
+              )
+            })}
+          </div>
+
+          {/* Right: Actions (Language, Notifications, User Profile / Auth) */}
+          <div className="flex items-center gap-2 sm:gap-3">
+            {/* Language Switcher Pill */}
+            <button
+              onClick={toggleLanguage}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 hover:border-[#1266D6] bg-slate-50 hover:bg-[#EAF4FF] text-xs font-bold text-[#06245B] transition-all duration-200"
+              aria-label={isAr ? 'Switch to English' : 'التحويل إلى العربية'}
+              title={isAr ? 'English' : 'العربية'}
+            >
+              <Globe size={15} className="text-[#1266D6]" />
+              <span>{isAr ? 'EN' : 'عربي'}</span>
+            </button>
+
+            {isAuthenticated ? (
+              <>
+                {/* Notifications Bell */}
+                <Link
+                  to="/notifications"
+                  className="relative p-2.5 rounded-xl hover:bg-[#EAF4FF] text-[#06245B] transition-colors"
+                  aria-label={t('nav.notifications')}
+                >
+                  <Bell size={20} />
+                  {unreadCount > 0 && (
+                    <span className="absolute top-1.5 end-1.5 w-4 h-4 rounded-full bg-[#EF4444] text-white text-[10px] font-bold flex items-center justify-center animate-pulse">
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                    </span>
+                  )}
                 </Link>
 
-                <button
-                  className="dz-btn-ghost"
-                  style={{
-                    width: '100%',
-                    justifyContent: 'flex-start',
-                    padding: '8px 12px',
-                    borderRadius: '6px',
-                    gap: '10px',
-                    color: 'var(--error-text, #ef4444)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    transition: 'all 150ms',
-                  }}
-                  onClick={handleLogout}
+                {/* User Profile Menu */}
+                <div className="relative">
+                  <button
+                    onClick={() => setUserMenuOpen(!userMenuOpen)}
+                    className="flex items-center gap-2 ps-2 pe-3 py-1.5 rounded-xl border border-slate-200/80 hover:border-[#1266D6] hover:bg-[#EAF4FF]/50 transition-all text-start"
+                  >
+                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#06245B] to-[#1266D6] flex items-center justify-center text-white text-xs font-bold shadow-xs">
+                      {user?.fullName?.charAt(0).toUpperCase() || 'U'}
+                    </div>
+                    <div className="hidden sm:flex flex-col">
+                      <span className="text-xs font-bold text-[#06245B] max-w-[110px] truncate leading-tight">
+                        {user?.fullName}
+                      </span>
+                      <span className="text-[10px] text-slate-500 font-medium">
+                        {role || (isSystemAdmin ? 'Admin' : 'Member')}
+                      </span>
+                    </div>
+                    <ChevronDown size={14} className="text-slate-400" />
+                  </button>
+
+                  {userMenuOpen && (
+                    <>
+                      <div
+                        className="fixed inset-0 z-40"
+                        onClick={() => setUserMenuOpen(false)}
+                      />
+                      <div className="absolute end-0 mt-2 w-64 bg-white rounded-2xl shadow-2xl border border-slate-100 py-2 z-50 animate-fade-in">
+                        <div className="px-4 py-3 border-b border-slate-100 bg-slate-50/50">
+                          <p className="text-sm font-bold text-[#06245B] truncate">
+                            {user?.fullName}
+                          </p>
+                          <p className="text-xs text-[#64748B] truncate mt-0.5">{user?.email}</p>
+                          {user?.company && (
+                            <div className="mt-2 inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-[#EAF4FF] text-[11px] font-bold text-[#06245B]">
+                              <Building2 size={12} className="text-[#1266D6]" />
+                              <span className="truncate max-w-[180px]">{user.company.tradeName || user.company.legalName}</span>
+                              {isVerified && <span className="text-emerald-600">✓</span>}
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="py-1">
+                          <Link
+                            to="/dashboard"
+                            className="flex items-center gap-3 px-4 py-2 text-sm text-slate-700 hover:bg-[#EAF4FF] hover:text-[#06245B] transition-colors"
+                            onClick={() => setUserMenuOpen(false)}
+                          >
+                            <LayoutDashboard size={16} className="text-slate-400" />
+                            {isAr ? 'لوحة التحكم' : 'Dashboard'}
+                          </Link>
+
+                          {hasCompany && (
+                            <Link
+                              to="/company"
+                              className="flex items-center gap-3 px-4 py-2 text-sm text-slate-700 hover:bg-[#EAF4FF] hover:text-[#06245B] transition-colors"
+                              onClick={() => setUserMenuOpen(false)}
+                            >
+                              <Building2 size={16} className="text-slate-400" />
+                              {t('nav.company')}
+                            </Link>
+                          )}
+
+                          <Link
+                            to="/profile"
+                            className="flex items-center gap-3 px-4 py-2 text-sm text-slate-700 hover:bg-[#EAF4FF] hover:text-[#06245B] transition-colors"
+                            onClick={() => setUserMenuOpen(false)}
+                          >
+                            <User size={16} className="text-slate-400" />
+                            {t('nav.profile')}
+                          </Link>
+
+                          {isSystemAdmin && (
+                            <Link
+                              to="/admin"
+                              className="flex items-center gap-3 px-4 py-2 text-sm font-semibold text-[#1266D6] hover:bg-[#EAF4FF] transition-colors"
+                              onClick={() => setUserMenuOpen(false)}
+                            >
+                              <ShieldCheck size={16} className="text-[#00D9F5]" />
+                              {t('nav.admin')}
+                            </Link>
+                          )}
+                        </div>
+
+                        <div className="border-t border-slate-100 mt-1 pt-1">
+                          <button
+                            onClick={handleLogout}
+                            className="flex items-center gap-3 w-full px-4 py-2 text-sm text-[#EF4444] hover:bg-red-50 transition-colors font-medium"
+                          >
+                            <LogOut size={16} />
+                            {t('nav.logout')}
+                          </button>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </>
+            ) : (
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => navigate('/login')}
+                  className="hidden sm:inline-flex"
                 >
-                  <LogOut size={16} />
-                  <span>{t('nav.logout', 'Logout')}</span>
-                </button>
+                  {t('nav.login')}
+                </Button>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={() => navigate('/register')}
+                  className="shadow-sm shadow-cyan-500/20 font-bold"
+                >
+                  {t('nav.register')}
+                </Button>
               </div>
             )}
           </div>
         </div>
-      </div>
+      </nav>
 
-      {/* Mobile hamburger reveal via CSS */}
-      <style>{`
-        @media (max-width: 768px) {
-          #menu-toggle { display: flex !important; }
-        }
-      `}</style>
-    </header>
-  );
+      {/* ============================================================
+          MOBILE NAVIGATION DRAWER (SLIDE-OVER SHEET)
+          ============================================================ */}
+      {mobileMenuOpen && (
+        <div className="fixed inset-0 z-[1050] lg:hidden">
+          {/* Backdrop overlay */}
+          <div
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity"
+            onClick={() => setMobileMenuOpen(false)}
+          />
+
+          {/* Drawer content */}
+          <div className="fixed inset-y-0 start-0 max-w-xs w-full bg-white shadow-2xl flex flex-col z-10 animate-slide-in">
+            {/* Drawer Header */}
+            <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+              <Logo size="md" link={true} />
+              <button
+                onClick={() => setMobileMenuOpen(false)}
+                className="p-2 rounded-xl text-slate-500 hover:text-[#06245B] hover:bg-slate-100 transition-colors"
+                aria-label="Close menu"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Drawer Body — Navigation Items */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-1">
+              {activeLinks.map((item) => {
+                const isActive =
+                  item.path === '/'
+                    ? location.pathname === '/'
+                    : location.pathname.startsWith(item.path)
+
+                return (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-colors ${
+                      isActive
+                        ? 'bg-[#EAF4FF] text-[#06245B]'
+                        : 'text-slate-700 hover:bg-slate-50 hover:text-[#06245B]'
+                    }`}
+                  >
+                    {item.icon ? (
+                      <item.icon size={18} className={isActive ? 'text-[#1266D6]' : 'text-slate-400'} />
+                    ) : (
+                      <Info size={18} className="text-slate-400" />
+                    )}
+                    <span>{item.label}</span>
+                  </Link>
+                )
+              })}
+            </div>
+
+            {/* Drawer Footer — Language & Authentication */}
+            <div className="p-4 border-t border-slate-100 bg-slate-50/60 space-y-3">
+              <button
+                onClick={toggleLanguage}
+                className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-xs font-bold text-[#06245B] hover:border-[#1266D6] transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  <Globe size={16} className="text-[#1266D6]" />
+                  <span>{isAr ? 'اللغة الحالية' : 'Current Language'}</span>
+                </div>
+                <span className="text-[#1266D6] font-extrabold">{isAr ? 'العربية (AR)' : 'English (EN)'}</span>
+              </button>
+
+              {!isAuthenticated ? (
+                <div className="grid grid-cols-2 gap-2 pt-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    fullWidth
+                    onClick={() => navigate('/login')}
+                  >
+                    {t('nav.login')}
+                  </Button>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    fullWidth
+                    onClick={() => navigate('/register')}
+                  >
+                    {t('nav.register')}
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  fullWidth
+                  onClick={handleLogout}
+                  className="!text-[#EF4444] !border-red-200 hover:!bg-red-50"
+                  icon={<LogOut size={16} />}
+                >
+                  {t('nav.logout')}
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  )
 }

@@ -1,155 +1,145 @@
-import { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams, Link } from 'react-router-dom';
-import { useTranslation } from 'react-i18next';
-import { Lock, AlertCircle, CheckCircle } from 'lucide-react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { resetPassword } from '../../api/auth';
-import Button from '../../components/ui/Button';
-import Input from '../../components/ui/Input';
-import { AuthLayout } from './LoginPage';
+import { useState } from 'react'
+import { useSearchParams, useNavigate, Link } from 'react-router-dom'
+import { Lock, Eye, EyeOff, CheckCircle } from 'lucide-react'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
+import { authService } from '../../shared/api/services/authService'
+import { useTranslation } from '../../hooks/useTranslation'
+import Button from '../../components/ui/Button'
+import Logo from '../../components/common/Logo'
+import Input from '../../components/ui/Input'
 
 const schema = z.object({
-  newPassword:     z.string().min(8, 'كلمة المرور يجب أن تكون 8 أحرف على الأقل'),
+  newPassword: z.string().min(8, 'Password must be at least 8 characters'),
   confirmPassword: z.string(),
-}).refine(d => d.newPassword === d.confirmPassword, {
-  message: 'كلمتا المرور غير متطابقتين',
+}).refine((d) => d.newPassword === d.confirmPassword, {
+  message: "Passwords don't match",
   path: ['confirmPassword'],
-});
-
-function PasswordStrength({ password }) {
-  const strength = !password ? 0
-    : password.length >= 12 && /[A-Z]/.test(password) && /[0-9]/.test(password) && /[^A-Za-z0-9]/.test(password) ? 4
-    : password.length >= 8 && /[A-Z]/.test(password) && /[0-9]/.test(password) ? 3
-    : password.length >= 8 ? 2
-    : 1;
-
-  const labels = ['', 'ضعيفة', 'مقبولة', 'جيدة', 'قوية'];
-  const colors = ['', 'var(--error)', 'var(--warning)', 'var(--info)', 'var(--success)'];
-
-  if (!password) return null;
-  return (
-    <div style={{ marginTop: '-8px' }}>
-      <div style={{ display: 'flex', gap: '4px', marginBottom: '4px' }}>
-        {[1,2,3,4].map(i => (
-          <div key={i} style={{
-            flex: 1, height: '3px', borderRadius: '99px',
-            background: i <= strength ? colors[strength] : 'var(--border)',
-            transition: 'all 300ms',
-          }} />
-        ))}
-      </div>
-      <span style={{ fontSize: '0.75rem', color: colors[strength] }}>{labels[strength]}</span>
-    </div>
-  );
-}
+})
 
 export default function ResetPasswordPage() {
-  const { t } = useTranslation('auth');
-  const navigate = useNavigate();
-  const [params] = useSearchParams();
-  const email = params.get('email') || '';
-  const token = params.get('token') || '';
+  const { language } = useTranslation()
+  const isAr = language === 'ar'
+  const navigate = useNavigate()
+  const [params] = useSearchParams()
+  const [loading, setLoading] = useState(false)
+  const [success, setSuccess] = useState(false)
+  const [apiError, setApiError] = useState('')
+  const [showPw, setShowPw] = useState(false)
 
-  const [apiError, setApiError] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
-  const [countdown, setCountdown] = useState(3);
+  const email = params.get('email') || ''
+  const token = params.get('token') || ''
 
-  const { register, handleSubmit, watch, formState: { errors } } = useForm({ resolver: zodResolver(schema) });
-  const password = watch('newPassword', '');
+  const { register, handleSubmit, formState: { errors } } = useForm({
+    resolver: zodResolver(schema),
+  })
 
-  useEffect(() => {
-    if (!success) return;
-    if (countdown <= 0) { navigate('/login', { replace: true }); return; }
-    const t = setTimeout(() => setCountdown(c => c - 1), 1000);
-    return () => clearTimeout(t);
-  }, [success, countdown, navigate]);
-
-  const onSubmit = async (data) => {
-    setApiError('');
-    setLoading(true);
-    try {
-      await resetPassword({ email, token, newPassword: data.newPassword });
-      setSuccess(true);
-    } catch (err) {
-      setApiError(err.response?.data?.message || 'فشل إعادة تعيين كلمة المرور، الرابط قد يكون منتهي الصلاحية');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  if (success) {
+  if (!email || !token) {
     return (
-      <AuthLayout title={t('reset_password.title', 'إعادة تعيين كلمة المرور')}>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '24px', textAlign: 'center' }}>
-          <div style={{
-            width: '72px', height: '72px', borderRadius: '50%',
-            background: 'var(--success-bg)', border: '2px solid var(--success)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
-            <CheckCircle size={36} style={{ color: 'var(--success)' }} />
-          </div>
-          <div>
-            <h2 style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '8px' }}>
-              {t('reset_password.success', 'تم تغيير كلمة المرور بنجاح')} ✅
-            </h2>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>
-              سيتم تحويلك لتسجيل الدخول خلال {countdown} ثوانٍ...
-            </p>
-          </div>
-          <Link to="/login">
-            <Button variant="primary">تسجيل الدخول الآن</Button>
+      <div className="min-h-screen flex items-center justify-center px-4">
+        <div className="text-center">
+          <p className="text-[#EF4444] mb-4">
+            {isAr ? 'رابط إعادة التعيين غير صالح.' : 'Invalid reset link.'}
+          </p>
+          <Link to="/forgot-password">
+            <Button variant="primary">
+              {isAr ? 'طلب رابط جديد' : 'Request New Link'}
+            </Button>
           </Link>
         </div>
-      </AuthLayout>
-    );
+      </div>
+    )
+  }
+
+  const onSubmit = async (data) => {
+    setLoading(true)
+    setApiError('')
+    try {
+      await authService.resetPassword(email, token, data.newPassword)
+      setSuccess(true)
+    } catch (err) {
+      setApiError(err?.problem?.detail || (isAr ? 'فشل إعادة التعيين' : 'Reset failed. The link may have expired.'))
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
-    <AuthLayout
-      title={t('reset_password.title', 'إعادة تعيين كلمة المرور')}
-      subtitle="أدخل كلمة المرور الجديدة"
-    >
-      <form onSubmit={handleSubmit(onSubmit)} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }} noValidate>
-        {apiError && (
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: '10px',
-            padding: '12px 16px', borderRadius: '8px',
-            background: 'var(--error-bg)', border: '1px solid var(--error)',
-            color: 'var(--error-text)', fontSize: '0.875rem',
-          }}>
-            <AlertCircle size={16} style={{ flexShrink: 0 }} />
-            {apiError}
+    <div className="min-h-screen flex items-center justify-center px-4 py-12">
+      <div className="w-full max-w-md">
+        <div className="bg-white rounded-2xl shadow-xl p-8 border border-[rgba(6,36,91,0.06)]">
+          <div className="flex justify-center mb-6">
+            <Logo size="md" link={true} />
           </div>
-        )}
 
-        <Input
-          label={t('reset_password.new_password', 'كلمة المرور الجديدة')}
-          type="password"
-          placeholder="8 أحرف على الأقل"
-          leftIcon={Lock}
-          error={errors.newPassword?.message}
-          required
-          {...register('newPassword')}
-        />
-        <PasswordStrength password={password} />
+          {success ? (
+            <>
+              <div className="w-16 h-16 mx-auto mb-6 bg-[#D1FAE5] rounded-2xl flex items-center justify-center">
+                <CheckCircle size={36} className="text-[#10B981]" />
+              </div>
+              <h1 className="text-2xl font-bold text-[#06245B] text-center mb-2">
+                {isAr ? 'تم التغيير بنجاح!' : 'Password Reset!'}
+              </h1>
+              <p className="text-[#64748B] text-center mb-8 text-sm">
+                {isAr ? 'يمكنك الآن تسجيل الدخول بكلمة المرور الجديدة.' : 'You can now log in with your new password.'}
+              </p>
+              <Button variant="primary" fullWidth onClick={() => navigate('/login')}>
+                {isAr ? 'تسجيل الدخول' : 'Go to Login'}
+              </Button>
+            </>
+          ) : (
+            <>
+              <div className="w-16 h-16 mx-auto mb-6 bg-[#06245B] rounded-2xl flex items-center justify-center">
+                <Lock size={28} className="text-white" />
+              </div>
+              <h1 className="text-2xl font-bold text-[#06245B] text-center mb-2">
+                {isAr ? 'إعادة تعيين كلمة المرور' : 'Reset Password'}
+              </h1>
+              <p className="text-[#64748B] text-center mb-8 text-sm">
+                {isAr ? `إعادة تعيين كلمة المرور لـ ${email}` : `Reset password for ${email}`}
+              </p>
 
-        <Input
-          label={t('reset_password.confirm_password', 'تأكيد كلمة المرور الجديدة')}
-          type="password"
-          placeholder="أعد كتابة كلمة المرور"
-          leftIcon={Lock}
-          error={errors.confirmPassword?.message}
-          required
-          {...register('confirmPassword')}
-        />
+              <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+                <div className="relative">
+                  <Input
+                    type={showPw ? 'text' : 'password'}
+                    label={isAr ? 'كلمة المرور الجديدة' : 'New Password'}
+                    {...register('newPassword')}
+                    error={errors.newPassword?.message}
+                    startIcon={<Lock size={18} />}
+                    autoComplete="new-password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPw(!showPw)}
+                    className="absolute end-3 top-9 p-1 text-[#64748B] hover:text-[#06245B] transition-colors"
+                  >
+                    {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
 
-        <Button type="submit" variant="primary" fullWidth loading={loading} disabled={loading}>
-          {t('reset_password.submit', 'حفظ كلمة المرور الجديدة')}
-        </Button>
-      </form>
-    </AuthLayout>
-  );
+                <Input
+                  type="password"
+                  label={isAr ? 'تأكيد كلمة المرور' : 'Confirm Password'}
+                  {...register('confirmPassword')}
+                  error={errors.confirmPassword?.message}
+                  startIcon={<Lock size={18} />}
+                  autoComplete="new-password"
+                />
+
+                {apiError && (
+                  <p className="text-[#EF4444] text-sm text-center">{apiError}</p>
+                )}
+
+                <Button type="submit" variant="primary" fullWidth loading={loading}>
+                  {isAr ? 'تعيين كلمة المرور' : 'Reset Password'}
+                </Button>
+              </form>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  )
 }

@@ -1,69 +1,34 @@
-import { forwardRef } from 'react';
+export function Card({ children, noPadding = false, hoverable = false, className = '', ...props }) {
+  return (
+    <div
+      className={[
+        'bg-white rounded-xl border border-[rgba(6,36,91,0.06)] shadow-[0_4px_6px_-1px_rgba(6,36,91,0.08),0_2px_4px_-2px_rgba(6,36,91,0.06)]',
+        noPadding ? '' : 'p-6',
+        hoverable ? 'transition-all duration-200 hover:shadow-[0_10px_15px_-3px_rgba(6,36,91,0.10)] hover:-translate-y-0.5 cursor-pointer' : '',
+        className,
+      ].filter(Boolean).join(' ')}
+      {...props}
+    >
+      {children}
+    </div>
+  )
+}
 
-const paddingMap = { none: '0', sm: '16px', md: '24px', lg: '32px' };
+export function CardHeader({ title, subtitle, action, className = '' }) {
+  return (
+    <div className={`flex items-start justify-between gap-4 mb-4 ${className}`}>
+      <div>
+        <h3 className="text-[#06245B] font-semibold text-base leading-tight">{title}</h3>
+        {subtitle && <p className="text-[#64748B] text-sm mt-0.5">{subtitle}</p>}
+      </div>
+      {action && <div className="shrink-0">{action}</div>}
+    </div>
+  )
+}
 
-const Card = forwardRef(({
-  children,
-  className = '',
-  padding = 'md',
-  hoverable = false,
-  as: Tag = 'div',
-  ...rest
-}, ref) => (
-  <Tag
-    ref={ref}
-    className={`dz-card animate-fade-in${className ? ` ${className}` : ''}`}
-    style={{
-      padding: paddingMap[padding] ?? paddingMap.md,
-      cursor: hoverable ? 'pointer' : undefined,
-    }}
-    {...rest}
-  >
-    {children}
-  </Tag>
-));
-Card.displayName = 'Card';
+export function CardDivider() {
+  return <div className="h-px bg-[rgba(6,36,91,0.06)] my-4" />
+}
 
-const CardHeader = ({ children, className = '', ...rest }) => (
-  <div
-    className={className}
-    style={{
-      marginBottom: '16px',
-      paddingBottom: '16px',
-      borderBottom: '1px solid var(--border)',
-    }}
-    {...rest}
-  >
-    {children}
-  </div>
-);
-CardHeader.displayName = 'CardHeader';
+export default Card
 
-const CardBody = ({ children, className = '', ...rest }) => (
-  <div className={className} {...rest}>
-    {children}
-  </div>
-);
-CardBody.displayName = 'CardBody';
-
-const CardFooter = ({ children, className = '', ...rest }) => (
-  <div
-    className={className}
-    style={{
-      marginTop: '16px',
-      paddingTop: '16px',
-      borderTop: '1px solid var(--border)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'flex-end',
-      gap: '8px',
-    }}
-    {...rest}
-  >
-    {children}
-  </div>
-);
-CardFooter.displayName = 'CardFooter';
-
-export { Card, CardHeader, CardBody, CardFooter };
-export default Card;

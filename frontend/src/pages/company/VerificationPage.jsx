@@ -1,267 +1,253 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useQuery, useMutation } from '@tanstack/react-query';
-import { useTranslation } from 'react-i18next';
-import { Upload, FileText, Trash2, CheckCircle, Clock, XCircle, AlertTriangle, ArrowRight } from 'lucide-react';
-import { getVerificationStatus, uploadVerificationDocument, submitForVerification, deleteVerificationDocument } from '../../api/companies';
-import { useAuth } from '../../context/AuthContext';
-import Button from '../../components/ui/Button';
-import Badge from '../../components/ui/Badge';
-import logo from '../../assets/logo.jpeg';
+import { useState } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { Upload, FileText, Trash2, CheckCircle } from 'lucide-react'
+import { companyService } from '../../shared/api/services/companyService'
+import { useToast } from '../../hooks/useToast'
+import { useTranslation } from '../../hooks/useTranslation'
+import { formatFileSize, formatDateTime, verificationStatusVariant } from '../../utils/format'
+import Card, { CardHeader } from '../../components/ui/Card'
+import Button from '../../components/ui/Button'
+import Badge from '../../components/ui/Badge'
+import { PageSpinner } from '../../components/ui/Spinner'
+import EmptyState from '../../components/ui/EmptyState'
 
-const DOC_TYPES = {
-  CommercialRegister: { id: 1, label: 'السجل التجاري', labelEn: 'Commercial Register', required: true },
-  TaxCard:           { id: 2, label: 'البطاقة الضريبية', labelEn: 'Tax Card', required: true },
-  IndustrialRegister:{ id: 3, label: 'السجل الصناعي', labelEn: 'Industrial Register', required: false },
-  Other:             { id: 5, label: 'وثيقة إضافية', labelEn: 'Additional Document', required: false },
-};
-
-const STATUS_CONFIG = {
-  Pending:       { label: 'في انتظار الموافقة', variant: 'warning', icon: Clock },
-  Approved:      { label: 'تم الاعتماد', variant: 'success', icon: CheckCircle },
-  Rejected:      { label: 'مرفوضة', variant: 'error', icon: XCircle },
-  NeedsMoreInfo: { label: 'يحتاج معلومات إضافية', variant: 'info', icon: AlertTriangle },
-  NotSubmitted:  { label: 'لم يُرسل بعد', variant: 'neutral', icon: FileText },
-};
-
-function FileDropZone({ label, labelEn, required, onSelect, file, onRemove, uploading, docType }) {
-  const [dragging, setDragging] = useState(false);
-
-  const handleFile = (f) => {
-    if (!f) return;
-    if (f.size > 5 * 1024 * 1024) { alert('الحجم الأقصى 5 ميجابايت'); return; }
-    if (!['application/pdf', 'image/jpeg', 'image/png', 'image/webp'].includes(f.type)) {
-      alert('الصيغ المقبولة: PDF, JPG, PNG'); return;
-    }
-    onSelect(f);
-  };
-
-  return (
-    <div>
-      <label style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
-        {label}
-        {required && <span style={{ color: 'var(--error)' }}>*</span>}
-        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 400 }}>({labelEn})</span>
-      </label>
-
-      {file ? (
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: '12px',
-          padding: '12px 16px', borderRadius: '10px',
-          background: 'var(--success-bg)', border: '1px solid var(--success)',
-        }}>
-          <FileText size={20} style={{ color: 'var(--success)', flexShrink: 0 }} />
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--success-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{file.name}</div>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{(file.size / 1024).toFixed(0)} KB</div>
-          </div>
-          <button
-            type="button"
-            onClick={onRemove}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--error)', padding: '4px', flexShrink: 0 }}
-          >
-            <Trash2 size={16} />
-          </button>
-        </div>
-      ) : (
-        <label
-          onDragOver={e => { e.preventDefault(); setDragging(true); }}
-          onDragLeave={() => setDragging(false)}
-          onDrop={e => { e.preventDefault(); setDragging(false); handleFile(e.dataTransfer.files[0]); }}
-          style={{
-            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px',
-            padding: '24px', borderRadius: '10px', cursor: 'pointer',
-            border: `2px dashed ${dragging ? 'var(--dz-cyan)' : 'var(--border)'}`,
-            background: dragging ? 'rgba(0,217,245,0.05)' : 'var(--bg-elevated)',
-            transition: 'all 200ms',
-          }}
-        >
-          <Upload size={24} style={{ color: dragging ? 'var(--dz-cyan)' : 'var(--text-muted)' }} />
-          <div style={{ textAlign: 'center' }}>
-            <span style={{ fontSize: '0.875rem', color: dragging ? 'var(--dz-cyan)' : 'var(--text-secondary)', fontWeight: 500 }}>
-              اسحب الملف هنا أو اضغط للاختيار
-            </span>
-            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px' }}>PDF, JPG, PNG — أقصى حجم 5MB</p>
-          </div>
-          <input type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" style={{ display: 'none' }} onChange={e => handleFile(e.target.files?.[0])} />
-        </label>
-      )}
-    </div>
-  );
-}
+const docTypes = [
+  { value: 1, labelEn: 'Commercial Register', labelAr: 'السجل التجاري' },
+  { value: 2, labelEn: 'Tax Card', labelAr: 'البطاقة الضريبية' },
+  { value: 3, labelEn: 'Industrial Register', labelAr: 'السجل الصناعي' },
+  { value: 4, labelEn: 'Quality Certificate', labelAr: 'شهادة الجودة' },
+  { value: 5, labelEn: 'Other Document', labelAr: 'وثيقة أخرى' },
+]
 
 export default function VerificationPage() {
-  const { t } = useTranslation('company');
-  const navigate = useNavigate();
-  const { refreshUser, company } = useAuth();
-  const [files, setFiles] = useState({});
-  const [uploading, setUploading] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
-  const [error, setError] = useState('');
+  const { t, language } = useTranslation()
+  const toast = useToast()
+  const queryClient = useQueryClient()
+  const [uploading, setUploading] = useState(false)
 
-  const { data: status, refetch } = useQuery({
-    queryKey: ['verification-status'],
-    queryFn: getVerificationStatus,
-    retry: 1,
-  });
+  const { data: status, isLoading } = useQuery({
+    queryKey: ['company', 'verification'],
+    queryFn: () => companyService.getVerificationStatus(),
+  })
 
-  const verificationStatus = status?.status || 'NotSubmitted';
-  const statusConfig = STATUS_CONFIG[verificationStatus] || STATUS_CONFIG.NotSubmitted;
-  const StatusIcon = statusConfig.icon;
-  const isApproved = verificationStatus === 'Approved';
+  const submitMutation = useMutation({
+    mutationFn: () => companyService.submitForReview(),
+    onSuccess: () => {
+      toast.success('Submitted for review successfully!')
+      queryClient.invalidateQueries({ queryKey: ['company', 'verification'] })
+    },
+    onError: (err) => {
+      toast.error(err?.problem?.detail || 'Failed to submit')
+    },
+  })
 
-  const handleSubmit = async () => {
-    if (!files[1] || !files[2]) { setError('الوثيقتان الأساسيتان مطلوبتان (السجل التجاري + البطاقة الضريبية)'); return; }
-    setError('');
-    setUploading(true);
+  const deleteMutation = useMutation({
+    mutationFn: (docId) => companyService.deleteVerificationDocument(docId),
+    onSuccess: () => {
+      toast.success('Document deleted')
+      queryClient.invalidateQueries({ queryKey: ['company', 'verification'] })
+    },
+    onError: (err) => {
+      toast.error(err?.problem?.detail || 'Failed to delete document')
+    },
+  })
+
+  const handleUpload = async (docType, file) => {
+    setUploading(true)
     try {
-      for (const [docType, file] of Object.entries(files)) {
-        await uploadVerificationDocument(file, Number(docType));
-      }
-      await submitForVerification();
-      await refreshUser();
-      setSubmitted(true);
-      await refetch();
+      await companyService.uploadVerificationDocument(docType, file)
+      toast.success('Document uploaded successfully!')
+      queryClient.invalidateQueries({ queryKey: ['company', 'verification'] })
     } catch (err) {
-      setError(err.response?.data?.message || 'فشل رفع الوثائق');
+      toast.error(err?.problem?.detail || 'Upload failed')
     } finally {
-      setUploading(false);
+      setUploading(false)
     }
-  };
+  }
+
+  if (isLoading) return <PageSpinner />
+
+  const canSubmit =
+    status?.companyVerificationStatus === 'Pending' ||
+    status?.companyVerificationStatus === 'ChangesRequired'
+
+  const hasRequiredDocs =
+    status?.documents.some((d) => d.documentType === 'CommercialRegister') &&
+    status?.documents.some((d) => d.documentType === 'TaxCard')
 
   return (
-    <div style={{ minHeight: '100svh', background: 'var(--bg-canvas)', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: 'clamp(24px, 5vw, 48px) clamp(16px, 4vw, 32px)' }}>
-      {/* Header */}
-      <div style={{ width: '100%', maxWidth: '640px', marginBottom: '32px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
-          <img src={logo} alt="DealZone" style={{ height: '40px', width: '40px', borderRadius: '10px', objectFit: 'cover' }} />
-          <span style={{ fontWeight: 800, fontSize: '1.125rem', color: 'var(--text-primary)' }}>DEAL ZONE</span>
-        </div>
-        {/* Step indicator */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'var(--success)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-              <CheckCircle size={16} style={{ color: '#fff' }} />
-            </div>
-            <span style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>بيانات الشركة</span>
-          </div>
-          <div style={{ flex: 1, height: '2px', background: 'var(--dz-cyan)', borderRadius: '1px' }} />
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'var(--dz-cyan)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: 700, color: '#070E1C', flexShrink: 0 }}>2</div>
-            <span style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)' }}>التوثيق</span>
-          </div>
-        </div>
-        <h1 style={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '8px' }}>
-          توثيق الشركة 📄
-        </h1>
-        <p style={{ color: 'var(--text-secondary)', fontSize: '0.9375rem' }}>
-          ارفع وثائق الشركة الرسمية للحصول على الموافقة والبدء في التداول
-        </p>
-      </div>
+    <div className="max-w-3xl mx-auto">
+      <Card>
+        <CardHeader
+          title={t('company.verification.status')}
+          subtitle={language === 'ar' ? 'أرفق المستندات المطلوبة للتحقق' : 'Upload required documents for verification'}
+          action={
+            <Badge variant={verificationStatusVariant(status?.companyVerificationStatus || '')} dot>
+              {t(`company.verification.${status?.companyVerificationStatus?.toLowerCase() || 'pending'}`)}
+            </Badge>
+          }
+        />
 
-      {/* Status Card */}
-      <div className="dz-card animate-fade-in" style={{ width: '100%', maxWidth: '640px', padding: '20px 24px', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '16px' }}>
-        <div style={{
-          width: '44px', height: '44px', borderRadius: '12px', flexShrink: 0,
-          background: `var(--${statusConfig.variant === 'success' ? 'success' : statusConfig.variant === 'warning' ? 'warning' : statusConfig.variant === 'error' ? 'error' : 'info'}-bg, var(--bg-elevated))`,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          color: `var(--${statusConfig.variant === 'neutral' ? 'text-muted' : statusConfig.variant})`,
-        }}>
-          <StatusIcon size={22} />
-        </div>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontWeight: 600, color: 'var(--text-primary)', marginBottom: '4px' }}>
-            حالة التوثيق:
-            <Badge variant={statusConfig.variant} style={{ marginInlineStart: '10px' }}>{statusConfig.label}</Badge>
+        {status?.companyVerificationStatus === 'Rejected' && (
+          <div className="mb-6 p-4 rounded-xl bg-red-50 border border-[#EF4444]/20 text-[#EF4444]">
+            <h4 className="font-semibold text-sm mb-1">
+              {language === 'ar' ? 'تم رفض طلب التحقق' : 'Verification Application Rejected'}
+            </h4>
+            <p className="text-xs">
+              {language === 'ar'
+                ? 'تم رفض طلب التحقق الخاص بشركتكم من قبل إدارة المنصة. يرجى التواصل مع الدعم الفني لمزيد من المعلومات: support@dealzone.eg'
+                : 'Your verification request was rejected by platform administration. Please contact support@dealzone.eg for further assistance.'}
+            </p>
           </div>
-          {status?.adminNotes && (
-            <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>{status.adminNotes}</p>
-          )}
-        </div>
-      </div>
+        )}
 
-      {isApproved ? (
-        <div className="dz-card" style={{ width: '100%', maxWidth: '640px', padding: '32px', textAlign: 'center' }}>
-          <CheckCircle size={48} style={{ color: 'var(--success)', margin: '0 auto 16px' }} />
-          <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '8px' }}>
-            تم اعتماد شركتك! 🎉
-          </h2>
-          <p style={{ color: 'var(--text-secondary)', marginBottom: '24px' }}>
-            يمكنك الآن البدء في استخدام منصة DealZone كاملاً
-          </p>
-          <Button variant="primary" size="lg" rightIcon={ArrowRight} onClick={() => navigate('/dashboard')}>
-            الذهاب للوحة التحكم
-          </Button>
-        </div>
-      ) : !submitted ? (
-        <div className="dz-card animate-fade-in" style={{ width: '100%', maxWidth: '640px', padding: '32px' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-            {error && (
-              <div style={{
-                display: 'flex', alignItems: 'center', gap: '10px',
-                padding: '12px 16px', borderRadius: '8px',
-                background: 'var(--error-bg)', border: '1px solid var(--error)',
-                color: 'var(--error-text)', fontSize: '0.875rem',
-              }}>
-                <AlertTriangle size={16} style={{ flexShrink: 0 }} />
-                {error}
+        {status?.companyVerificationStatus === 'ChangesRequired' && (
+          <div className="mb-6 p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-900">
+            <h4 className="font-semibold text-sm mb-1">
+              {language === 'ar' ? 'مطلوب تعديلات على المستندات' : 'Modifications Requested'}
+            </h4>
+            <p className="text-xs">
+              {language === 'ar'
+                ? 'طلبت إدارة المنصة استبدال بعض المستندات أو تحديثها. يرجى مراجعة الملاحظات أدناه ورفع المستندات المطلوبة ثم إعادة التقديم.'
+                : 'Platform administrators requested updates to your submitted documents. Review the notes below, upload updated documents, and resubmit.'}
+            </p>
+          </div>
+        )}
+
+        {/* Document types */}
+        <div className="space-y-4 mb-6">
+          {docTypes.slice(0, 2).map((docType) => {
+            const uploaded = status?.documents.find((d) => d.documentType === docType.labelEn)
+            return (
+              <div
+                key={docType.value}
+                className="border border-[rgba(6,36,91,0.06)] rounded-xl p-4"
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex items-start gap-3 flex-1">
+                    <div className="w-10 h-10 rounded-lg bg-[#EAF4FF] flex items-center justify-center shrink-0">
+                      <FileText size={20} className="text-[#1266D6]" />
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="font-semibold text-[#06245B] text-sm mb-1">
+                        {language === 'ar' ? docType.labelAr : docType.labelEn}
+                        <Badge variant="error" className="ms-2">
+                          {t('common.required')}
+                        </Badge>
+                      </h4>
+                      {uploaded ? (
+                        <div>
+                          <p className="text-xs text-[#64748B] mb-1">{uploaded.fileName}</p>
+                          <p className="text-xs text-[#64748B]">
+                            {formatFileSize(uploaded.fileSizeBytes)} •{' '}
+                            {formatDateTime(uploaded.uploadedAtUtc, language)}
+                          </p>
+                          {uploaded.rejectionReason && (
+                            <p className="text-xs text-[#EF4444] mt-1 bg-red-50 p-1.5 rounded">
+                              {language === 'ar' ? 'سبب الرفض: ' : 'Rejection Reason: '}
+                              {uploaded.rejectionReason}
+                            </p>
+                          )}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-[#64748B]">
+                          {language === 'ar' ? 'لم يتم الرفع' : 'Not uploaded'}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2 shrink-0">
+                    {uploaded ? (
+                      <>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          icon={<CheckCircle size={16} />}
+                          disabled
+                        >
+                          {language === 'ar' ? 'مرفوع' : 'Uploaded'}
+                        </Button>
+                        {canSubmit && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            icon={<Trash2 size={16} />}
+                            onClick={() => deleteMutation.mutate(uploaded.id)}
+                            loading={deleteMutation.isPending}
+                          />
+                        )}
+                      </>
+                    ) : (
+                      <label>
+                        <input
+                          type="file"
+                          accept=".pdf,.jpg,.jpeg,.png"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0]
+                            if (file) handleUpload(docType.value, file)
+                          }}
+                          disabled={!canSubmit || uploading}
+                        />
+                        <Button
+                          as="span"
+                          size="sm"
+                          variant="outline"
+                          icon={<Upload size={16} />}
+                          disabled={!canSubmit || uploading}
+                        >
+                          {language === 'ar' ? 'رفع' : 'Upload'}
+                        </Button>
+                      </label>
+                    )}
+                  </div>
+                </div>
               </div>
-            )}
+            )
+          })}
+        </div>
 
-            <FileDropZone
-              label={DOC_TYPES.CommercialRegister.label}
-              labelEn={DOC_TYPES.CommercialRegister.labelEn}
-              required={true}
-              file={files[1]}
-              onSelect={f => setFiles(p => ({ ...p, 1: f }))}
-              onRemove={() => setFiles(p => { const n = { ...p }; delete n[1]; return n; })}
-            />
-
-            <FileDropZone
-              label={DOC_TYPES.TaxCard.label}
-              labelEn={DOC_TYPES.TaxCard.labelEn}
-              required={true}
-              file={files[2]}
-              onSelect={f => setFiles(p => ({ ...p, 2: f }))}
-              onRemove={() => setFiles(p => { const n = { ...p }; delete n[2]; return n; })}
-            />
-
-            <FileDropZone
-              label={DOC_TYPES.IndustrialRegister.label}
-              labelEn={DOC_TYPES.IndustrialRegister.labelEn}
-              required={false}
-              file={files[3]}
-              onSelect={f => setFiles(p => ({ ...p, 3: f }))}
-              onRemove={() => setFiles(p => { const n = { ...p }; delete n[3]; return n; })}
-            />
-
+        {/* Submit button */}
+        {canSubmit && (
+          <div className="border-t pt-4 border-[rgba(6,36,91,0.06)]">
             <Button
-              type="button"
               variant="primary"
               fullWidth
-              size="lg"
-              loading={uploading}
-              disabled={uploading}
-              onClick={handleSubmit}
+              onClick={() => submitMutation.mutate()}
+              loading={submitMutation.isPending}
+              disabled={!hasRequiredDocs}
             >
-              رفع الوثائق وإرسال للمراجعة
+              {t('company.verification.submit')}
             </Button>
+            {!hasRequiredDocs && (
+              <p className="text-xs text-[#EF4444] mt-2 text-center">
+                {language === 'ar'
+                  ? 'يجب رفع السجل التجاري والبطاقة الضريبية'
+                  : 'Commercial Register and Tax Card are required'}
+              </p>
+            )}
           </div>
-        </div>
-      ) : (
-        <div className="dz-card" style={{ width: '100%', maxWidth: '640px', padding: '32px', textAlign: 'center' }}>
-          <Clock size={48} style={{ color: 'var(--warning)', margin: '0 auto 16px' }} />
-          <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '8px' }}>
-            في انتظار المراجعة ⏳
-          </h2>
-          <p style={{ color: 'var(--text-secondary)', marginBottom: '24px' }}>
-            تم رفع وثائقك بنجاح. سيتم مراجعتها خلال 1-3 أيام عمل وسيصلك إشعار بالنتيجة.
-          </p>
-          <Button variant="secondary" onClick={() => navigate('/dashboard')}>
-            العودة للوحة التحكم
-          </Button>
-        </div>
-      )}
+        )}
+
+        {status?.companyVerificationStatus === 'UnderReview' && (
+          <div className="text-center py-4">
+            <p className="text-sm text-[#64748B]">
+              {language === 'ar'
+                ? 'مستنداتك قيد المراجعة. سنخطرك قريباً.'
+                : "Your documents are under review. We'll notify you soon."}
+            </p>
+          </div>
+        )}
+
+        {status?.companyVerificationStatus === 'Approved' && (
+          <EmptyState
+            icon={CheckCircle}
+            title={language === 'ar' ? 'شركتك معتمدة!' : 'Your company is verified!'}
+            description={language === 'ar' ? 'يمكنك الآن البدء في استخدام المنصة' : 'You can now start using the platform'}
+          />
+        )}
+      </Card>
     </div>
-  );
+  )
 }
