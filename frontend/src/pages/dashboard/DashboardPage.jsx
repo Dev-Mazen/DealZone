@@ -35,14 +35,14 @@ export default function DashboardPage() {
   if (!hasCompany) {
     return (
       <div className="max-w-2xl mx-auto py-12">
-        <div className="bg-white rounded-3xl p-8 border border-slate-200/80 shadow-xl text-center">
+        <div className="bg-white rounded-3xl p-8 border border-[rgba(6,36,91,0.08)] shadow-xl text-center">
           <div className="w-20 h-20 mx-auto mb-6 bg-[#EAF4FF] rounded-2xl flex items-center justify-center shadow-inner">
             <Building2 size={40} className="text-[#1266D6]" />
           </div>
           <h2 className="text-2xl font-extrabold text-[#06245B] mb-3">
             {isAr ? 'أكمل تسجيل شركتك الصناعية' : 'Complete Your Enterprise Profile'}
           </h2>
-          <p className="text-slate-600 mb-8 max-w-lg mx-auto leading-relaxed">
+          <p className="text-[#64748B] mb-8 max-w-lg mx-auto leading-relaxed">
             {isAr
               ? 'للوصول إلى الكتالوج ونشر طلبات الأسعار أو تقديم العروض، يجب تسجيل بيانات الشركة والتحقق من السجل التجاري والبطاقة الضريبية.'
               : 'To access industrial catalogs, publish RFQs, or submit offers, please provide your registered business credentials and commercial tax information.'}
@@ -61,19 +61,19 @@ export default function DashboardPage() {
   if (!isVerified) {
     return (
       <div className="max-w-3xl mx-auto py-8">
-        <div className="bg-white rounded-3xl p-8 border border-amber-200/80 shadow-lg">
+        <div className="bg-white rounded-3xl p-8 border border-[rgba(245,158,11,0.3)] shadow-lg">
           <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6">
-            <div className="w-16 h-16 bg-amber-50 rounded-2xl flex items-center justify-center shrink-0 border border-amber-200">
-              <AlertCircle size={32} className="text-amber-600" />
+            <div className="w-16 h-16 bg-[rgba(245,158,11,0.08)] rounded-2xl flex items-center justify-center shrink-0 border border-[rgba(245,158,11,0.3)]">
+              <AlertCircle size={32} className="text-[#F59E0B]" />
             </div>
             <div className="text-center sm:text-start flex-1">
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-100 text-amber-800 text-xs font-bold mb-3">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[rgba(245,158,11,0.1)] text-[#92400E] text-xs font-bold mb-3">
                 <span>{isAr ? 'قيد التدقيق والمراجعة' : 'Verification Under Review'}</span>
               </div>
               <h2 className="text-xl font-bold text-[#06245B] mb-2">
                 {isAr ? 'ملف شركتك يخضع للتحقق القانوني' : 'Company Credentials Under Review'}
               </h2>
-              <p className="text-slate-600 text-sm leading-relaxed mb-6">
+              <p className="text-[#64748B] text-sm leading-relaxed mb-6">
                 {isAr
                   ? 'يقوم فريق DealZone بمراجعة السجل التجاري والبطاقة الضريبية المرفقة لضمان أمان المعاملات. يمكنك تصفح الكتالوج ريثما يتم اعتماد الحساب.'
                   : 'Our compliance officers are vetting your commercial registration and tax card documents. You can explore the industrial taxonomy and catalog while awaiting approval.'}
@@ -120,7 +120,7 @@ export default function DashboardPage() {
   ]
 
   return (
-    <div className="space-y-8 animate-fade-in">
+    <div className="space-y-8 animate-fade-in overflow-x-hidden">
       {/* ============================================================
           EXECUTIVE WELCOME BANNER
           ============================================================ */}

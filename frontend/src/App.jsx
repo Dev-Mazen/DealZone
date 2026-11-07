@@ -33,6 +33,7 @@ const NotificationsPage = lazy(() => import('./pages/notifications/Notifications
 const ProfilePage = lazy(() => import('./pages/settings/ProfilePage'))
 const CompanySettingsPage = lazy(() => import('./pages/settings/CompanySettingsPage'))
 const ShipmentDetailPage = lazy(() => import('./pages/shipments/ShipmentDetailPage'))
+const ButtonTestPage = lazy(() => import('./pages/ButtonTestPage'))
 
 // Admin pages
 const AdminLayout = lazy(() => import('./pages/admin/AdminLayout'))
@@ -111,6 +112,7 @@ function App() {
               <Route path="/confirm-email" element={<ConfirmEmailPage />} />
               <Route path="/forgot-password" element={<ForgotPasswordPage />} />
               <Route path="/reset-password" element={<ResetPasswordPage />} />
+              <Route path="/button-test" element={<ButtonTestPage />} />
             </Route>
 
             {/* Protected routes */}

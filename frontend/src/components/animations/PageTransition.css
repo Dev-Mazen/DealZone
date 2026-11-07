@@ -1,0 +1,34 @@
+/**
+ * PageTransition styles
+ * 
+ * Implements smooth fade-in and slide-up animations
+ * Respects user's motion preferences for accessibility
+ */
+
+.page-transition {
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 200ms ease-out, transform 200ms ease-out;
+}
+
+.page-transition-enter {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/**
+ * Accessibility: Disable animations for users who prefer reduced motion
+ * When prefers-reduced-motion is set, animations are instant (0ms duration)
+ */
+@media (prefers-reduced-motion: reduce) {
+  .page-transition {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+  
+  .page-transition-enter {
+    opacity: 1;
+    transform: none;
+  }
+}

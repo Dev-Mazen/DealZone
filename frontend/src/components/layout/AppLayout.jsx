@@ -2,12 +2,13 @@ import { Outlet } from 'react-router-dom'
 import Navbar from './Navbar'
 import Sidebar from './Sidebar'
 import { useUIStore } from '../../store/uiStore'
+import { PageTransition } from '../animations'
 
 export default function AppLayout({ children }) {
   const sidebarCollapsed = useUIStore((s) => s.sidebarCollapsed)
 
   return (
-    <div className="min-h-screen bg-[#F4F7FB]">
+    <div className="min-h-screen bg-[#F4F7FB] overflow-x-hidden">
       <Navbar />
       
       <div className="flex">
@@ -15,12 +16,14 @@ export default function AppLayout({ children }) {
         
         <main
           className={[
-            'flex-1 transition-all duration-300 pt-20',
+            'flex-1 min-w-0 transition-all duration-300 pt-20',
             sidebarCollapsed ? 'md:ms-20' : 'md:ms-64',
           ].join(' ')}
         >
           <div className="container py-6">
-            {children || <Outlet />}
+            <PageTransition>
+              {children || <Outlet />}
+            </PageTransition>
           </div>
         </main>
       </div>
@@ -34,7 +37,9 @@ export function PublicLayout({ children }) {
     <div className="min-h-screen bg-[#F4F7FB]">
       <Navbar />
       <main className="pt-20">
-        {children || <Outlet />}
+        <PageTransition>
+          {children || <Outlet />}
+        </PageTransition>
       </main>
     </div>
   )
