@@ -68,7 +68,7 @@ const Button = forwardRef(
         ref={ref}
         {...buttonProps}
         className={[
-          'inline-flex items-center justify-center transition-all duration-150 select-none whitespace-nowrap cursor-pointer',
+          'inline-flex items-center justify-center transition-all duration-200 select-none whitespace-nowrap cursor-pointer',
           styles[variant],
           sizes[size],
           fullWidth ? 'w-full' : '',

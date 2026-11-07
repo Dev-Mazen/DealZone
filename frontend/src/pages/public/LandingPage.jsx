@@ -10,7 +10,9 @@ import {
   Sparkles,
   TrendingUp,
   ArrowUpRight,
-  Award,
+  Factory,
+  Globe,
+  Star,
 } from 'lucide-react'
 import Button from '../../components/ui/Button'
 import { useTranslation } from '../../hooks/useTranslation'
@@ -91,6 +93,7 @@ export default function LandingPage() {
       desc: isAr
         ? 'حدد المواد الخام والكميات المطلوبة ومكان التسليم والمواصفات الفنية بدقة.'
         : 'Specify materials, exact target quantities, delivery location, and technical parameters.',
+      image: '/images/tenders-reverse-bidding.jpeg',
     },
     {
       step: '02',
@@ -98,6 +101,7 @@ export default function LandingPage() {
       desc: isAr
         ? 'قارن عروض الأسعار المفصلة من كبار الموردين المعتمدين مع إمكانية طلب مراجعة العرض.'
         : 'Compare itemized proposals from verified suppliers and request structured revisions.',
+      image: '/images/marketplace-categories.jpeg',
     },
     {
       step: '03',
@@ -105,22 +109,52 @@ export default function LandingPage() {
       desc: isAr
         ? 'تعاقد فوري ملزم يثبت الشروط التجارية مع متابعة مراحل الشحن والتسليم حتى باب المصنع.'
         : 'Atomic binding deal freezes terms and enables end-to-end logistics tracking to factory door.',
+      image: '/images/how-it-works-logistics.jpeg',
     },
+  ]
+
+  const trustedBy = [
+    isAr ? 'مصانع العاشر من رمضان' : 'Al-Obour Industrial Zone',
+    isAr ? 'السادس من أكتوبر' : '6th of October City',
+    isAr ? 'برج العرب' : 'Borg El Arab',
+    isAr ? 'مدينة السادات' : 'Sadat City',
+    isAr ? 'الإسكندرية الصناعية' : 'Alexandria Industrial',
   ]
 
   return (
     <div className="min-h-screen bg-[#F4F7FB] selection:bg-[#00D9F5]/20 selection:text-[#06245B]">
       {/* ============================================================
-          HERO SECTION — DEEP INDUSTRIAL NAVY GRADIENT
+          HERO SECTION — FULL IMAGE BACKGROUND WITH OVERLAY
           ============================================================ */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-[#06245B] via-[#0A3078] to-[#1266D6] text-white pt-24 pb-28 px-4 sm:px-6 lg:px-8">
-        <div className="container relative z-10 max-w-5xl mx-auto text-center">
+      <section className="relative overflow-hidden min-h-[88vh] flex items-center text-white">
+        {/* Background image */}
+        <div className="absolute inset-0 z-0">
+          <img
+            src="/images/hero-landing.jpeg"
+            alt="DealZone industrial procurement platform"
+            className="w-full h-full object-cover object-center"
+            loading="eager"
+          />
+          {/* Deep navy gradient overlay for readability */}
+          <div className="absolute inset-0 bg-gradient-to-br from-[#06245B]/95 via-[#0A3078]/88 to-[#1266D6]/80" />
+          {/* Subtle pattern overlay */}
+          <div
+            className="absolute inset-0 opacity-5"
+            style={{
+              backgroundImage:
+                'radial-gradient(circle at 1px 1px, rgba(255,255,255,0.4) 1px, transparent 0)',
+              backgroundSize: '32px 32px',
+            }}
+          />
+        </div>
+
+        <div className="container relative z-10 max-w-6xl mx-auto text-center pt-24 pb-28 px-4 sm:px-6 lg:px-8">
           {/* Official Logo Banner */}
           <div className="flex justify-center mb-6">
             <Logo size="lg" variant="white" link={false} />
           </div>
 
-          {/* Badge: Official Egyptian Industrial Platform */}
+          {/* Badge */}
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-[#00D9F5] text-xs sm:text-sm font-semibold mb-8 shadow-sm">
             <Sparkles size={16} />
             <span>
@@ -222,6 +256,28 @@ export default function LandingPage() {
       </section>
 
       {/* ============================================================
+          TRUSTED ZONES BANNER
+          ============================================================ */}
+      <section className="py-8 bg-[#F4F7FB] border-b border-slate-200">
+        <div className="container max-w-6xl mx-auto px-4">
+          <p className="text-center text-xs font-bold text-[#64748B] uppercase tracking-widest mb-5">
+            {isAr ? 'يخدم كبرى المناطق الصناعية في مصر' : "Serving Egypt's Top Industrial Zones"}
+          </p>
+          <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-6">
+            {trustedBy.map((zone, i) => (
+              <div
+                key={i}
+                className="flex items-center gap-1.5 px-4 py-2 bg-white rounded-full border border-slate-200 text-xs font-semibold text-[#06245B] shadow-xs"
+              >
+                <Factory size={13} className="text-[#1266D6]" />
+                {zone}
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ============================================================
           LIVE INDUSTRIAL PROCUREMENT VOLUME (DATA VISUALIZATION)
           ============================================================ */}
       <section className="py-20 bg-white">
@@ -239,7 +295,7 @@ export default function LandingPage() {
                 <p className="text-slate-600 text-sm leading-relaxed mb-6">
                   {isAr
                     ? 'يعكس المخطط تصاعد إجمالي أطنان المواد الخام المتداولة شهرياً في قطاعات الحديد والكيماويات والبوليمرات عبر كبرى المناطق الصناعية المصرية.'
-                    : 'Real-time overview of monthly raw material trading tonnage across Egypt’s major industrial manufacturing zones.'}
+                    : "Real-time overview of monthly raw material trading tonnage across Egypt's major industrial manufacturing zones."}
                 </p>
                 <div className="flex items-center gap-4">
                   <Button as={Link} to="/catalog" variant="outline" size="sm">
@@ -262,6 +318,9 @@ export default function LandingPage() {
                   height={220}
                   valueFormatter={(v) => `${v.toLocaleString()} MT`}
                 />
+                <p className="text-[10px] text-slate-400 mt-2 text-center">
+                  {isAr ? '* بيانات توضيحية — تعكس الاتجاه العام' : '* Illustrative data — reflects general market trend'}
+                </p>
               </div>
             </div>
           </div>
@@ -269,10 +328,11 @@ export default function LandingPage() {
       </section>
 
       {/* ============================================================
-          FEATURES SECTION ("WHY DEALZONE?")
+          FEATURES SECTION WITH IMAGE
           ============================================================ */}
       <section className="py-20 bg-[#F4F7FB]">
         <div className="container max-w-6xl mx-auto px-4">
+          {/* Section header */}
           <div className="text-center max-w-3xl mx-auto mb-16">
             <h2 className="text-3xl sm:text-4xl font-extrabold text-[#06245B] mb-4 tracking-tight">
               {isAr ? 'لماذا تختار منصة DealZone؟' : 'Why Choose DealZone?'}
@@ -284,34 +344,64 @@ export default function LandingPage() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {features.map((feature, i) => {
-              const Icon = feature.icon
-              return (
-                <div
-                  key={i}
-                  className="bg-white rounded-2xl p-7 border border-slate-200/80 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between"
-                >
-                  <div>
-                    <div className="w-12 h-12 rounded-xl bg-[#EAF4FF] text-[#1266D6] flex items-center justify-center mb-5 shadow-xs">
-                      <Icon size={26} />
+          {/* Two-column layout: image left, features right */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center mb-16">
+            {/* Image */}
+            <div className="relative rounded-3xl overflow-hidden shadow-xl aspect-[4/3] order-2 lg:order-1">
+              <img
+                src="/images/about-why-choose-us.jpeg"
+                alt="Why choose DealZone"
+                className="w-full h-full object-cover object-center"
+                loading="lazy"
+              />
+              {/* Overlay badge */}
+              <div className="absolute bottom-4 left-4 right-4">
+                <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-4 shadow-lg border border-white/50">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-[#EAF4FF] flex items-center justify-center shrink-0">
+                      <Star size={20} className="text-[#1266D6]" />
                     </div>
-                    <h3 className="text-lg font-bold text-[#06245B] mb-3">
+                    <div>
+                      <p className="text-sm font-bold text-[#06245B]">
+                        {isAr ? 'الموردون المعتمدون فقط' : 'Verified Suppliers Only'}
+                      </p>
+                      <p className="text-xs text-slate-500">
+                        {isAr ? 'تدقيق قانوني وضريبي لكل شركة' : 'Legal & tax vetting for every company'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Features grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 order-1 lg:order-2">
+              {features.map((feature, i) => {
+                const Icon = feature.icon
+                return (
+                  <div
+                    key={i}
+                    className="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300"
+                  >
+                    <div className="w-11 h-11 rounded-xl bg-[#EAF4FF] text-[#1266D6] flex items-center justify-center mb-4 shadow-xs">
+                      <Icon size={22} />
+                    </div>
+                    <h3 className="text-base font-bold text-[#06245B] mb-2">
                       {feature.title}
                     </h3>
-                    <p className="text-sm text-slate-600 leading-relaxed">
+                    <p className="text-xs text-slate-600 leading-relaxed">
                       {feature.desc}
                     </p>
                   </div>
-                </div>
-              )
-            })}
+                )
+              })}
+            </div>
           </div>
         </div>
       </section>
 
       {/* ============================================================
-          WORKFLOW STEPS SECTION ("HOW IT WORKS")
+          WORKFLOW STEPS SECTION WITH REAL IMAGES
           ============================================================ */}
       <section className="py-20 bg-white border-t border-slate-200">
         <div className="container max-w-6xl mx-auto px-4">
@@ -329,21 +419,35 @@ export default function LandingPage() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 relative">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {steps.map((st, i) => (
               <div
                 key={i}
-                className="bg-[#F8FAFC] border border-slate-200 rounded-2xl p-8 relative hover:border-[#1266D6] transition-colors"
+                className="group bg-[#F8FAFC] border border-slate-200 rounded-2xl overflow-hidden hover:border-[#1266D6] hover:shadow-xl transition-all duration-300"
               >
-                <div className="text-3xl font-black text-[#00D9F5] mb-4">
-                  {st.step}
+                {/* Step image */}
+                <div className="relative aspect-video overflow-hidden">
+                  <img
+                    src={st.image}
+                    alt={st.title}
+                    className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
+                    loading="lazy"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#06245B]/60 to-transparent" />
+                  <div className="absolute bottom-3 left-4 text-3xl font-black text-white drop-shadow">
+                    {st.step}
+                  </div>
                 </div>
-                <h3 className="text-xl font-bold text-[#06245B] mb-3">
-                  {st.title}
-                </h3>
-                <p className="text-sm text-slate-600 leading-relaxed">
-                  {st.desc}
-                </p>
+
+                {/* Step content */}
+                <div className="p-6">
+                  <h3 className="text-lg font-bold text-[#06245B] mb-2">
+                    {st.title}
+                  </h3>
+                  <p className="text-sm text-slate-600 leading-relaxed">
+                    {st.desc}
+                  </p>
+                </div>
               </div>
             ))}
           </div>
@@ -351,10 +455,45 @@ export default function LandingPage() {
       </section>
 
       {/* ============================================================
-          BOTTOM CALL TO ACTION (CTA)
+          INDUSTRIAL GALLERY STRIP
           ============================================================ */}
-      <section className="py-20 bg-gradient-to-br from-[#06245B] via-[#0A3078] to-[#1266D6] text-white">
-        <div className="container max-w-4xl mx-auto text-center px-4">
+      <section className="py-12 bg-[#F4F7FB] overflow-hidden">
+        <div className="container max-w-6xl mx-auto px-4">
+          <p className="text-center text-xs font-bold text-[#64748B] uppercase tracking-widest mb-6">
+            {isAr ? 'القطاعات الصناعية المدعومة' : 'Supported Industrial Sectors'}
+          </p>
+          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-7 gap-3">
+            {[1, 2, 3, 4, 5, 6, 7].map((n) => (
+              <div
+                key={n}
+                className="aspect-square rounded-xl overflow-hidden border border-slate-200 shadow-sm hover:shadow-md hover:scale-105 transition-all duration-200"
+              >
+                <img
+                  src={`/images/industrial-${n}.jpeg`}
+                  alt={`Industrial sector ${n}`}
+                  className="w-full h-full object-cover object-center"
+                  loading="lazy"
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ============================================================
+          BOTTOM CALL TO ACTION
+          ============================================================ */}
+      <section className="py-20 bg-gradient-to-br from-[#06245B] via-[#0A3078] to-[#1266D6] text-white relative overflow-hidden">
+        {/* Background texture */}
+        <div
+          className="absolute inset-0 opacity-5"
+          style={{
+            backgroundImage:
+              'radial-gradient(circle at 1px 1px, rgba(255,255,255,0.4) 1px, transparent 0)',
+            backgroundSize: '24px 24px',
+          }}
+        />
+        <div className="container max-w-4xl mx-auto text-center px-4 relative z-10">
           <Building2 size={48} className="text-[#00D9F5] mx-auto mb-6" />
           <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-white mb-6 tracking-tight">
             {isAr ? 'جاهز لتطوير مشتريات مصنعك؟' : 'Ready to Streamline Your Industrial Procurement?'}
@@ -389,12 +528,11 @@ export default function LandingPage() {
       </section>
 
       {/* ============================================================
-          FOOTER — OFFICIAL LOGO & CLEAN LINKS
+          FOOTER
           ============================================================ */}
       <footer className="bg-[#041638] text-slate-400 py-12 border-t border-white/10 text-sm">
         <div className="container max-w-6xl mx-auto px-4 flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-4">
-            {/* Official DealZone Logo */}
             <Logo size="sm" variant="white" link={true} />
             <span className="text-xs text-slate-500 border-s border-slate-700 ps-4">
               {isAr ? 'منصة التوريد الصناعي الذكية' : 'B2B Industrial Marketplace'}

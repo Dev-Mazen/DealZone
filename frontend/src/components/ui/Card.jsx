@@ -1,17 +1,59 @@
-export function Card({ children, noPadding = false, hoverable = false, className = '', ...props }) {
+/**
+ * Card Component
+ * 
+ * A flexible container component with elevation variants, padding options, and hover effects.
+ * Implements the DealZone design system with 8px border radius and soft shadows.
+ * 
+ * @param {Object} props
+ * @param {ReactNode} props.children - Card content
+ * @param {'default' | 'elevated' | 'bordered'} props.variant - Visual variant (default: 'default')
+ * @param {'none' | 'sm' | 'md' | 'lg'} props.padding - Padding size (default: 'md')
+ * @param {boolean} props.hover - Enable hover elevation effect (default: false)
+ * @param {string} props.className - Additional CSS classes
+ * 
+ * Requirements: 1.3, 1.4, 3.2
+ */
+export function Card({ 
+  children, 
+  variant = 'default', 
+  padding = 'md', 
+  hover = false, 
+  className = '', 
+  ...props 
+}) {
+  // Variant styles - elevation and borders
+  const variantStyles = {
+    default: 'bg-white rounded-lg border border-[rgba(6,36,91,0.06)] shadow-[0_4px_6px_-1px_rgba(6,36,91,0.08),0_2px_4px_-2px_rgba(6,36,91,0.06)]',
+    elevated: 'bg-white rounded-lg shadow-[0_4px_20px_-2px_rgba(6,36,91,0.08)]',
+    bordered: 'bg-white rounded-lg border-2 border-[#F4F7FB]',
+  };
+
+  // Padding size options
+  const paddingStyles = {
+    none: '',
+    sm: 'p-4',    // 16px
+    md: 'p-6',    // 24px
+    lg: 'p-8',    // 32px
+  };
+
+  // Hover elevation effect with shadow transition
+  const hoverStyles = hover 
+    ? 'transition-all duration-300 ease-out hover:shadow-[0_10px_15px_-3px_rgba(6,36,91,0.10),0_4px_6px_-4px_rgba(6,36,91,0.05)] hover:-translate-y-0.5 cursor-pointer' 
+    : '';
+
   return (
     <div
       className={[
-        'bg-white rounded-xl border border-[rgba(6,36,91,0.06)] shadow-[0_4px_6px_-1px_rgba(6,36,91,0.08),0_2px_4px_-2px_rgba(6,36,91,0.06)]',
-        noPadding ? '' : 'p-6',
-        hoverable ? 'transition-all duration-200 hover:shadow-[0_10px_15px_-3px_rgba(6,36,91,0.10)] hover:-translate-y-0.5 cursor-pointer' : '',
+        variantStyles[variant],
+        paddingStyles[padding],
+        hoverStyles,
         className,
       ].filter(Boolean).join(' ')}
       {...props}
     >
       {children}
     </div>
-  )
+  );
 }
 
 export function CardHeader({ title, subtitle, action, className = '' }) {

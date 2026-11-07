@@ -1,9 +1,11 @@
 import { Link } from 'react-router-dom'
+import logoTransparent from '../../assets/logo-transparent.png'
 import logoImg from '../../assets/logo.jpeg'
 
 /**
  * Official DealZone Logo Component
- * Renders the exact official DealZone logo asset with high-fidelity brand typography.
+ * Uses the transparent PNG logo (no background) on dark/colored backgrounds,
+ * and the regular logo on white/light backgrounds.
  */
 export default function Logo({
   size = 'md',
@@ -21,13 +23,21 @@ export default function Logo({
 
   const currentSize = sizeMap[size] || sizeMap.md
   const isWhite = variant === 'white'
+  // Use transparent PNG on dark/colored backgrounds, jpeg on light
+  const logoSrc = isWhite ? logoTransparent : logoImg
 
   const content = (
     <div className={`inline-flex items-center gap-3 select-none group ${className}`}>
       {/* Official DealZone Logo Image */}
-      <div className={`${currentSize.img} rounded-xl overflow-hidden shadow-sm shrink-0 border border-black/5 bg-white flex items-center justify-center transition-transform duration-200 group-hover:scale-105`}>
+      <div
+        className={`${currentSize.img} rounded-xl overflow-hidden shrink-0 flex items-center justify-center transition-transform duration-200 group-hover:scale-105 ${
+          isWhite
+            ? 'bg-transparent border border-white/20'
+            : 'bg-white shadow-sm border border-black/5'
+        }`}
+      >
         <img
-          src={logoImg}
+          src={logoSrc}
           alt="DealZone Official Logo"
           className="w-full h-full object-contain"
           loading="eager"
@@ -36,7 +46,7 @@ export default function Logo({
 
       {showText && (
         <div className="flex flex-col text-start">
-          <div className="flex items-center gap-1 font-extrabold tracking-tight leading-none">
+          <div className={`flex items-center gap-1 font-extrabold tracking-tight leading-none ${currentSize.text}`}>
             <span className={isWhite ? 'text-white' : 'text-[#06245B]'}>
               DEAL
             </span>
@@ -66,4 +76,3 @@ export default function Logo({
 
   return content
 }
-
