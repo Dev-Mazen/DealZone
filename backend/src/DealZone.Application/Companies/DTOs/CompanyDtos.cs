@@ -14,7 +14,8 @@ public record CreateCompanyRequest(
     string CorporatePhone,
     string AddressLine1,
     string? AddressLine2,
-    string? PostalCode);
+    string? PostalCode,
+    string? CompanyType = null);
 
 public record UpdateCompanyProfileRequest(
     string TradeName,
@@ -34,7 +35,8 @@ public record CompanyResponse(
     string? Website,
     string VerificationStatus,
     bool CanPerformCommercialActivities,
-    DateTimeOffset CreatedAtUtc);
+    DateTimeOffset CreatedAtUtc,
+    string CompanyType = "Both");
 
 public record CompanyContactDetailsResponse(
     Guid CompanyId,

@@ -47,6 +47,18 @@ public class OffersController : ApiControllerBase
     }
 
     /// <summary>
+    /// List all offers received across RFQs published by the current authenticated buyer company.
+    /// </summary>
+    [HttpGet("received")]
+    public async Task<IActionResult> GetReceivedOffers(
+        [FromQuery] OfferFilter filter,
+        CancellationToken cancellationToken)
+    {
+        var response = await _offerService.GetReceivedOffersAsync(filter, cancellationToken);
+        return Ok(response);
+    }
+
+    /// <summary>
     /// Submit a new immutable revision of an existing offer, superseding the previous version.
     /// </summary>
     [HttpPost("{id:guid}/revise")]

@@ -22,7 +22,7 @@ export default function AdminCatalogPage() {
   const [newUnit, setNewUnit] = useState({ nameEn: '', nameAr: '', code: '', symbolEn: '', symbolAr: '' })
 
   const [showAddMaterial, setShowAddMaterial] = useState(false)
-  const [newMat, setNewMat] = useState({ nameEn: '', nameAr: '', code: '', categoryId: '', defaultUnitOfMeasureId: '' })
+  const [newMat, setNewMat] = useState({ nameEn: '', nameAr: '', code: '', categoryId: '', defaultUnitId: '' })
 
   // Queries
   const { data: categories, isLoading: loadingCats } = useQuery({
@@ -88,7 +88,7 @@ export default function AdminCatalogPage() {
     onSuccess: () => {
       toast.success('Material created successfully')
       setShowAddMaterial(false)
-      setNewMat({ nameEn: '', nameAr: '', code: '', categoryId: '', defaultUnitOfMeasureId: '' })
+      setNewMat({ nameEn: '', nameAr: '', code: '', categoryId: '', defaultUnitId: '' })
       queryClient.invalidateQueries({ queryKey: ['admin', 'catalog', 'materials'] })
     },
     onError: (err) => toast.error(err?.problem?.detail || 'Failed to create material'),
@@ -341,13 +341,14 @@ export default function AdminCatalogPage() {
             </select>
           </div>
           <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium text-[#1E293B]">Default Unit</label>
+            <label className="text-sm font-medium text-[#1E293B]">Default Unit *</label>
             <select
-              value={newMat.defaultUnitOfMeasureId}
-              onChange={(e) => setNewMat({ ...newMat, defaultUnitOfMeasureId: e.target.value })}
+              value={newMat.defaultUnitId}
+              onChange={(e) => setNewMat({ ...newMat, defaultUnitId: e.target.value })}
               className="h-10 px-3 rounded-lg border border-[#E2E8F0] text-sm text-[#1E293B] bg-white focus:outline-none focus:ring-2 focus:ring-[#00D9F5]"
+              required
             >
-              <option value="">Select default unit (optional)</option>
+              <option value="">Select default unit</option>
               {units?.map((u) => (
                 <option key={u.id} value={u.id}>{u.nameEn} ({u.symbolEn})</option>
               ))}

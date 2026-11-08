@@ -85,9 +85,20 @@ public static class DependencyInjection
         // SMTP settings
         services.Configure<SmtpSettings>(configuration.GetSection(SmtpSettings.SectionName));
 
-        // Email Service: DevelopmentEmailService only in Development, SmtpEmailService in Production
+        // Email Service:
+        // Configurable via EmailProvider in appsettings or environment variables ("Smtp" or "Development").
+        // If SmtpSettings:Host is provided, SmtpEmailService is activated automatically.
+        // Otherwise, DevelopmentEmailService is used in development.
         var isDevelopment = environment?.IsDevelopment() ?? true;
-        if (isDevelopment && configuration["EmailProvider"] != "Smtp")
+        var emailProvider = configuration["EmailProvider"];
+        var hasSmtpHost = !string.IsNullOrWhiteSpace(configuration["SmtpSettings:Host"]);
+
+        if (string.Equals(emailProvider, "Smtp", StringComparison.OrdinalIgnoreCase) ||
+            (string.IsNullOrWhiteSpace(emailProvider) && hasSmtpHost))
+        {
+            services.AddScoped<IEmailService, SmtpEmailService>();
+        }
+        else if (isDevelopment || string.Equals(emailProvider, "Development", StringComparison.OrdinalIgnoreCase))
         {
             services.AddSingleton<IEmailService, DevelopmentEmailService>();
         }

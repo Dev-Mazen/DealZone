@@ -1,22 +1,24 @@
-import { NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { ShieldCheck, Building2, Package, AlertTriangle, Truck } from 'lucide-react'
+import { NavLink, Outlet, Navigate } from 'react-router-dom'
+import { ShieldCheck, Building2, Package, Handshake, Truck, BarChart3 } from 'lucide-react'
 import { usePermissions } from '../../hooks/usePermissions'
-
-const adminNav = [
-  { path: 'verification', label: 'Verification Queue', icon: Building2 },
-  { path: 'catalog', label: 'Catalog Management', icon: Package },
-  { path: 'disputes', label: 'Disputes', icon: AlertTriangle },
-  { path: 'shipping', label: 'Shipping Providers', icon: Truck },
-]
+import { useTranslation } from '../../hooks/useTranslation'
 
 export default function AdminLayout() {
-  const navigate = useNavigate()
   const { isSystemAdmin } = usePermissions()
+  const { language } = useTranslation()
+  const isAr = language === 'ar'
 
   if (!isSystemAdmin) {
-    navigate('/dashboard', { replace: true })
-    return null
+    return <Navigate to="/dashboard" replace />
   }
+
+  const adminNav = [
+    { path: '/admin/analytics', label: isAr ? 'المؤشرات والتحليلات' : 'Analytics & KPIs', icon: BarChart3 },
+    { path: '/admin/verification', label: isAr ? 'طلبات توثيق الشركات' : 'Verification Queue', icon: Building2 },
+    { path: '/admin/catalog', label: isAr ? 'إدارة الكتالوج الصناعي' : 'Catalog Management', icon: Package },
+    { path: '/admin/disputes', label: isAr ? 'فض النزاعات والوساطة' : 'Disputes Mediation', icon: Handshake },
+    { path: '/admin/shipping', label: isAr ? 'مزودو خدمات الشحن' : 'Shipping Partners', icon: Truck },
+  ]
 
   return (
     <div className="space-y-6">
@@ -26,8 +28,12 @@ export default function AdminLayout() {
           <ShieldCheck size={20} className="text-[#00D9F5]" />
         </div>
         <div>
-          <h1 className="text-xl font-bold text-[#06245B]">Admin Portal</h1>
-          <p className="text-xs text-[#64748B]">System administration</p>
+          <h1 className="text-xl font-bold text-[#06245B]">
+            {isAr ? 'لوحة إدارة المنصة والتحليلات' : 'Admin Control Portal & Analytics'}
+          </h1>
+          <p className="text-xs text-[#64748B]">
+            {isAr ? 'الإشراف على العمليات وتوثيق الشركات وتقارير الصفقات' : 'System administration, corporate verification & transaction intelligence'}
+          </p>
         </div>
       </div>
 
@@ -38,9 +44,9 @@ export default function AdminLayout() {
             key={path}
             to={path}
             className={({ isActive }) => [
-              'flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-all -mb-px',
+              'flex items-center gap-2 px-4 py-2.5 text-sm font-semibold border-b-2 transition-all -mb-px',
               isActive
-                ? 'border-[#00D9F5] text-[#06245B]'
+                ? 'border-[#00D9F5] text-[#06245B] bg-[#EAF4FF]/40 rounded-t-lg'
                 : 'border-transparent text-[#64748B] hover:text-[#06245B] hover:border-[#CBD5E1]',
             ].join(' ')}
           >
@@ -55,4 +61,3 @@ export default function AdminLayout() {
     </div>
   )
 }
-

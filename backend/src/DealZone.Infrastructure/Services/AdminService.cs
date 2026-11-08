@@ -1,3 +1,7 @@
+using System.Text;
+using DealZone.Domain.Rfqs;
+using DealZone.Domain.Offers;
+using DealZone.Domain.Deals;
 using DealZone.Application.Admin.DTOs;
 using DealZone.Application.Common.Interfaces;
 using DealZone.Application.Verification.DTOs;
@@ -57,6 +61,7 @@ public class AdminService : IAdminService
         var companies = await _context.Companies
             .AsNoTracking()
             .Where(c => statuses.Contains(c.VerificationStatus))
+            .OrderBy(c => c.CreatedAtUtc)
             .Select(c => new PendingCompanyDto(
                 c.Id,
                 c.LegalName,
@@ -67,7 +72,6 @@ public class AdminService : IAdminService
                 c.VerificationStatus.ToString(),
                 c.VerificationDocuments.Count,
                 c.CreatedAtUtc))
-            .OrderBy(c => c.CreatedAtUtc)
             .ToListAsync(cancellationToken);
 
         return companies;
@@ -320,5 +324,223 @@ public class AdminService : IAdminService
                 "Failed to send verification decision email to {Email}", company.PrimaryContactUser.Email);
         }
     }
-}
 
+    // -------------------------------------------------------------------------
+    // Analytics & Reports
+    // -------------------------------------------------------------------------
+
+    public async Task<AdminAnalyticsResponse> GetAnalyticsAsync(
+        DateTimeOffset? fromDate = null,
+        DateTimeOffset? toDate = null,
+        CancellationToken cancellationToken = default)
+    {
+        // 1. Companies stats
+        var companiesQuery = _context.Companies.AsNoTracking();
+        if (fromDate.HasValue) companiesQuery = companiesQuery.Where(c => c.CreatedAtUtc >= fromDate.Value);
+        if (toDate.HasValue) companiesQuery = companiesQuery.Where(c => c.CreatedAtUtc <= toDate.Value);
+
+        var totalCompanies = await companiesQuery.CountAsync(cancellationToken);
+        var verifiedCompanies = await companiesQuery.CountAsync(c => c.VerificationStatus == CompanyVerificationStatus.Approved, cancellationToken);
+        var pendingCompanies = await companiesQuery.CountAsync(c => c.VerificationStatus == CompanyVerificationStatus.Pending, cancellationToken);
+        var changesRequiredCompanies = await companiesQuery.CountAsync(c => c.VerificationStatus == CompanyVerificationStatus.ChangesRequired, cancellationToken);
+        var rejectedCompanies = await companiesQuery.CountAsync(c => c.VerificationStatus == CompanyVerificationStatus.Rejected, cancellationToken);
+
+        // Buyer vs Supplier companies
+        var buyerCompaniesCount = await _context.Rfqs.AsNoTracking()
+            .Select(r => r.BuyerCompanyId)
+            .Distinct()
+            .CountAsync(cancellationToken);
+
+        var supplierCompaniesCount = await _context.Offers.AsNoTracking()
+            .Select(o => o.SupplierCompanyId)
+            .Distinct()
+            .CountAsync(cancellationToken);
+
+        // 2. RFQ stats
+        var rfqsQuery = _context.Rfqs.AsNoTracking().Where(r => !r.IsDeleted);
+        if (fromDate.HasValue) rfqsQuery = rfqsQuery.Where(r => r.CreatedAtUtc >= fromDate.Value);
+        if (toDate.HasValue) rfqsQuery = rfqsQuery.Where(r => r.CreatedAtUtc <= toDate.Value);
+
+        var totalRfqs = await rfqsQuery.CountAsync(cancellationToken);
+        var openRfqs = await rfqsQuery.CountAsync(r => r.Status == RfqStatus.Published, cancellationToken);
+        var closedRfqs = await rfqsQuery.CountAsync(r => r.Status == RfqStatus.Closed, cancellationToken);
+        var draftRfqs = await rfqsQuery.CountAsync(r => r.Status == RfqStatus.Draft, cancellationToken);
+
+        // 3. Offers stats
+        var offersQuery = _context.Offers.AsNoTracking();
+        if (fromDate.HasValue) offersQuery = offersQuery.Where(o => o.SubmittedAtUtc >= fromDate.Value);
+        if (toDate.HasValue) offersQuery = offersQuery.Where(o => o.SubmittedAtUtc <= toDate.Value);
+
+        var totalOffers = await offersQuery.CountAsync(cancellationToken);
+        var submittedOffers = await offersQuery.CountAsync(o => o.Status == OfferStatus.Submitted || o.Status == OfferStatus.UnderReview, cancellationToken);
+        var acceptedOffers = await _context.Offers.AsNoTracking().CountAsync(o => o.Status == OfferStatus.Accepted, cancellationToken);
+        var rejectedOffers = await _context.Offers.AsNoTracking().CountAsync(o => o.Status == OfferStatus.Rejected, cancellationToken);
+
+        // 4. Deals stats
+        var dealsQuery = _context.Deals.AsNoTracking();
+        if (fromDate.HasValue) dealsQuery = dealsQuery.Where(d => d.CreatedAtUtc >= fromDate.Value);
+        if (toDate.HasValue) dealsQuery = dealsQuery.Where(d => d.CreatedAtUtc <= toDate.Value);
+
+        var totalDeals = await dealsQuery.CountAsync(cancellationToken);
+        var awaitingDeals = await dealsQuery.CountAsync(d => d.Status == DealStatus.AwaitingConfirmation, cancellationToken);
+        var confirmedDeals = await dealsQuery.CountAsync(d => d.Status == DealStatus.Confirmed, cancellationToken);
+        var inProgressDeals = await dealsQuery.CountAsync(d => d.Status == DealStatus.InProgress, cancellationToken);
+        var completedDeals = await dealsQuery.CountAsync(d => d.Status == DealStatus.Completed, cancellationToken);
+        var cancelledDeals = await dealsQuery.CountAsync(d => d.Status == DealStatus.Cancelled, cancellationToken);
+        var disputedDeals = await dealsQuery.CountAsync(d => d.Status == DealStatus.Disputed, cancellationToken);
+
+        var totalVolume = await dealsQuery
+            .Where(d => d.Status == DealStatus.Confirmed || d.Status == DealStatus.InProgress || d.Status == DealStatus.Completed)
+            .SumAsync(d => (decimal?)d.AgreedPrice, cancellationToken) ?? 0m;
+
+        // 5. Disputes stats
+        var disputesQuery = _context.DealDisputes.AsNoTracking();
+        var totalDisputes = await disputesQuery.CountAsync(cancellationToken);
+        var openDisputes = await disputesQuery.CountAsync(d => d.Status == DisputeStatus.Open || d.Status == DisputeStatus.UnderReview, cancellationToken);
+        var resolvedDisputes = await disputesQuery.CountAsync(d => d.Status == DisputeStatus.Resolved, cancellationToken);
+
+        var kpis = new PlatformOverviewKpiDto(
+            totalCompanies,
+            verifiedCompanies,
+            pendingCompanies,
+            changesRequiredCompanies,
+            rejectedCompanies,
+            buyerCompaniesCount,
+            supplierCompaniesCount,
+            totalRfqs,
+            openRfqs,
+            closedRfqs,
+            draftRfqs,
+            totalOffers,
+            submittedOffers,
+            acceptedOffers,
+            rejectedOffers,
+            totalDeals,
+            awaitingDeals,
+            confirmedDeals,
+            inProgressDeals,
+            completedDeals,
+            cancelledDeals,
+            disputedDeals,
+            totalVolume,
+            totalDisputes,
+            openDisputes,
+            resolvedDisputes);
+
+        // 6. Sector distribution
+        var sectorGroups = await _context.Companies.AsNoTracking()
+            .GroupBy(c => c.IndustrySector)
+            .Select(g => new { Sector = g.Key, Count = g.Count() })
+            .ToListAsync(cancellationToken);
+
+        var rfqSectorGroups = await _context.Rfqs.AsNoTracking()
+            .Where(r => !r.IsDeleted && r.BuyerCompany != null)
+            .GroupBy(r => r.BuyerCompany!.IndustrySector)
+            .Select(g => new { Sector = g.Key, Count = g.Count() })
+            .ToListAsync(cancellationToken);
+
+        var allSectors = sectorGroups.Select(s => s.Sector)
+            .Union(rfqSectorGroups.Select(r => r.Sector))
+            .Where(s => !string.IsNullOrWhiteSpace(s))
+            .Distinct()
+            .ToList();
+
+        var sectors = allSectors.Select(s => new SectorDistributionDto(
+            s,
+            sectorGroups.FirstOrDefault(x => x.Sector == s)?.Count ?? 0,
+            rfqSectorGroups.FirstOrDefault(x => x.Sector == s)?.Count ?? 0
+        )).ToList();
+
+        // 7. Recent activity (last 6 months)
+        var activity = new List<ActivityTimelineDto>();
+        var now = DateTimeOffset.UtcNow;
+        for (int i = 5; i >= 0; i--)
+        {
+            var start = new DateTimeOffset(now.Year, now.Month, 1, 0, 0, 0, TimeSpan.Zero).AddMonths(-i);
+            var end = start.AddMonths(1);
+            var label = start.ToString("MMM yyyy");
+
+            var cCount = await _context.Companies.AsNoTracking()
+                .CountAsync(c => c.CreatedAtUtc >= start && c.CreatedAtUtc < end, cancellationToken);
+            var rCount = await _context.Rfqs.AsNoTracking()
+                .CountAsync(r => !r.IsDeleted && r.CreatedAtUtc >= start && r.CreatedAtUtc < end, cancellationToken);
+            var dCount = await _context.Deals.AsNoTracking()
+                .CountAsync(d => d.CreatedAtUtc >= start && d.CreatedAtUtc < end, cancellationToken);
+            var vol = await _context.Deals.AsNoTracking()
+                .Where(d => d.CreatedAtUtc >= start && d.CreatedAtUtc < end)
+                .SumAsync(d => (decimal?)d.AgreedPrice, cancellationToken) ?? 0m;
+
+            activity.Add(new ActivityTimelineDto(label, cCount, rCount, dCount, vol));
+        }
+
+        return new AdminAnalyticsResponse(kpis, sectors, activity, DateTimeOffset.UtcNow);
+    }
+
+        public async Task<byte[]> ExportCompaniesCsvAsync(CancellationToken cancellationToken = default)
+    {
+        var companies = await _context.Companies
+            .AsNoTracking()
+            .Include(c => c.ContactDetails)
+            .OrderByDescending(c => c.CreatedAtUtc)
+            .ToListAsync(cancellationToken);
+
+        var sb = new StringBuilder();
+        sb.Append('\uFEFF');
+        sb.AppendLine("ID,LegalName,TradeName,IndustrySector,City,Governorate,TaxId,CommercialReg,Status,CanTrade,CreatedAt");
+
+        foreach (var c in companies)
+        {
+            sb.Append('"').Append(c.Id).Append('"').Append(',')
+              .Append('"').Append(EscapeCsv(c.LegalName)).Append('"').Append(',')
+              .Append('"').Append(EscapeCsv(c.TradeName)).Append('"').Append(',')
+              .Append('"').Append(EscapeCsv(c.IndustrySector)).Append('"').Append(',')
+              .Append('"').Append(EscapeCsv(c.City)).Append('"').Append(',')
+              .Append('"').Append(EscapeCsv(c.Governorate)).Append('"').Append(',')
+              .Append('"').Append(EscapeCsv(c.ContactDetails?.TaxIdNumber ?? "")).Append('"').Append(',')
+              .Append('"').Append(EscapeCsv(c.ContactDetails?.CommercialRegistrationNumber ?? "")).Append('"').Append(',')
+              .Append('"').Append(c.VerificationStatus).Append('"').Append(',')
+              .Append('"').Append(c.CanPerformCommercialActivities).Append('"').Append(',')
+              .Append('"').Append(c.CreatedAtUtc.ToString("yyyy-MM-dd HH:mm")).Append('"').AppendLine();
+        }
+
+        return Encoding.UTF8.GetBytes(sb.ToString());
+    }
+
+    public async Task<byte[]> ExportDealsCsvAsync(CancellationToken cancellationToken = default)
+    {
+        var deals = await _context.Deals
+            .AsNoTracking()
+            .Include(d => d.BuyerCompany)
+            .Include(d => d.SupplierCompany)
+            .OrderByDescending(d => d.CreatedAtUtc)
+            .ToListAsync(cancellationToken);
+
+        var sb = new StringBuilder();
+        sb.Append('\uFEFF');
+        sb.AppendLine("DealNumber,Buyer,Supplier,AgreedPrice,Currency,Status,CreatedAt,ConfirmedAt,CompletedAt");
+
+        foreach (var d in deals)
+        {
+            var buyerName = d.BuyerCompany?.TradeName ?? d.BuyerCompany?.LegalName ?? string.Empty;
+            var supplierName = d.SupplierCompany?.TradeName ?? d.SupplierCompany?.LegalName ?? string.Empty;
+
+            sb.Append('"').Append(d.DealNumber).Append('"').Append(',')
+              .Append('"').Append(EscapeCsv(buyerName)).Append('"').Append(',')
+              .Append('"').Append(EscapeCsv(supplierName)).Append('"').Append(',')
+              .Append('"').Append(d.AgreedPrice).Append('"').Append(',')
+              .Append('"').Append(d.Currency).Append('"').Append(',')
+              .Append('"').Append(d.Status).Append('"').Append(',')
+              .Append('"').Append(d.CreatedAtUtc.ToString("yyyy-MM-dd HH:mm")).Append('"').Append(',')
+              .Append('"').Append(d.ConfirmedAtUtc?.ToString("yyyy-MM-dd HH:mm") ?? string.Empty).Append('"').Append(',')
+              .Append('"').Append(d.CompletedAtUtc?.ToString("yyyy-MM-dd HH:mm") ?? string.Empty).Append('"').AppendLine();
+        }
+
+        return Encoding.UTF8.GetBytes(sb.ToString());
+    }
+
+    private static string EscapeCsv(string? value)
+    {
+        if (string.IsNullOrEmpty(value)) return string.Empty;
+        return value.Replace(new string('"', 1), new string('"', 2));
+    }
+}

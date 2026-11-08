@@ -11,19 +11,9 @@ import Input from '../../components/ui/Input'
 import Button from '../../components/ui/Button'
 import Alert from '../../components/ui/Alert'
 import Logo from '../../components/common/Logo'
+import { getRegisterSchema } from '../../shared/validation/formSchemas'
 
-const registerSchema = z
-  .object({
-    fullName: z.string().min(3, 'Name must be at least 3 characters'),
-    email: z.string().email('Invalid email address'),
-    phoneNumber: z.string().optional(),
-    password: z.string().min(8, 'Password must be at least 8 characters'),
-    confirmPassword: z.string().min(1, 'Please confirm your password'),
-  })
-  .refine((d) => d.password === d.confirmPassword, {
-    message: "Passwords don't match",
-    path: ['confirmPassword'],
-  })
+// Schema is dynamically generated using getRegisterSchema(isAr)
 
 const trustPoints = [
   {
@@ -59,7 +49,8 @@ export default function RegisterPage() {
     handleSubmit,
     formState: { errors },
   } = useForm({
-    resolver: zodResolver(registerSchema),
+    resolver: zodResolver(getRegisterSchema(isAr)),
+    mode: 'onChange',
   })
 
   const onSubmit = async (data) => {
@@ -68,13 +59,18 @@ export default function RegisterPage() {
     try {
       localStorage.setItem('dz_user_intent', accountIntent)
       const { confirmPassword: _, ...payload } = data
-      await authService.register(payload)
+      const res = await authService.register(payload)
       toast.success(
         isAr
           ? 'تم إنشاء الحساب! يرجى مراجعة بريدك الإلكتروني للتأكيد.'
           : 'Account created! Please check your email to verify.',
       )
-      navigate('/login')
+      const token = res?.confirmationToken
+      if (token) {
+        navigate(`/confirm-email?email=${encodeURIComponent(data.email)}&token=${encodeURIComponent(token)}`)
+      } else {
+        navigate(`/confirm-email?email=${encodeURIComponent(data.email)}`)
+      }
     } catch (err) {
       setErrorMsg(
         err?.problem?.detail ||

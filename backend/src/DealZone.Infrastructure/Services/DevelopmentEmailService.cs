@@ -9,13 +9,14 @@ public class SentEmailRecord
     public string Email { get; set; } = string.Empty;
     public string Purpose { get; set; } = string.Empty;
     public string Token { get; set; } = string.Empty;
+    public string? Link { get; set; }
     public DateTimeOffset SentAtUtc { get; set; } = DateTimeOffset.UtcNow;
 }
 
 public class DevelopmentEmailService : IEmailService
 {
     private readonly ILogger<DevelopmentEmailService> _logger;
-    private static readonly ConcurrentBag<SentEmailRecord> _sentEmails = new();
+    private static readonly System.Collections.Concurrent.ConcurrentQueue<SentEmailRecord> _sentEmails = new();
 
     public DevelopmentEmailService(ILogger<DevelopmentEmailService> logger)
     {
@@ -28,27 +29,41 @@ public class DevelopmentEmailService : IEmailService
 
     public Task SendEmailConfirmationAsync(string email, string token, CancellationToken cancellationToken = default)
     {
-        _sentEmails.Add(new SentEmailRecord
+        var link = $"http://localhost:5173/confirm-email?email={Uri.EscapeDataString(email)}&token={Uri.EscapeDataString(token)}";
+
+        _sentEmails.Enqueue(new SentEmailRecord
         {
             Email = email,
             Purpose = "EmailConfirmation",
-            Token = token
+            Token = token,
+            Link = link
         });
 
-        _logger.LogInformation("Dispatched confirmation email to recipient: {Email}", email);
+        _logger.LogInformation(
+            "[DEV EMAIL] Confirmation link for {Email}: {ConfirmationLink}",
+            email,
+            link);
+
         return Task.CompletedTask;
     }
 
     public Task SendPasswordResetAsync(string email, string token, CancellationToken cancellationToken = default)
     {
-        _sentEmails.Add(new SentEmailRecord
+        var link = $"http://localhost:5173/reset-password?email={Uri.EscapeDataString(email)}&token={Uri.EscapeDataString(token)}";
+
+        _sentEmails.Enqueue(new SentEmailRecord
         {
             Email = email,
             Purpose = "PasswordReset",
-            Token = token
+            Token = token,
+            Link = link
         });
 
-        _logger.LogInformation("Dispatched password reset email to recipient: {Email}", email);
+        _logger.LogInformation(
+            "[DEV EMAIL] Password reset link for {Email}: {ResetLink}",
+            email,
+            link);
+
         return Task.CompletedTask;
     }
 
@@ -59,7 +74,7 @@ public class DevelopmentEmailService : IEmailService
         string? reason,
         CancellationToken cancellationToken = default)
     {
-        _sentEmails.Add(new SentEmailRecord
+        _sentEmails.Enqueue(new SentEmailRecord
         {
             Email = email,
             Purpose = $"VerificationDecision:{decision}",
@@ -67,7 +82,7 @@ public class DevelopmentEmailService : IEmailService
         });
 
         _logger.LogInformation(
-            "Dispatched verification decision '{Decision}' email to {Email} for company '{CompanyName}'.",
+            "[DEV EMAIL] Verification decision '{Decision}' for {Email} ({CompanyName}).",
             decision, email, companyName);
 
         return Task.CompletedTask;
@@ -80,7 +95,7 @@ public class DevelopmentEmailService : IEmailService
         string offerNumber,
         CancellationToken cancellationToken = default)
     {
-        _sentEmails.Add(new SentEmailRecord
+        _sentEmails.Enqueue(new SentEmailRecord
         {
             Email = email,
             Purpose = "OfferAccepted",
@@ -88,7 +103,7 @@ public class DevelopmentEmailService : IEmailService
         });
 
         _logger.LogInformation(
-            "Dispatched offer accepted email to {Email} ({CompanyName}) for RFQ {RfqNumber}, Offer {OfferNumber}.",
+            "[DEV EMAIL] Offer accepted email to {Email} ({CompanyName}) for RFQ {RfqNumber}, Offer {OfferNumber}.",
             email, companyName, rfqNumber, offerNumber);
 
         return Task.CompletedTask;
@@ -102,16 +117,16 @@ public class DevelopmentEmailService : IEmailService
         string? reason,
         CancellationToken cancellationToken = default)
     {
-        _sentEmails.Add(new SentEmailRecord
+        _sentEmails.Enqueue(new SentEmailRecord
         {
             Email = email,
             Purpose = "OfferRejected",
-            Token = reason ?? string.Empty
+            Token = $"{rfqNumber}:{offerNumber}"
         });
 
         _logger.LogInformation(
-            "Dispatched offer rejected email to {Email} ({CompanyName}) for RFQ {RfqNumber}, Offer {OfferNumber}.",
-            email, companyName, rfqNumber, offerNumber);
+            "[DEV EMAIL] Offer rejected email to {Email} ({CompanyName}) for RFQ {RfqNumber}, Offer {OfferNumber}. Reason: {Reason}",
+            email, companyName, rfqNumber, offerNumber, reason);
 
         return Task.CompletedTask;
     }
@@ -123,15 +138,15 @@ public class DevelopmentEmailService : IEmailService
         string roleDescription,
         CancellationToken cancellationToken = default)
     {
-        _sentEmails.Add(new SentEmailRecord
+        _sentEmails.Enqueue(new SentEmailRecord
         {
             Email = email,
             Purpose = "DealConfirmation",
-            Token = $"{dealNumber}:{roleDescription}"
+            Token = dealNumber
         });
 
         _logger.LogInformation(
-            "Dispatched deal confirmation email to {Email} ({CompanyName}) for Deal {DealNumber} as {RoleDescription}.",
+            "[DEV EMAIL] Deal confirmation email to {Email} ({CompanyName}) for Deal {DealNumber} ({Role}).",
             email, companyName, dealNumber, roleDescription);
 
         return Task.CompletedTask;
@@ -146,16 +161,16 @@ public class DevelopmentEmailService : IEmailService
         string? adminNotes,
         CancellationToken cancellationToken = default)
     {
-        _sentEmails.Add(new SentEmailRecord
+        _sentEmails.Enqueue(new SentEmailRecord
         {
             Email = email,
             Purpose = $"DisputeResolution:{resolutionAction}",
-            Token = adminNotes ?? string.Empty
+            Token = disputeNumber
         });
 
         _logger.LogInformation(
-            "Dispatched dispute resolution email to {Email} ({CompanyName}) for Deal {DealNumber}, Dispute {DisputeNumber}, Action {Action}.",
-            email, companyName, dealNumber, disputeNumber, resolutionAction);
+            "[DEV EMAIL] Dispute resolution '{Action}' email to {Email} ({CompanyName}) for Deal {DealNumber}, Dispute {DisputeNumber}.",
+            resolutionAction, email, companyName, dealNumber, disputeNumber);
 
         return Task.CompletedTask;
     }

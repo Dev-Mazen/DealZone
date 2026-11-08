@@ -17,10 +17,12 @@ export function Card({
   children, 
   variant = 'default', 
   padding = 'md', 
+  noPadding = false, 
   hover = false, 
   className = '', 
   ...props 
 }) {
+  const effectivePadding = noPadding ? 'none' : padding
   // Variant styles - elevation and borders
   const variantStyles = {
     default: 'bg-white rounded-lg border border-[rgba(6,36,91,0.06)] shadow-[0_4px_6px_-1px_rgba(6,36,91,0.08),0_2px_4px_-2px_rgba(6,36,91,0.06)]',
@@ -45,7 +47,7 @@ export function Card({
     <div
       className={[
         variantStyles[variant],
-        paddingStyles[padding],
+        paddingStyles[effectivePadding],
         hoverStyles,
         className,
       ].filter(Boolean).join(' ')}

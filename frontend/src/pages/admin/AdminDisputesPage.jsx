@@ -72,13 +72,13 @@ export default function AdminDisputesPage() {
                     <span className="font-mono text-xs text-[#64748B]">Dispute #{d.id?.slice(0, 8)}</span>
                     <Badge variant={disputeStatusVariant(d.status)} dot>{d.status}</Badge>
                   </div>
-                  <h3 className="font-semibold text-base text-[#06245B] mt-1">{d.category}</h3>
+                  <h3 className="font-semibold text-base text-[#06245B] mt-1">{d.category || d.reason || "Dispute"}</h3>
                   <p className="text-sm text-[#475569] mt-1 max-w-xl leading-relaxed">{d.description}</p>
 
                   <div className="flex items-center gap-4 text-xs text-[#64748B] mt-3">
                     <span className="flex items-center gap-1">
                       <Clock size={12} />
-                      Opened {formatDate(d.createdAt)}
+                      Opened {formatDate(d.openedAtUtc || d.createdAt)}
                     </span>
                     <span>Deal ID: <span className="font-mono">{d.dealId?.slice(0, 8)}</span></span>
                   </div>

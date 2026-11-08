@@ -9,14 +9,9 @@ import { useTranslation } from '../../hooks/useTranslation'
 import Button from '../../components/ui/Button'
 import Logo from '../../components/common/Logo'
 import Input from '../../components/ui/Input'
+import { getResetPasswordSchema } from '../../shared/validation/formSchemas'
 
-const schema = z.object({
-  newPassword: z.string().min(8, 'Password must be at least 8 characters'),
-  confirmPassword: z.string(),
-}).refine((d) => d.newPassword === d.confirmPassword, {
-  message: "Passwords don't match",
-  path: ['confirmPassword'],
-})
+// Schema dynamically loaded via getResetPasswordSchema(isAr)
 
 export default function ResetPasswordPage() {
   const { language } = useTranslation()
@@ -32,7 +27,8 @@ export default function ResetPasswordPage() {
   const token = params.get('token') || ''
 
   const { register, handleSubmit, formState: { errors } } = useForm({
-    resolver: zodResolver(schema),
+    resolver: zodResolver(getResetPasswordSchema(isAr)),
+    mode: 'onChange',
   })
 
   if (!email || !token) {
@@ -101,23 +97,23 @@ export default function ResetPasswordPage() {
               </p>
 
               <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-                <div className="relative">
-                  <Input
-                    type={showPw ? 'text' : 'password'}
-                    label={isAr ? 'كلمة المرور الجديدة' : 'New Password'}
-                    {...register('newPassword')}
-                    error={errors.newPassword?.message}
-                    startIcon={<Lock size={18} />}
-                    autoComplete="new-password"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPw(!showPw)}
-                    className="absolute end-3 top-9 p-1 text-[#64748B] hover:text-[#06245B] transition-colors"
-                  >
-                    {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
-                  </button>
-                </div>
+                <Input
+                  type="password"
+                  label={isAr ? 'كلمة المرور الجديدة' : 'New Password'}
+                  {...register('newPassword')}
+                  error={errors.newPassword?.message}
+                  startIcon={<Lock size={18} />}
+                  autoComplete="new-password"
+                />
+
+                <Input
+                  type="password"
+                  label={isAr ? 'تأكيد كلمة المرور' : 'Confirm Password'}
+                  {...register('confirmPassword')}
+                  error={errors.confirmPassword?.message}
+                  startIcon={<Lock size={18} />}
+                  autoComplete="new-password"
+                />
 
                 <Input
                   type="password"

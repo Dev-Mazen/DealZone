@@ -1,29 +1,11 @@
-import { forwardRef } from 'react'
+import { forwardRef, useState } from 'react'
+import { Eye, EyeOff } from 'lucide-react'
 
 /**
  * Input Component - DealZone UI Library
  * 
  * A flexible form input component supporting various types, validation states,
- * and visual enhancements with left/right icons.
- * 
- * Features:
- * - Multiple input types (text, email, password, number, tel)
- * - Label, error message, and helper text display
- * - Left/right icon slots for visual enhancement
- * - Focus states with cyan ring and border color
- * - Disabled and required visual states
- * - DealZone design tokens integration
- * 
- * @component
- * @example
- * <Input
- *   type="email"
- *   label="Email Address"
- *   placeholder="Enter your email"
- *   leftIcon={<Mail size={18} />}
- *   error="Invalid email format"
- *   required
- * />
+ * built-in password show/hide toggle, and visual enhancements with left/right icons.
  */
 const Input = forwardRef(
   (
@@ -41,16 +23,39 @@ const Input = forwardRef(
       disabled,
       className = '',
       id,
+      showPasswordToggle = true,
       ...props
     },
     ref
   ) => {
     const inputId = id || `input-${Math.random().toString(36).slice(2, 8)}`
-    
+    const [isPasswordVisible, setIsPasswordVisible] = useState(false)
+
+    const isPasswordType = type === 'password'
+    const effectiveType = isPasswordType && isPasswordVisible ? 'text' : type
+
     // Support both naming conventions
     const displayLeftIcon = leftIcon || startIcon
-    const displayRightIcon = rightIcon || endIcon
+    let displayRightIcon = rightIcon || endIcon
     const displayHelperText = helperText || hint
+
+    // Built-in show/hide password toggle button
+    if (isPasswordType && showPasswordToggle && !displayRightIcon) {
+      displayRightIcon = (
+        <button
+          type="button"
+          tabIndex={-1}
+          onClick={(e) => {
+            e.preventDefault()
+            setIsPasswordVisible((prev) => !prev)
+          }}
+          className="text-[#64748B] hover:text-[#06245B] focus:outline-none transition-colors p-1 rounded-md"
+          aria-label={isPasswordVisible ? 'Hide password' : 'Show password'}
+        >
+          {isPasswordVisible ? <EyeOff size={18} /> : <Eye size={18} />}
+        </button>
+      )
+    }
 
     return (
       <div className="flex flex-col gap-1.5 w-full">
@@ -82,7 +87,7 @@ const Input = forwardRef(
           <input
             ref={ref}
             id={inputId}
-            type={type}
+            type={effectiveType}
             required={required}
             disabled={disabled}
             aria-invalid={!!error}
@@ -121,7 +126,7 @@ const Input = forwardRef(
 
           {/* Right icon slot */}
           {displayRightIcon && (
-            <span className="absolute end-3 text-[#64748B] pointer-events-none z-10 flex items-center">
+            <span className="absolute end-3 text-[#64748B] z-10 flex items-center">
               {displayRightIcon}
             </span>
           )}
@@ -132,7 +137,7 @@ const Input = forwardRef(
           <p
             id={`${inputId}-error`}
             role="alert"
-            className="text-xs text-[#EF4444] flex items-start gap-1"
+            className="text-xs text-[#EF4444] flex items-start gap-1 font-medium transition-all duration-150"
           >
             {error}
           </p>
@@ -152,4 +157,3 @@ const Input = forwardRef(
 Input.displayName = 'Input'
 
 export default Input
-

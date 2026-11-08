@@ -27,6 +27,16 @@ export const adminService = {
       })
       .then((r) => r.data),
 
+  // Analytics & Reporting
+  getAnalytics: (params) =>
+    api.get('/admin/analytics', { params }).then((r) => r.data),
+
+  exportCompaniesCsv: () =>
+    api.get('/admin/analytics/export/companies', { responseType: 'blob' }).then((r) => r.data),
+
+  exportDealsCsv: () =>
+    api.get('/admin/analytics/export/deals', { responseType: 'blob' }).then((r) => r.data),
+
   // Shipping providers
   createShippingProvider: (data) =>
     api.post('/admin/shipping-providers', data).then((r) => r.data),
@@ -68,4 +78,3 @@ export const adminService = {
       .post(`/admin/shipments/${shipmentId}/status`, { status, location, description })
       .then((r) => r.data),
 }
-

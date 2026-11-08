@@ -6,6 +6,7 @@ using DealZone.Application.Auth.DTOs;
 using DealZone.Application.Common.Interfaces;
 using DealZone.Application.Common.Models;
 using DealZone.Application.Notifications.DTOs;
+using DealZone.Domain.Exceptions;
 using DealZone.Domain.Notifications;
 using DealZone.Infrastructure.Options;
 using DealZone.Infrastructure.Persistence;
@@ -240,8 +241,29 @@ public class NotificationIntegrationTests
     }
 
     [Fact]
-    public async Task SmtpEmailService_WhenHostUnreachable_DoesNotThrow()
+    public async Task SmtpEmailService_WhenHostUnreachable_ThrowsEmailDeliveryException()
     {
+        // Critical emails (e.g. confirmation) must surface SMTP failures.
+        var options = Microsoft.Extensions.Options.Options.Create(new SmtpSettings
+        {
+            Host = "127.0.0.1",
+            Port = 65432,
+            FromEmail = "noreply@dealzone.eg",
+            FromName = "DealZone"
+        });
+
+        var service = new SmtpEmailService(options, NullLogger<SmtpEmailService>.Instance);
+
+        var ex = await Assert.ThrowsAsync<EmailDeliveryException>(() =>
+            service.SendEmailConfirmationAsync("test@example.com", "token-123"));
+
+        Assert.Contains("failed", ex.Message.ToLowerInvariant());
+    }
+
+    [Fact]
+    public async Task SmtpEmailService_WhenHostUnreachable_NonCriticalEmailsDoNotThrow()
+    {
+        // Non-critical emails (e.g. verification decisions) are swallowed on SMTP failure.
         var options = Microsoft.Extensions.Options.Options.Create(new SmtpSettings
         {
             Host = "127.0.0.1",
@@ -253,7 +275,7 @@ public class NotificationIntegrationTests
         var service = new SmtpEmailService(options, NullLogger<SmtpEmailService>.Instance);
 
         var exception = await Record.ExceptionAsync(() =>
-            service.SendEmailConfirmationAsync("test@example.com", "token-123"));
+            service.SendVerificationDecisionAsync("test@example.com", "Cairo Fabrics", "Approved", null));
 
         Assert.Null(exception);
     }

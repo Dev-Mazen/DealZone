@@ -9,47 +9,70 @@ export function checkPermissions(user) {
   const isSystemAdmin = user?.isSystemAdmin === true
   const role = company?.role
   const isVerified = company?.canPerformCommercialActivities === true
+  const hasCompany = !!company
 
-  // Role checks
+  // Company commercial capability type
+  const companyType = company?.companyType || 'Both'
+  const isBuyer = companyType === 'Buyer' || companyType === 'Both'
+  const isSupplier = companyType === 'Supplier' || companyType === 'Both'
+  const isBuyerOnly = companyType === 'Buyer'
+  const isSupplierOnly = companyType === 'Supplier'
+  const hasBothCapabilities = companyType === 'Both'
+
+  // Role checks within company
   const isOwner = role === 'Owner'
   const isAdmin = role === 'Admin'
   const isProcurementManager = role === 'ProcurementManager'
   const isSalesManager = role === 'SalesManager'
   const isMember = role === 'Member'
 
-  const hasCompany = !!company
-
   // ── Buyer operations (RFQ creation, offer acceptance) ──
   const canManageRfqs =
-    isVerified && (isOwner || isAdmin || isProcurementManager)
+    hasCompany &&
+    isVerified &&
+    isBuyer &&
+    (isOwner || isAdmin || isProcurementManager)
 
   // ── Supplier operations (offer submission) ──
   const canSubmitOffers =
-    isVerified && (isOwner || isAdmin || isSalesManager)
+    hasCompany &&
+    isVerified &&
+    isSupplier &&
+    (isOwner || isAdmin || isSalesManager)
 
   // ── Deal management ──
   const canManageDeals =
+    hasCompany &&
     isVerified &&
     (isOwner || isAdmin || isProcurementManager || isSalesManager)
 
   // ── Company profile management ──
-  const canEditCompanyProfile = isOwner || isAdmin
+  const canEditCompanyProfile = hasCompany && (isOwner || isAdmin)
 
   // ── Verification document management ──
-  const canManageVerificationDocs = isOwner || isAdmin
+  const canManageVerificationDocs = hasCompany && (isOwner || isAdmin)
 
   // ── Shipment management ──
   const canManageShipments =
-    isVerified && (isOwner || isAdmin || isSalesManager)
+    hasCompany &&
+    isVerified &&
+    isSupplier &&
+    (isOwner || isAdmin || isSalesManager)
 
   // ── Read-only member ──
-  const canViewCommercial = isVerified || isMember
+  const canViewCommercial = hasCompany && (isVerified || isMember)
 
   return {
     isSystemAdmin,
     hasCompany,
     isVerified,
     role,
+    companyType,
+    isBuyer,
+    isSupplier,
+    isBuyerOnly,
+    isSupplierOnly,
+    hasBothCapabilities,
     isOwner,
     isAdmin,
     isProcurementManager,
@@ -72,4 +95,3 @@ export function usePermissions() {
   const user = useAuthStore((s) => s.user)
   return checkPermissions(user)
 }
-

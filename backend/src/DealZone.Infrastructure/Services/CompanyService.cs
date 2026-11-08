@@ -50,8 +50,16 @@ public class CompanyService : ICompanyService
             throw new ConflictException("A company with this Commercial Registration or Tax ID already exists.");
         }
 
+        var companyType = CompanyType.Both;
+        if (!string.IsNullOrWhiteSpace(request.CompanyType) &&
+            Enum.TryParse<CompanyType>(request.CompanyType, true, out var parsedType))
+        {
+            companyType = parsedType;
+        }
+
         var company = new Company
         {
+            CompanyType = companyType,
             LegalName = request.LegalName.Trim(),
             TradeName = request.TradeName.Trim(),
             IndustrySector = request.IndustrySector.Trim(),
@@ -106,7 +114,8 @@ public class CompanyService : ICompanyService
             company.Website,
             company.VerificationStatus.ToString(),
             company.CanPerformCommercialActivities,
-            company.CreatedAtUtc);
+            company.CreatedAtUtc,
+            company.CompanyType.ToString());
     }
 
     public async Task<CompanyResponse> GetMyCompanyAsync(CancellationToken cancellationToken = default)
@@ -138,7 +147,8 @@ public class CompanyService : ICompanyService
             c.Website,
             c.VerificationStatus.ToString(),
             c.CanPerformCommercialActivities,
-            c.CreatedAtUtc);
+            c.CreatedAtUtc,
+            c.CompanyType.ToString());
     }
 
     public async Task<CompanyResponse> UpdateMyCompanyProfileAsync(UpdateCompanyProfileRequest request, CancellationToken cancellationToken = default)
@@ -183,7 +193,8 @@ public class CompanyService : ICompanyService
             c.Website,
             c.VerificationStatus.ToString(),
             c.CanPerformCommercialActivities,
-            c.CreatedAtUtc);
+            c.CreatedAtUtc,
+            c.CompanyType.ToString());
     }
 
     public async Task<CompanyContactDetailsResponse> GetMyCompanyContactDetailsAsync(CancellationToken cancellationToken = default)

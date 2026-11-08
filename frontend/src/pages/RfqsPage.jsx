@@ -81,15 +81,17 @@ function RfqCard({ rfq, onClick }) {
 export default function RfqsPage() {
   const { language } = useTranslation()
   const navigate = useNavigate()
-  const { canManageRfqs, canSubmitOffers, isVerified } = usePermissions()
+  const { canManageRfqs, canSubmitOffers, hasBothCapabilities, isSupplierOnly, isVerified } = usePermissions()
   const isAr = language === 'ar'
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
   const [pageNumber, setPageNumber] = useState(1)
   const pageSize = 12
 
-  // Buyers see their own RFQs; Suppliers see the discovery feed
-  const isSupplierView = canSubmitOffers && !canManageRfqs
+  // View mode: 'mine' (Buyer RFQs) or 'discover' (Market RFQs for Supplier)
+  const [dualViewMode, setDualViewMode] = useState(isSupplierOnly ? 'discover' : 'mine')
+
+  const isSupplierView = isSupplierOnly || (hasBothCapabilities && dualViewMode === 'discover')
 
   const { data, isLoading, error } = useQuery({
     queryKey: isSupplierView
@@ -119,18 +121,42 @@ export default function RfqsPage() {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-[#06245B]">
-            {isSupplierView
-              ? (isAr ? 'اكتشاف طلبات الأسعار' : 'Discover RFQs')
-              : (isAr ? 'طلبات الأسعار' : 'My RFQs')}
-          </h1>
+          <div className="flex items-center gap-3 flex-wrap">
+            <h1 className="text-2xl font-bold text-[#06245B]">
+              {isSupplierView
+                ? (isAr ? 'اكتشاف طلبات الأسعار' : 'Discover RFQs')
+                : (isAr ? 'طلبات الأسعار' : 'My RFQs')}
+            </h1>
+            {hasBothCapabilities && (
+              <div className="inline-flex rounded-xl bg-slate-100 p-1 border border-slate-200 text-xs font-bold">
+                <button
+                  type="button"
+                  onClick={() => { setDualViewMode('mine'); setPageNumber(1) }}
+                  className={`px-3 py-1 rounded-lg transition-all ${
+                    !isSupplierView ? 'bg-white text-[#06245B] shadow-xs' : 'text-slate-600 hover:text-[#06245B]'
+                  }`}
+                >
+                  {isAr ? 'طلباتي (كمشتري)' : 'My RFQs (Buyer)'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setDualViewMode('discover'); setPageNumber(1) }}
+                  className={`px-3 py-1 rounded-lg transition-all ${
+                    isSupplierView ? 'bg-white text-[#06245B] shadow-xs' : 'text-slate-600 hover:text-[#06245B]'
+                  }`}
+                >
+                  {isAr ? 'طلبات السوق (كمورد)' : 'Market Feed (Supplier)'}
+                </button>
+              </div>
+            )}
+          </div>
           <p className="text-sm text-[#64748B] mt-1">
             {isSupplierView
               ? (isAr ? 'تصفح طلبات الأسعار المتاحة وتقديم عروضك' : 'Browse available RFQs and submit your offers')
               : (isAr ? 'إدارة طلبات الأسعار الخاصة بك' : 'Manage your procurement requests')}
           </p>
         </div>
-        {canManageRfqs && (
+        {canManageRfqs && !isSupplierView && (
           <Button
             variant="primary"
             icon={<Plus size={18} />}

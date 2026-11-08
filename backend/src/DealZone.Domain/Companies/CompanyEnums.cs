@@ -1,5 +1,12 @@
 namespace DealZone.Domain.Companies;
 
+public enum CompanyType
+{
+    Buyer = 1,
+    Supplier = 2,
+    Both = 3
+}
+
 public enum CompanyVerificationStatus
 {
     /// <summary>No documents submitted yet. Default state for new companies.</summary>

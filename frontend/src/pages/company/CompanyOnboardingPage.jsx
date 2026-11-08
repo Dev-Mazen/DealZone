@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Navigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -21,25 +21,73 @@ import { useAuthStore } from '../../store/authStore'
 import { useToast } from '../../hooks/useToast'
 import { useTranslation } from '../../hooks/useTranslation'
 import Input from '../../components/ui/Input'
+import { EGYPT_PHONE_REGEX } from '../../shared/validation/formSchemas'
 import Textarea from '../../components/ui/Textarea'
 import Button from '../../components/ui/Button'
 
-const companySchema = z.object({
-  legalName: z.string().min(3, 'Legal name must be at least 3 characters'),
-  tradeName: z.string().min(3, 'Trade name must be at least 3 characters'),
-  industrySector: z.string().min(3, 'Industry sector is required'),
-  city: z.string().min(2, 'City is required'),
-  governorate: z.string().min(2, 'Governorate is required'),
-  description: z.string().optional(),
-  website: z.string().url('Must be a valid URL').optional().or(z.literal('')),
-  taxIdNumber: z.string().min(5, 'Tax ID number is required'),
-  commercialRegistrationNumber: z.string().min(5, 'Commercial registration number is required'),
-  corporateEmail: z.string().email('Invalid corporate email address'),
-  corporatePhone: z.string().min(10, 'Corporate phone number must be at least 10 digits'),
-  addressLine1: z.string().min(5, 'Address line 1 is required'),
-  addressLine2: z.string().optional(),
-  postalCode: z.string().optional(),
-})
+const getCompanySchema = (isAr) =>
+  z.object({
+    legalName: z
+      .string()
+      .trim()
+      .min(1, isAr ? 'الاسم القانوني مطلوب' : 'Legal name is required')
+      .min(3, isAr ? 'الاسم القانوني يجب ألا يقل عن 3 أحرف' : 'Legal name must be at least 3 characters'),
+    tradeName: z
+      .string()
+      .trim()
+      .min(1, isAr ? 'الاسم التجاري مطلوب' : 'Trade name is required')
+      .min(2, isAr ? 'الاسم التجاري يجب ألا يقل عن حرفين' : 'Trade name must be at least 2 characters'),
+    industrySector: z
+      .string()
+      .trim()
+      .min(1, isAr ? 'القطاع الصناعي مطلوب' : 'Industry sector is required'),
+    city: z.string().trim().min(1, isAr ? 'المدينة مطلوبة' : 'City is required'),
+    governorate: z.string().trim().min(1, isAr ? 'المحافظة مطلوبة' : 'Governorate is required'),
+    description: z.string().optional(),
+    website: z
+      .string()
+      .trim()
+      .url(isAr ? 'يجب إدخال رابط صالح (يبدأ بـ https://)' : 'Must be a valid URL (starting with https://)')
+      .optional()
+      .or(z.literal('')),
+    taxIdNumber: z
+      .string()
+      .trim()
+      .min(1, isAr ? 'رقم التسجيل الضريبي مطلوب' : 'Tax ID is required')
+      .regex(
+        /^(?:\d{3}-\d{3}-\d{3}|\d{9})$/,
+        isAr
+          ? 'الرقم الضريبي المصري يتكون من 9 أرقام (مثال: 123-456-789 أو 123456789)'
+          : 'Egyptian Tax ID must be 9 digits (e.g. 123-456-789 or 123456789)'
+      ),
+    commercialRegistrationNumber: z
+      .string()
+      .trim()
+      .min(1, isAr ? 'رقم السجل التجاري مطلوب' : 'Commercial registration number is required')
+      .regex(/^\d{4,10}$/, isAr ? 'رقم السجل التجاري يجب أن يتكون من أرقام (4-10 أرقام)' : 'Commercial register must be 4-10 numeric digits'),
+    corporateEmail: z
+      .string()
+      .trim()
+      .min(1, isAr ? 'البريد الرسمي مطلوب' : 'Corporate email is required')
+      .email(isAr ? 'صيغة البريد الإلكتروني غير صحيحة' : 'Invalid corporate email address'),
+    corporatePhone: z
+      .string()
+      .trim()
+      .min(1, isAr ? 'رقم الهاتف مطلوب' : 'Corporate phone is required')
+      .refine(
+        (val) => EGYPT_PHONE_REGEX.test(val.replace(/\s+/g, '')),
+        isAr
+          ? 'رقم الهاتف يجب أن يكون رقم مصري صالح (مثال: 01012345678 أو +201012345678)'
+          : 'Must be a valid Egyptian mobile number (e.g. 01012345678 or +201012345678)'
+      ),
+    addressLine1: z
+      .string()
+      .trim()
+      .min(1, isAr ? 'العنوان مطلوب' : 'Address is required')
+      .min(5, isAr ? 'العنوان يجب ألا يقل عن 5 أحرف' : 'Address line 1 must be at least 5 characters'),
+    addressLine2: z.string().optional(),
+    postalCode: z.string().optional(),
+  })
 
 const commonSectors = [
   { ar: 'حديد وصلب ومعادن', en: 'Steel & Metallurgy' },
@@ -55,9 +103,14 @@ export default function CompanyOnboardingPage() {
   const { t, language } = useTranslation()
   const isAr = language === 'ar'
   const toast = useToast()
+  const user = useAuthStore((s) => s.user)
   const setUser = useAuthStore((s) => s.setUser)
   const [isLoading, setIsLoading] = useState(false)
   const [userIntent, setUserIntent] = useState('buyer')
+
+  if (user?.isSystemAdmin) {
+    return <Navigate to="/admin/verification" replace />
+  }
 
   useEffect(() => {
     const saved = localStorage.getItem('dz_user_intent')
@@ -71,7 +124,8 @@ export default function CompanyOnboardingPage() {
     watch,
     formState: { errors },
   } = useForm({
-    resolver: zodResolver(companySchema),
+    resolver: zodResolver(getCompanySchema(isAr)),
+    mode: 'onChange',
     defaultValues: {
       industrySector: '',
     },
@@ -82,7 +136,17 @@ export default function CompanyOnboardingPage() {
   const onSubmit = async (data) => {
     setIsLoading(true)
     try {
-      await companyService.create(data)
+      const typeMapping = {
+        buyer: 'Buyer',
+        supplier: 'Supplier',
+        dual: 'Both',
+        both: 'Both',
+      }
+      const payload = {
+        ...data,
+        companyType: typeMapping[userIntent] || 'Both',
+      }
+      await companyService.create(payload)
       const user = await authService.me()
       setUser(user)
       toast.success(
@@ -162,6 +226,29 @@ export default function CompanyOnboardingPage() {
                 ? isAr ? 'إعداد ملف المورد / الموزع' : 'Supplier / Distributor Profile Setup'
                 : isAr ? 'إعداد ملف المنشأة الصناعية المزدوجة' : 'Dual Enterprise Profile Setup'}
             </span>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 mb-2">
+            {[
+              { id: 'buyer', labelAr: 'مشتري / مصنع', labelEn: 'Buyer / Factory' },
+              { id: 'supplier', labelAr: 'مورّد خامات', labelEn: 'Supplier' },
+              { id: 'dual', labelAr: 'كلاهما (مشتري ومورد)', labelEn: 'Both (Dual)' },
+            ].map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => {
+                  setUserIntent(t.id)
+                  localStorage.setItem('dz_user_intent', t.id)
+                }}
+                className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${
+                  userIntent === t.id
+                    ? 'bg-[#00D9F5] text-[#06245B] shadow-sm font-extrabold'
+                    : 'bg-white/10 hover:bg-white/20 text-white'
+                }`}
+              >
+                {isAr ? t.labelAr : t.labelEn}
+              </button>
+            ))}
           </div>
           <h1 className="text-xl sm:text-2xl font-extrabold">
             {isAr ? 'سجل بيانات شركتك لبدء التجارة المعتمدة' : 'Register Your Enterprise Credentials'}

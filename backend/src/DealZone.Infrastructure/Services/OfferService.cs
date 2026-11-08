@@ -234,6 +234,56 @@ public class OfferService : IOfferService
             totalCount);
     }
 
+    /// <summary>
+    /// List all offers received across RFQs published by the current authenticated buyer company.
+    /// </summary>
+    public async Task<PagedResult<OfferSummaryResponse>> GetReceivedOffersAsync(
+        OfferFilter filter,
+        CancellationToken cancellationToken = default)
+    {
+        var (buyerCompany, _) = await RequireApprovedCompanyAsync(cancellationToken);
+
+        var query = _context.Offers
+            .AsNoTracking()
+            .Include(o => o.Rfq)
+            .Include(o => o.SupplierCompany)
+            .Include(o => o.Items)
+            .Where(o => o.Rfq != null && o.Rfq.BuyerCompanyId == buyerCompany.Id && !o.Rfq.IsDeleted);
+
+        if (filter.RfqId.HasValue)
+        {
+            query = query.Where(o => o.RfqId == filter.RfqId.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(filter.Status) && Enum.TryParse<OfferStatus>(filter.Status, true, out var status))
+        {
+            query = query.Where(o => o.Status == status);
+        }
+
+        var totalCount = await query.CountAsync(cancellationToken);
+
+        query = filter.SortBy?.ToLowerInvariant() switch
+        {
+            "amount" => filter.SortDescending ? query.OrderByDescending(o => o.TotalAmount) : query.OrderBy(o => o.TotalAmount),
+            "validity" => filter.SortDescending ? query.OrderByDescending(o => o.ValidityDateUtc) : query.OrderBy(o => o.ValidityDateUtc),
+            _ => filter.SortDescending ? query.OrderByDescending(o => o.SubmittedAtUtc) : query.OrderBy(o => o.SubmittedAtUtc)
+        };
+
+        var pageNumber = Math.Max(1, filter.PageNumber);
+        var pageSize = Math.Clamp(filter.PageSize, 1, 100);
+
+        var items = await query
+            .Skip((pageNumber - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+
+        return PagedResult<OfferSummaryResponse>.Create(
+            items.Select(MapToSummaryResponse).ToList(),
+            pageNumber,
+            pageSize,
+            totalCount);
+    }
+
     // -------------------------------------------------------------------------
     // 5. Revise Offer
     // -------------------------------------------------------------------------

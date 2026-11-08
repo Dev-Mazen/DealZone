@@ -48,7 +48,8 @@ public record UserCompanyDto(
     string Governorate,
     string VerificationStatus,
     bool CanPerformCommercialActivities,
-    string Role);
+    string Role,
+    string CompanyType = "Both");
 
 public record UserProfileResponse(
     Guid Id,

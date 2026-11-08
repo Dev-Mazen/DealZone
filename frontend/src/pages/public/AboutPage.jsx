@@ -131,12 +131,7 @@ export default function AboutPage() {
         </div>
 
         <div className="max-w-6xl mx-auto text-center relative z-10 pt-24 pb-28 px-4 sm:px-6">
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-[#00D9F5] text-xs sm:text-sm font-bold mb-6">
-            <Sparkles size={16} />
-            <span>
-              {isAr ? 'عن منصة DealZone — التجارة الصناعية الذكية' : 'About DealZone — Enterprise Industrial Procurement'}
-            </span>
-          </div>
+          
 
           <h1 className="text-3xl sm:text-5xl md:text-6xl font-extrabold tracking-tight mb-6 leading-[1.15]">
             {isAr ? (

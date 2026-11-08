@@ -46,6 +46,9 @@ export default function Navbar() {
     canManageRfqs,
     canSubmitOffers,
     canViewCommercial,
+    isBuyerOnly,
+    isSupplierOnly,
+    hasBothCapabilities,
     role,
   } = usePermissions()
 
@@ -106,16 +109,37 @@ export default function Navbar() {
     { label: isAr ? 'الكتالوج الصناعي' : 'Catalog', path: '/catalog' },
   ]
 
-  // Define authenticated quick links
-  const authLinks = [
+  // Define authenticated quick links strictly separated by role
+  const adminLinks = [
+    { label: isAr ? 'التحليلات والمؤشرات' : 'Analytics', path: '/admin/analytics', icon: LayoutDashboard },
+    { label: isAr ? 'توثيق الشركات' : 'Verification Queue', path: '/admin/verification', icon: ShieldCheck },
+    { label: isAr ? 'الكتالوج' : 'Catalog', path: '/admin/catalog', icon: Package },
+    { label: isAr ? 'فض النزاعات' : 'Disputes', path: '/admin/disputes', icon: Handshake },
+    { label: isAr ? 'مزودو الشحن' : 'Shipping', path: '/admin/shipping', icon: Truck },
+  ]
+
+  const companyLinks = [
     { label: isAr ? 'لوحة التحكم' : 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
     hasCompany && { label: isAr ? 'الكتالوج' : 'Catalog', path: '/catalog', icon: Package },
-    (canManageRfqs || canSubmitOffers) && { label: isAr ? 'طلبات الأسعار' : 'RFQs', path: '/rfqs', icon: FileText },
-    canSubmitOffers && { label: isAr ? 'عروضي' : 'My Offers', path: '/offers', icon: FileText },
+    (canManageRfqs || canSubmitOffers) && {
+      label: isSupplierOnly ? (isAr ? 'طلبات السوق' : 'Market RFQs') : (isAr ? 'طلبات الأسعار' : 'RFQs'),
+      path: '/rfqs',
+      icon: FileText,
+    },
+    (canSubmitOffers || canManageRfqs) && {
+      label: isSupplierOnly
+        ? (isAr ? 'عروضي' : 'My Offers')
+        : isBuyerOnly
+        ? (isAr ? 'العروض المستلمة' : 'Received Offers')
+        : (isAr ? 'العروض' : 'Offers'),
+      path: '/offers',
+      icon: FileText,
+    },
     canViewCommercial && { label: isAr ? 'الصفقات' : 'Deals', path: '/deals', icon: Handshake },
     canViewCommercial && { label: isAr ? 'الشحنات' : 'Shipments', path: '/shipments', icon: Truck },
-    isSystemAdmin && { label: isAr ? 'الإدارة' : 'Admin', path: '/admin', icon: ShieldCheck },
   ].filter(Boolean)
+
+  const authLinks = isSystemAdmin ? adminLinks : companyLinks
 
   const activeLinks = isAuthenticated ? authLinks : publicLinks
 
@@ -242,24 +266,37 @@ export default function Navbar() {
                         </div>
 
                         <div className="py-1">
-                          <Link
-                            to="/dashboard"
-                            className="flex items-center gap-3 px-4 py-2 text-sm text-slate-700 hover:bg-[#EAF4FF] hover:text-[#06245B] transition-colors"
-                            onClick={() => setUserMenuOpen(false)}
-                          >
-                            <LayoutDashboard size={16} className="text-slate-400" />
-                            {isAr ? 'لوحة التحكم' : 'Dashboard'}
-                          </Link>
-
-                          {hasCompany && (
+                          {isSystemAdmin ? (
                             <Link
-                              to="/company"
-                              className="flex items-center gap-3 px-4 py-2 text-sm text-slate-700 hover:bg-[#EAF4FF] hover:text-[#06245B] transition-colors"
+                              to="/admin/verification"
+                              className="flex items-center gap-3 px-4 py-2 text-sm font-semibold text-[#1266D6] hover:bg-[#EAF4FF] transition-colors"
                               onClick={() => setUserMenuOpen(false)}
                             >
-                              <Building2 size={16} className="text-slate-400" />
-                              {t('nav.company')}
+                              <ShieldCheck size={16} className="text-[#00D9F5]" />
+                              {isAr ? 'لوحة إدارة المنصة' : 'Admin Portal'}
                             </Link>
+                          ) : (
+                            <>
+                              <Link
+                                to="/dashboard"
+                                className="flex items-center gap-3 px-4 py-2 text-sm text-slate-700 hover:bg-[#EAF4FF] hover:text-[#06245B] transition-colors"
+                                onClick={() => setUserMenuOpen(false)}
+                              >
+                                <LayoutDashboard size={16} className="text-slate-400" />
+                                {isAr ? 'لوحة التحكم' : 'Dashboard'}
+                              </Link>
+
+                              {hasCompany && (
+                                <Link
+                                  to="/company"
+                                  className="flex items-center gap-3 px-4 py-2 text-sm text-slate-700 hover:bg-[#EAF4FF] hover:text-[#06245B] transition-colors"
+                                  onClick={() => setUserMenuOpen(false)}
+                                >
+                                  <Building2 size={16} className="text-slate-400" />
+                                  {t('nav.company')}
+                                </Link>
+                              )}
+                            </>
                           )}
 
                           <Link
@@ -270,17 +307,6 @@ export default function Navbar() {
                             <User size={16} className="text-slate-400" />
                             {t('nav.profile')}
                           </Link>
-
-                          {isSystemAdmin && (
-                            <Link
-                              to="/admin"
-                              className="flex items-center gap-3 px-4 py-2 text-sm font-semibold text-[#1266D6] hover:bg-[#EAF4FF] transition-colors"
-                              onClick={() => setUserMenuOpen(false)}
-                            >
-                              <ShieldCheck size={16} className="text-[#00D9F5]" />
-                              {t('nav.admin')}
-                            </Link>
-                          )}
                         </div>
 
                         <div className="border-t border-slate-100 mt-1 pt-1">

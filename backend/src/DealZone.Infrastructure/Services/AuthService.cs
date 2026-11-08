@@ -66,7 +66,16 @@ public class AuthService : IAuthService
         _context.Users.Add(user);
         await _context.SaveChangesAsync(cancellationToken);
 
-        await _emailService.SendEmailConfirmationAsync(user.Email, rawToken, cancellationToken);
+        try
+        {
+            await _emailService.SendEmailConfirmationAsync(user.Email, rawToken, cancellationToken);
+        }
+        catch (EmailDeliveryException)
+        {
+            _context.Users.Remove(user);
+            await _context.SaveChangesAsync(CancellationToken.None);
+            throw;
+        }
 
         return new RegisterResponse(user.Id, user.Email, "Registration successful. Please verify your email before logging in.");
     }
@@ -356,7 +365,8 @@ public class AuthService : IAuthService
                 membership.Company.Governorate,
                 membership.Company.VerificationStatus.ToString(),
                 membership.Company.CanPerformCommercialActivities,
-                membership.Role.ToString());
+                membership.Role.ToString(),
+                membership.Company.CompanyType.ToString());
         }
 
         return new UserProfileResponse(

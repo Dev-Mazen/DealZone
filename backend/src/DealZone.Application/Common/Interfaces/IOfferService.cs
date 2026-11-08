@@ -35,6 +35,13 @@ public interface IOfferService
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// List all offers received across RFQs published by the current buyer company.
+    /// </summary>
+    Task<PagedResult<OfferSummaryResponse>> GetReceivedOffersAsync(
+        OfferFilter filter,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Submit a new immutable revision of an existing offer, superseding the previous version.
     /// </summary>
     Task<OfferDetailResponse> ReviseOfferAsync(
@@ -74,4 +81,3 @@ public interface IOfferService
         RejectOfferRequest request,
         CancellationToken cancellationToken = default);
 }
-

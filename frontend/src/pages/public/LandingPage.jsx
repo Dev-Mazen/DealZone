@@ -154,15 +154,7 @@ export default function LandingPage() {
             <Logo size="lg" variant="white" link={false} />
           </div>
 
-          {/* Badge */}
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-[#00D9F5] text-xs sm:text-sm font-semibold mb-8 shadow-sm">
-            <Sparkles size={16} />
-            <span>
-              {isAr
-                ? 'المنصة الوطنية الرائدة لتجارة المواد الخام الصناعية'
-                : "Egypt's Premier Industrial Raw Materials Platform"}
-            </span>
-          </div>
+          
 
           {/* Main Title */}
           <h1 className="text-3xl sm:text-5xl md:text-6xl font-extrabold tracking-tight text-white mb-6 leading-[1.15]">

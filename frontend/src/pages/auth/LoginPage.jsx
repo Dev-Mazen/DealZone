@@ -11,11 +11,9 @@ import { useTranslation } from '../../hooks/useTranslation'
 import Input from '../../components/ui/Input'
 import Button from '../../components/ui/Button'
 import Logo from '../../components/common/Logo'
+import { getLoginSchema } from '../../shared/validation/formSchemas'
 
-const loginSchema = z.object({
-  email: z.string().email('Invalid email address'),
-  password: z.string().min(8, 'Password must be at least 8 characters'),
-})
+// Schema dynamically loaded via getLoginSchema(isAr)
 
 export default function LoginPage() {
   const navigate = useNavigate()
@@ -23,26 +21,42 @@ export default function LoginPage() {
   const toast = useToast()
   const { setUser, setTokens } = useAuthStore()
   const [isLoading, setIsLoading] = useState(false)
+  const [errorMsg, setErrorMsg] = useState('')
+  const [unconfirmedEmail, setUnconfirmedEmail] = useState('')
 
+  const { language } = useTranslation()
+  const isAr = language === 'ar'
   const {
     register,
     handleSubmit,
     formState: { errors },
   } = useForm({
-    resolver: zodResolver(loginSchema),
+    resolver: zodResolver(getLoginSchema(isAr)),
+    mode: 'onChange',
   })
 
   const onSubmit = async (data) => {
     setIsLoading(true)
+    setErrorMsg('')
+    setUnconfirmedEmail('')
     try {
       const authResponse = await authService.login(data)
       setTokens(authResponse.accessToken, authResponse.refreshToken)
       const user = await authService.me()
       setUser(user)
-      toast.success('Welcome back!')
-      navigate('/dashboard')
+      toast.success(user.isSystemAdmin ? 'Welcome to Admin Portal!' : 'Welcome back!')
+      if (user.isSystemAdmin) {
+        navigate('/admin/verification')
+      } else {
+        navigate('/dashboard')
+      }
     } catch (err) {
-      toast.error(err?.problem?.detail || 'Login failed. Please check your credentials.')
+      const msg = err?.problem?.detail || err?.message || 'Login failed. Please check your credentials.'
+      setErrorMsg(msg)
+      if (msg.toLowerCase().includes('confirm your email') || msg.toLowerCase().includes('not confirmed')) {
+        setUnconfirmedEmail(data.email)
+      }
+      toast.error(msg)
     } finally {
       setIsLoading(false)
     }
@@ -63,6 +77,20 @@ export default function LoginPage() {
           <p className="text-sm text-[#64748B] text-center mb-8">
             {t('auth.login.subtitle')}
           </p>
+
+          {errorMsg && (
+            <div className="mb-6 p-4 rounded-xl bg-[#FEE2E2] border border-[#EF4444]/20 text-[#EF4444] text-sm">
+              <p>{errorMsg}</p>
+              {unconfirmedEmail && (
+                <Link
+                  to={`/confirm-email?email=${encodeURIComponent(unconfirmedEmail)}`}
+                  className="mt-2 inline-block font-semibold text-[#1266D6] hover:underline"
+                >
+                  {t('auth.login.confirmEmailLink') || 'Click here to confirm your email'}
+                </Link>
+              )}
+            </div>
+          )}
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <Input

@@ -38,6 +38,11 @@ public class CompanyConfiguration : IEntityTypeConfiguration<Company>
         builder.Property(c => c.Website)
             .HasMaxLength(255);
 
+        builder.Property(c => c.CompanyType)
+            .HasConversion<string>()
+            .HasMaxLength(20)
+            .HasDefaultValue(CompanyType.Both);
+
         builder.Property(c => c.RejectionReason)
             .HasMaxLength(500);
 

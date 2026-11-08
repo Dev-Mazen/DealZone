@@ -17,7 +17,8 @@ import { usePermissions } from '../../hooks/usePermissions'
 
 export default function Sidebar() {
   const location = useLocation()
-  const { t } = useTranslation()
+  const { t, language } = useTranslation()
+  const isAr = language === 'ar'
   const collapsed = useUIStore((s) => s.sidebarCollapsed)
   const toggleSidebar = useUIStore((s) => s.toggleSidebar)
   const {
@@ -25,28 +26,34 @@ export default function Sidebar() {
     canManageRfqs,
     canSubmitOffers,
     canViewCommercial,
+    isBuyerOnly,
+    isSupplierOnly,
+    hasBothCapabilities,
     hasCompany,
   } = usePermissions()
 
-  // Build nav items based on roles
-  const navItems = [
+  // Build nav items strictly separated by role
+  const adminNavItems = [
+    { label: isAr ? 'طلبات التوثيق' : 'Verification Queue', icon: ShieldCheck, path: '/admin/verification' },
+    { label: isAr ? 'إدارة الكتالوج' : 'Catalog Management', icon: Package, path: '/admin/catalog' },
+    { label: isAr ? 'فض النزاعات' : 'Disputes Management', icon: Handshake, path: '/admin/disputes' },
+    { label: isAr ? 'مزودو الشحن' : 'Shipping Providers', icon: Truck, path: '/admin/shipping' },
+  ]
+
+  const companyNavItems = [
     { label: t('nav.dashboard'), icon: LayoutDashboard, path: '/dashboard' },
     hasCompany && { label: t('nav.catalog'), icon: Package, path: '/catalog' },
-    // Buyer: sees "My RFQs"
     canManageRfqs && { label: t('nav.rfqs'), icon: FileText, path: '/rfqs' },
-    // Supplier: also sees RFQ discovery (same route /rfqs but filtered differently)
-    canSubmitOffers && !canManageRfqs && { label: t('nav.discoverRfqs') || 'Discover RFQs', icon: FileText, path: '/rfqs' },
-    // Supplier: my submitted offers
-    canSubmitOffers && { label: t('nav.offers') || 'My Offers', icon: DollarSign, path: '/offers' },
-    // Both buyer & supplier see deals
+    isSupplierOnly && { label: isAr ? 'طلبات السوق' : 'Discover RFQs', icon: FileText, path: '/rfqs' },
+    canSubmitOffers && !canManageRfqs && { label: isAr ? 'عروضي' : 'My Offers', icon: DollarSign, path: '/offers' },
+    canManageRfqs && !canSubmitOffers && { label: isAr ? 'العروض المستلمة' : 'Received Offers', icon: DollarSign, path: '/offers' },
+    canManageRfqs && canSubmitOffers && { label: isAr ? 'العروض' : 'Offers', icon: DollarSign, path: '/offers' },
     canViewCommercial && { label: t('nav.deals') || 'Deals', icon: Handshake, path: '/deals' },
-    // Shipments
     canViewCommercial && { label: t('nav.shipments') || 'Shipments', icon: Truck, path: '/shipments' },
-    // Notifications
     hasCompany && { label: t('nav.notifications') || 'Notifications', icon: Bell, path: '/notifications' },
-    // Admin
-    isSystemAdmin && { label: t('nav.admin') || 'Admin', icon: ShieldCheck, path: '/admin' },
   ].filter(Boolean)
+
+  const navItems = isSystemAdmin ? adminNavItems : companyNavItems
 
   const isActive = (path) => {
     if (path === '/rfqs') return location.pathname.startsWith('/rfqs')

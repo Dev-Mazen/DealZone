@@ -127,9 +127,9 @@ export default function AdminShippingPage() {
                     <span>{p.email}</span>
                   </div>
                 )}
-                {p.trackingUrlTemplate && (
-                  <div className="text-[11px] font-mono text-[#94A3B8] truncate mt-1">
-                    URL: {p.trackingUrlTemplate}
+                {p.supportedGovernorates && (
+                  <div className="text-[11px] text-[#64748B] truncate mt-1">
+                    Coverage: {p.supportedGovernorates}
                   </div>
                 )}
               </div>
@@ -185,24 +185,27 @@ export default function AdminShippingPage() {
             required
           />
           <Input
-            label="Contact Person"
+            label="Contact Person *"
             placeholder="Account Representative Name"
             value={newProvider.contactPerson}
             onChange={(e) => setNewProvider({ ...newProvider, contactPerson: e.target.value })}
+            required
           />
           <div className="grid grid-cols-2 gap-3">
             <Input
-              label="Phone"
+              label="Phone *"
               placeholder="+20 1..."
               value={newProvider.phone}
               onChange={(e) => setNewProvider({ ...newProvider, phone: e.target.value })}
+              required
             />
             <Input
-              label="Email"
+              label="Email *"
               type="email"
               placeholder="ops@nilefreight.eg"
               value={newProvider.email}
               onChange={(e) => setNewProvider({ ...newProvider, email: e.target.value })}
+              required
             />
           </div>
           <Input

@@ -14,8 +14,12 @@ export const API_BASE_URL =
 let accessToken = null
 
 export const tokenStore = {
-  getAccess: () => accessToken,
-  setAccess: (t) => { accessToken = t },
+  getAccess: () => accessToken || localStorage.getItem('dz_access'),
+  setAccess: (t) => {
+    accessToken = t
+    if (t) localStorage.setItem('dz_access', t)
+    else localStorage.removeItem('dz_access')
+  },
   getRefresh: () => localStorage.getItem('dz_refresh'),
   setRefresh: (t) => {
     if (t) localStorage.setItem('dz_refresh', t)
@@ -23,6 +27,7 @@ export const tokenStore = {
   },
   clearAll: () => {
     accessToken = null
+    localStorage.removeItem('dz_access')
     localStorage.removeItem('dz_refresh')
   },
 }
@@ -81,11 +86,20 @@ api.interceptors.response.use(
   async (error) => {
     const original = error.config
 
+    const isAuthEndpoint =
+      original?.url?.includes('/auth/login') ||
+      original?.url?.includes('/auth/register') ||
+      original?.url?.includes('/auth/refresh') ||
+      original?.url?.includes('/auth/confirm-email') ||
+      original?.url?.includes('/auth/resend-confirmation') ||
+      original?.url?.includes('/auth/forgot-password') ||
+      original?.url?.includes('/auth/reset-password')
+
     // ── 401 handling with token refresh ──
     if (
       error.response?.status === 401 &&
       !original._retry &&
-      original.url !== '/auth/refresh'
+      !isAuthEndpoint
     ) {
       if (isRefreshing) {
         // Queue the request until refresh resolves

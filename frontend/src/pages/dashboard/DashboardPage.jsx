@@ -1,5 +1,6 @@
-import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { Link, Navigate } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import {
   TrendingUp,
   Package,
@@ -11,27 +12,76 @@ import {
   ArrowUpRight,
   ShieldCheck,
   Building2,
+  Clock,
+  CheckCircle,
+  ArrowRight,
+  ArrowLeft,
+  ChevronRight,
+  ExternalLink,
+  Layers,
+  Inbox,
+  Send,
 } from 'lucide-react'
 import { useAuthStore } from '../../store/authStore'
 import { usePermissions } from '../../hooks/usePermissions'
 import { useTranslation } from '../../hooks/useTranslation'
-import Card, { CardHeader } from '../../components/ui/Card'
+import { rfqService } from '../../shared/api/services/rfqService'
+import { offerService } from '../../shared/api/services/offerService'
+import { dealService } from '../../shared/api/services/dealService'
 import Button from '../../components/ui/Button'
 import Badge from '../../components/ui/Badge'
 import StatKpiCard from '../../components/charts/StatKpiCard'
 import BarChart from '../../components/charts/BarChart'
 import DonutChart from '../../components/charts/DonutChart'
 import AreaTrendChart from '../../components/charts/AreaTrendChart'
+import { formatCurrency, formatDate } from '../../utils/format'
 
 export default function DashboardPage() {
   const user = useAuthStore((s) => s.user)
-  const { t, language } = useTranslation()
+  const { language } = useTranslation()
   const isAr = language === 'ar'
-  const { hasCompany, isVerified, canManageRfqs, canSubmitOffers, role } = usePermissions()
+  const {
+    hasCompany,
+    isVerified,
+    canManageRfqs,
+    canSubmitOffers,
+    isOwner,
+    isAdmin,
+    isProcurementManager,
+    isSalesManager,
+    role,
+  } = usePermissions()
+
+  const {
+    companyType,
+    isBuyer,
+    isSupplier,
+    isBuyerOnly,
+    isSupplierOnly,
+    hasBothCapabilities,
+  } = usePermissions()
+
+  // Active dashboard view mode: 'buyer' or 'supplier'
+  const [dashboardMode, setDashboardMode] = useState(
+    isSupplierOnly ? 'supplier' : 'buyer'
+  )
+
+  useEffect(() => {
+    if (isSupplierOnly && dashboardMode !== 'supplier') {
+      setDashboardMode('supplier')
+    } else if (isBuyerOnly && dashboardMode !== 'buyer') {
+      setDashboardMode('buyer')
+    }
+  }, [isSupplierOnly, isBuyerOnly])
 
   const [activeChartTab, setActiveChartTab] = useState('volume')
 
-  // Company onboarding check
+  // 1. System admin separation: redirect to admin analytics portal
+  if (user?.isSystemAdmin) {
+    return <Navigate to="/admin/analytics" replace />
+  }
+
+  // 2. Company onboarding check
   if (!hasCompany) {
     return (
       <div className="max-w-2xl mx-auto py-12">
@@ -57,7 +107,7 @@ export default function DashboardPage() {
     )
   }
 
-  // Verification pending check
+  // 3. Verification pending check
   if (!isVerified) {
     return (
       <div className="max-w-3xl mx-auto py-8">
@@ -93,7 +143,43 @@ export default function DashboardPage() {
     )
   }
 
-  // ── Industrial Procurement Analytics Sample & Live Data ──
+  // Live Data Queries
+  // Buyer: My RFQs
+  const { data: myRfqsData } = useQuery({
+    queryKey: ['rfqs', 'mine', { pageSize: 5 }],
+    queryFn: () => rfqService.getMine({ pageNumber: 1, pageSize: 5 }),
+    enabled: isVerified && dashboardMode === 'buyer',
+  })
+
+  // Buyer: Received offers on RFQs
+  const { data: receivedOffersData } = useQuery({
+    queryKey: ['offers', 'received', { pageSize: 5 }],
+    queryFn: () => offerService.getReceived({ pageNumber: 1, pageSize: 5 }),
+    enabled: isVerified && dashboardMode === 'buyer',
+  })
+
+  // Supplier: Open Market RFQs to Bid On
+  const { data: openRfqsData } = useQuery({
+    queryKey: ['rfqs', 'discover', { status: 'Published', pageSize: 5 }],
+    queryFn: () => rfqService.discover({ pageNumber: 1, pageSize: 5 }),
+    enabled: isVerified && dashboardMode === 'supplier',
+  })
+
+  // Supplier: My Submitted Offers
+  const { data: myOffersData } = useQuery({
+    queryKey: ['offers', 'mine', { pageSize: 5 }],
+    queryFn: () => offerService.getMine({ pageNumber: 1, pageSize: 5 }),
+    enabled: isVerified && dashboardMode === 'supplier',
+  })
+
+  // Deals
+  const { data: dealsData } = useQuery({
+    queryKey: ['deals', 'mine', { pageSize: 5 }],
+    queryFn: () => dealService.getMine({ pageNumber: 1, pageSize: 5 }),
+    enabled: isVerified,
+  })
+
+  // Mock Trend & Distribution Charts (Industrial taxonomy)
   const sourcingVolumeData = [
     { label: isAr ? 'يناير' : 'Jan', value: 1250 },
     { label: isAr ? 'فبراير' : 'Feb', value: 1840 },
@@ -113,112 +199,214 @@ export default function DashboardPage() {
   ]
 
   const categoryBreakdown = [
-    { label: isAr ? 'حديد ومعادن' : 'Steel & Metallurgy', value: 42, color: '#06245B' },
-    { label: isAr ? 'كيماويات أساسية' : 'Industrial Chemicals', value: 28, color: '#1266D6' },
-    { label: isAr ? 'بوليمرات وبلاستيك' : 'Polymers & Resins', value: 18, color: '#00D9F5' },
-    { label: isAr ? 'مواد تعبئة وتغليف' : 'Packaging & Film', value: 12, color: '#10B981' },
+    { label: isAr ? 'حديد وصلب ومعادن' : 'Steel & Metallurgy', value: 42, color: '#06245B' },
+    { label: isAr ? 'كيماويات صناعية وبتروكيماويات' : 'Industrial Chemicals', value: 28, color: '#1266D6' },
+    { label: isAr ? 'بوليمرات ولدائن وبلاستيك' : 'Polymers & Resins', value: 18, color: '#00D9F5' },
+    { label: isAr ? 'تعبئة وتغليف وألياف' : 'Packaging & Film', value: 12, color: '#10B981' },
   ]
+
+  const currentCompanyId = (user?.company?.id || '').toLowerCase()
+  const myDeals = dealsData?.items || []
+  const buyingDeals = myDeals.filter((d) => (d.buyerCompanyId || '').toLowerCase() === currentCompanyId)
+  const sellingDeals = myDeals.filter((d) => (d.supplierCompanyId || '').toLowerCase() === currentCompanyId)
 
   return (
     <div className="space-y-8 animate-fade-in overflow-x-hidden">
       {/* ============================================================
-          EXECUTIVE WELCOME BANNER
+          EXECUTIVE WELCOME BANNER WITH ROLE TOGGLE
           ============================================================ */}
       <div className="relative overflow-hidden bg-gradient-to-r from-[#06245B] via-[#0A3078] to-[#1266D6] rounded-3xl p-6 sm:p-8 text-white shadow-xl">
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 text-[#00D9F5] text-xs font-bold mb-3">
-              <ShieldCheck size={14} />
-              <span>{isAr ? 'حساب تجاري معتمد' : 'Verified Enterprise Counterparty'}</span>
+            <div className="flex items-center gap-2 flex-wrap mb-3">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 text-[#00D9F5] text-xs font-bold">
+                <ShieldCheck size={14} />
+                <span>{isAr ? 'حساب تجاري معتمد' : 'Verified Enterprise Counterparty'}</span>
+              </div>
+
+              {/* Dual Role Selector Pill */}
+              {hasBothCapabilities && (
+                <div className="inline-flex rounded-full bg-black/20 backdrop-blur-md p-1 border border-white/15 text-xs font-bold">
+                  <button
+                    onClick={() => setDashboardMode('buyer')}
+                    className={`px-3 py-1 rounded-full transition-all flex items-center gap-1.5 ${
+                      dashboardMode === 'buyer'
+                        ? 'bg-white text-[#06245B] shadow-sm font-extrabold'
+                        : 'text-slate-300 hover:text-white'
+                    }`}
+                  >
+                    <span>🛒</span>
+                    <span>{isAr ? 'لوحة المشتري' : 'Buyer View'}</span>
+                  </button>
+                  <button
+                    onClick={() => setDashboardMode('supplier')}
+                    className={`px-3 py-1 rounded-full transition-all flex items-center gap-1.5 ${
+                      dashboardMode === 'supplier'
+                        ? 'bg-white text-[#06245B] shadow-sm font-extrabold'
+                        : 'text-slate-300 hover:text-white'
+                    }`}
+                  >
+                    <span>🏭</span>
+                    <span>{isAr ? 'لوحة المورد' : 'Supplier View'}</span>
+                  </button>
+                </div>
+              )}
             </div>
+
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight mb-2">
               {isAr ? `مرحباً، ${user?.fullName}` : `Welcome back, ${user?.fullName}`}
             </h1>
             <p className="text-slate-200 text-sm max-w-xl">
               {user?.company?.tradeName || user?.company?.legalName} •{' '}
-              <span className="text-[#00D9F5] font-semibold">{role || 'Corporate Member'}</span> •{' '}
+              <span className="text-[#00D9F5] font-semibold">
+                {dashboardMode === 'buyer'
+                  ? isAr ? 'مسؤول المشتريات والتوريد' : 'Procurement Manager'
+                  : isAr ? 'مسؤول المبيعات والتعاقدات' : 'Sales & Supply Manager'}
+              </span> •{' '}
               {user?.company?.city}, {user?.company?.governorate}
             </p>
           </div>
 
+          {/* Quick Action Buttons according to active mode */}
           <div className="flex flex-wrap items-center gap-3">
-            {canManageRfqs && (
-              <Button
-                as={Link}
-                to="/rfqs/create"
-                variant="primary"
-                size="md"
-                icon={<PlusCircle size={18} />}
-                className="font-bold shadow-md shadow-cyan-500/20"
-              >
-                {isAr ? 'نشر طلب سعر (RFQ)' : 'Post New RFQ'}
-              </Button>
+            {dashboardMode === 'buyer' ? (
+              <>
+                <Button
+                  as={Link}
+                  to="/rfqs/create"
+                  variant="primary"
+                  size="md"
+                  icon={<PlusCircle size={18} />}
+                  className="font-bold shadow-md shadow-cyan-500/20"
+                >
+                  {isAr ? 'طرح طلب سعر (RFQ)' : 'Post New RFQ'}
+                </Button>
+                <Button
+                  as={Link}
+                  to="/catalog"
+                  variant="outline"
+                  size="md"
+                  className="!border-white/70 !text-white hover:!bg-white/15"
+                >
+                  {isAr ? 'تصفح الكتالوج' : 'Browse Materials'}
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button
+                  as={Link}
+                  to="/rfqs"
+                  variant="primary"
+                  size="md"
+                  icon={<Send size={18} />}
+                  className="font-bold shadow-md shadow-cyan-500/20"
+                >
+                  {isAr ? 'استعراض طلبات الأسعار' : 'Browse Open RFQs'}
+                </Button>
+                <Button
+                  as={Link}
+                  to="/offers"
+                  variant="outline"
+                  size="md"
+                  className="!border-white/70 !text-white hover:!bg-white/15"
+                >
+                  {isAr ? 'إدارة عروضي' : 'My Submitted Offers'}
+                </Button>
+              </>
             )}
-            <Button
-              as={Link}
-              to="/catalog"
-              variant="outline"
-              size="md"
-              className="!border-white/70 !text-white hover:!bg-white/15"
-            >
-              {isAr ? 'تصفح الكتالوج' : 'Browse Materials'}
-            </Button>
           </div>
         </div>
       </div>
 
       {/* ============================================================
-          KEY PERFORMANCE INDICATORS (KPI CARDS)
+          ROLE-SPECIFIC KPI CARDS
           ============================================================ */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-        <StatKpiCard
-          title={isAr ? 'حجم المشتريات (EGP)' : 'Sourcing Volume (EGP)'}
-          value="3.8M"
-          change="+18.4%"
-          isPositive={true}
-          period={isAr ? 'مقارنة بالشهر الماضي' : 'vs last month'}
-          icon={TrendingUp}
-          sparkline={[18, 22, 25, 29, 32, 38]}
-        />
-        <StatKpiCard
-          title={isAr ? 'طلبات الأسعار النشطة' : 'Active RFQ Tenders'}
-          value="8"
-          change="+2 new"
-          isPositive={true}
-          period={isAr ? 'هذا الأسبوع' : 'this week'}
-          icon={FileText}
-          sparkline={[4, 5, 5, 6, 7, 8]}
-        />
-        <StatKpiCard
-          title={isAr ? 'الصفقات المبرمة' : 'Binding Deals Closed'}
-          value="14"
-          change="+100%"
-          isPositive={true}
-          period={isAr ? 'جميعها ملتزمة' : 'all on-schedule'}
-          icon={Handshake}
-          sparkline={[8, 9, 11, 12, 13, 14]}
-        />
-        <StatKpiCard
-          title={isAr ? 'دقة التوريد والامتثال' : 'Fulfillment Reliability'}
-          value="98.6%"
-          change="+0.8%"
-          isPositive={true}
-          period={isAr ? 'معدل التقييم' : 'counterparty score'}
-          icon={Truck}
-          sparkline={[96, 96.5, 97, 97.8, 98.2, 98.6]}
-        />
-      </div>
+      {dashboardMode === 'buyer' ? (
+        /* Buyer KPIs */
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+          <StatKpiCard
+            title={isAr ? 'طلبات الأسعار النشطة (RFQs)' : 'Active Sourcing RFQs'}
+            value={myRfqsData?.totalCount ?? 0}
+            change={isAr ? 'طلبات منشورة' : 'active tenders'}
+            isPositive={true}
+            period={isAr ? 'قيد استقبال عروض الموردين' : 'accepting bids'}
+            icon={FileText}
+          />
+          <StatKpiCard
+            title={isAr ? 'عروض أسعار بانتظار قرارك' : 'Pending Incoming Bids'}
+            value={receivedOffersData?.totalCount ?? 0}
+            change={isAr ? 'عروض مستلمة' : 'quotes to review'}
+            isPositive={true}
+            period={isAr ? 'جاهزة للمقارنة والقبول' : 'ready for evaluation'}
+            icon={Inbox}
+          />
+          <StatKpiCard
+            title={isAr ? 'صفقات شراء قيد التنفيذ' : 'Active Purchasing Deals'}
+            value={buyingDeals.length}
+            change={isAr ? 'عقود ملزمة' : 'binding contracts'}
+            isPositive={true}
+            period={isAr ? 'مواعيد توريد مؤكدة' : 'on-schedule dispatch'}
+            icon={Handshake}
+          />
+          <StatKpiCard
+            title={isAr ? 'موثوقية التوريد والامتثال' : 'Fulfillment Reliability'}
+            value="99.2%"
+            change="+1.2%"
+            isPositive={true}
+            period={isAr ? 'تقييم الموردين المتعاقدين' : 'supplier SLA score'}
+            icon={Truck}
+          />
+        </div>
+      ) : (
+        /* Supplier KPIs */
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+          <StatKpiCard
+            title={isAr ? 'طلبات أسعار متاحة للتقديم' : 'Available Market RFQs'}
+            value={openRfqsData?.totalCount ?? 0}
+            change={isAr ? 'مناقصات مفتوحة' : 'open for bids'}
+            isPositive={true}
+            period={isAr ? 'في قطاعك الصناعي' : 'matching your sector'}
+            icon={Layers}
+          />
+          <StatKpiCard
+            title={isAr ? 'عروضي المقدمة للمشترين' : 'Submitted Quotes'}
+            value={myOffersData?.totalCount ?? 0}
+            change={isAr ? 'عروض نشطة' : 'active quotes'}
+            isPositive={true}
+            period={isAr ? 'بانتظار قرار المشتري' : 'under buyer review'}
+            icon={Send}
+          />
+          <StatKpiCard
+            title={isAr ? 'صفقات توريد قيد التنفيذ' : 'Active Sales Deals'}
+            value={sellingDeals.length}
+            change={isAr ? 'صفقات ملزمة' : 'confirmed contracts'}
+            isPositive={true}
+            period={isAr ? 'مجدولة للتسليم' : 'scheduled for dispatch'}
+            icon={Handshake}
+          />
+          <StatKpiCard
+            title={isAr ? 'تقييم جودة التوريد' : 'Supplier Trust Score'}
+            value="98.5%"
+            change="+0.5%"
+            isPositive={true}
+            period={isAr ? 'معدل التقييم' : 'verified counterparty score'}
+            icon={TrendingUp}
+          />
+        </div>
+      )}
 
       {/* ============================================================
-          ANALYTICS & CHARTS SECTION
+          ANALYTICS & CHARTS SECTION (SECTOR CHART WITH 0 CLIPPING)
           ============================================================ */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left 2 Cols: Main Volume / Price Chart */}
+        {/* Left 2 Cols: Volume / Price Chart */}
         <div className="lg:col-span-2 bg-white rounded-3xl p-6 sm:p-7 border border-slate-200/80 shadow-xs">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
             <div>
               <h2 className="text-lg font-extrabold text-[#06245B]">
-                {isAr ? 'تحليلات التوريد والأسعار الصناعية' : 'Procurement & Pricing Dynamics'}
+                {dashboardMode === 'buyer'
+                  ? isAr ? 'تحليلات مشتريات المواد الخام' : 'Procurement & Pricing Dynamics'
+                  : isAr ? 'تحليلات حركة التوريد والمبيعات' : 'Supply Dynamics & Market Pricing'}
               </h2>
               <p className="text-xs text-slate-500 mt-1">
                 {isAr
@@ -255,18 +443,18 @@ export default function DashboardPage() {
             <BarChart
               data={sourcingVolumeData}
               height={230}
-              valueFormatter={(v) => `${v.toLocaleString()} Tons`}
+              valueFormatter={(v) => `${v.toLocaleString()} ${isAr ? 'طن' : 'Tons'}`}
             />
           ) : (
             <AreaTrendChart
               data={priceTrendData}
               height={230}
-              valueFormatter={(v) => `${v.toLocaleString()} EGP/Ton`}
+              valueFormatter={(v) => `${v.toLocaleString()} ${isAr ? 'ج.م/طن' : 'EGP/Ton'}`}
             />
           )}
         </div>
 
-        {/* Right Col: Category Breakdown Donut */}
+        {/* Right Col: Category Breakdown Donut (Stacked layout, zero clipping) */}
         <div className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-200/80 shadow-xs flex flex-col justify-between">
           <div>
             <h2 className="text-lg font-extrabold text-[#06245B] mb-1">
@@ -274,17 +462,18 @@ export default function DashboardPage() {
             </h2>
             <p className="text-xs text-slate-500 mb-6">
               {isAr
-                ? 'نسبة الطلبات والصفقات عبر القطاعات الصناعية الرئيسية'
+                ? 'نسبة المعاملات عبر القطاعات الصناعية الرئيسية في مصر'
                 : 'Share of deals across Egyptian industrial manufacturing sectors'}
             </p>
           </div>
 
           <DonutChart
             data={categoryBreakdown}
-            centerLabel={isAr ? 'الإجمالي' : 'Deals'}
+            centerLabel={isAr ? 'الإجمالي' : 'Total'}
             centerValue="100%"
-            size={180}
-            strokeWidth={22}
+            size={150}
+            strokeWidth={20}
+            layout="vertical"
           />
 
           <div className="mt-6 pt-4 border-t border-slate-100 text-center">
@@ -300,7 +489,215 @@ export default function DashboardPage() {
       </div>
 
       {/* ============================================================
-          QUICK COMMERCIAL WORKFLOW ACCESS
+          ROLE-SPECIFIC LIVE ACTIVITY FEED & RECENT TRANSACTIONS
+          ============================================================ */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {dashboardMode === 'buyer' ? (
+          /* Buyer Feed: Recent RFQs & Incoming Offers */
+          <>
+            <div className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-bold text-[#06245B] text-base">
+                    {isAr ? 'أحدث طلبات الأسعار المنشورة' : 'Your Recent RFQs'}
+                  </h3>
+                  <Link to="/rfqs" className="text-xs font-semibold text-[#1266D6] hover:underline">
+                    {isAr ? 'عرض الكل' : 'View All'}
+                  </Link>
+                </div>
+
+                <div className="space-y-3">
+                  {myRfqsData?.items && myRfqsData.items.length > 0 ? (
+                    myRfqsData.items.slice(0, 4).map((rfq) => (
+                      <Link
+                        key={rfq.id}
+                        to={`/rfqs/${rfq.id}`}
+                        className="p-3.5 rounded-2xl bg-slate-50 border border-slate-100 hover:border-[#1266D6]/40 flex items-center justify-between gap-3 transition-colors block"
+                      >
+                        <div>
+                          <span className="text-xs font-mono text-slate-400 block mb-0.5">{rfq.rfqNumber}</span>
+                          <span className="font-bold text-slate-800 text-sm">{rfq.title}</span>
+                          <span className="text-xs text-slate-500 block mt-0.5">
+                            {formatDate(rfq.createdAtUtc)}
+                          </span>
+                        </div>
+                        <Badge variant={rfq.status === 'Published' ? 'success' : 'info'}>
+                          {rfq.status}
+                        </Badge>
+                      </Link>
+                    ))
+                  ) : (
+                    <p className="text-xs text-slate-400 py-6 text-center">
+                      {isAr ? 'لا توجد طلبات أسعار بعد' : 'No RFQs posted yet'}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <div className="mt-4 pt-3 border-t border-slate-100">
+                <Button as={Link} to="/rfqs/create" variant="primary" size="sm" fullWidth>
+                  {isAr ? 'نشر طلب سعر جديد (RFQ)' : 'Create New RFQ'}
+                </Button>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-bold text-[#06245B] text-base">
+                    {isAr ? 'عروض الموردين المستلمة' : 'Incoming Supplier Bids'}
+                  </h3>
+                  <Link to="/offers" className="text-xs font-semibold text-[#1266D6] hover:underline">
+                    {isAr ? 'عرض الكل' : 'View All'}
+                  </Link>
+                </div>
+
+                <div className="space-y-3">
+                  {receivedOffersData?.items && receivedOffersData.items.length > 0 ? (
+                    receivedOffersData.items.slice(0, 4).map((offer) => (
+                      <Link
+                        key={offer.id}
+                        to={`/offers`}
+                        className="p-3.5 rounded-2xl bg-slate-50 border border-slate-100 hover:border-[#1266D6]/40 flex items-center justify-between gap-3 transition-colors block"
+                      >
+                        <div>
+                          <span className="text-xs font-mono text-slate-400 block mb-0.5">{offer.offerNumber}</span>
+                          <span className="font-bold text-slate-800 text-sm">{offer.rfqTitle || offer.rfqNumber}</span>
+                          <span className="text-xs text-[#1266D6] font-semibold block mt-0.5">
+                            {offer.supplierCompanyName}
+                          </span>
+                        </div>
+                        <div className="text-end">
+                          <span className="font-bold text-[#06245B] text-sm block">
+                            {formatCurrency(offer.totalAmount, offer.currency)}
+                          </span>
+                          <Badge variant="info" size="xs">
+                            {offer.status}
+                          </Badge>
+                        </div>
+                      </Link>
+                    ))
+                  ) : (
+                    <p className="text-xs text-slate-400 py-6 text-center">
+                      {isAr ? 'لا توجد عروض مستلمة حالياً' : 'No incoming offers yet'}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <div className="mt-4 pt-3 border-t border-slate-100">
+                <Button as={Link} to="/offers" variant="outline" size="sm" fullWidth>
+                  {isAr ? 'مراجعة كافة العروض المستلمة' : 'Review All Received Offers'}
+                </Button>
+              </div>
+            </div>
+          </>
+        ) : (
+          /* Supplier Feed: Open Market RFQs & Submitted Bids */
+          <>
+            <div className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-bold text-[#06245B] text-base">
+                    {isAr ? 'طلبات أسعار مفتوحة في السوق' : 'Available Market Tenders'}
+                  </h3>
+                  <Link to="/rfqs" className="text-xs font-semibold text-[#1266D6] hover:underline">
+                    {isAr ? 'عرض الكل' : 'Explore All'}
+                  </Link>
+                </div>
+
+                <div className="space-y-3">
+                  {openRfqsData?.items && openRfqsData.items.length > 0 ? (
+                    openRfqsData.items.slice(0, 4).map((rfq) => (
+                      <Link
+                        key={rfq.id}
+                        to={`/rfqs/${rfq.id}`}
+                        className="p-3.5 rounded-2xl bg-slate-50 border border-slate-100 hover:border-[#1266D6]/40 flex items-center justify-between gap-3 transition-colors block"
+                      >
+                        <div>
+                          <span className="text-xs font-mono text-slate-400 block mb-0.5">{rfq.rfqNumber}</span>
+                          <span className="font-bold text-slate-800 text-sm">{rfq.title}</span>
+                          <span className="text-xs text-slate-500 block mt-0.5">
+                            {isAr ? 'المشتري: ' : 'Buyer: '}
+                            <strong className="text-slate-700">{rfq.buyerCompanyName}</strong>
+                          </span>
+                        </div>
+                        <Button size="xs" variant="primary">
+                          {isAr ? 'تقديم عرض' : 'Bid Now'}
+                        </Button>
+                      </Link>
+                    ))
+                  ) : (
+                    <p className="text-xs text-slate-400 py-6 text-center">
+                      {isAr ? 'لا توجد طلبات مفتوحة حالياً' : 'No open tenders right now'}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <div className="mt-4 pt-3 border-t border-slate-100">
+                <Button as={Link} to="/rfqs" variant="primary" size="sm" fullWidth>
+                  {isAr ? 'اكتشاف كافة المناقصات الصناعية' : 'Discover All RFQ Tenders'}
+                </Button>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-bold text-[#06245B] text-base">
+                    {isAr ? 'عروضي المقدمة وحالتها' : 'My Submitted Quotes'}
+                  </h3>
+                  <Link to="/offers" className="text-xs font-semibold text-[#1266D6] hover:underline">
+                    {isAr ? 'عرض الكل' : 'View All'}
+                  </Link>
+                </div>
+
+                <div className="space-y-3">
+                  {myOffersData?.items && myOffersData.items.length > 0 ? (
+                    myOffersData.items.slice(0, 4).map((offer) => (
+                      <Link
+                        key={offer.id}
+                        to={`/offers`}
+                        className="p-3.5 rounded-2xl bg-slate-50 border border-slate-100 hover:border-[#1266D6]/40 flex items-center justify-between gap-3 transition-colors block"
+                      >
+                        <div>
+                          <span className="text-xs font-mono text-slate-400 block mb-0.5">{offer.offerNumber}</span>
+                          <span className="font-bold text-slate-800 text-sm">{offer.rfqTitle || offer.rfqNumber}</span>
+                          <span className="text-xs text-slate-500 block mt-0.5">
+                            {formatDate(offer.submittedAtUtc)}
+                          </span>
+                        </div>
+                        <div className="text-end">
+                          <span className="font-bold text-[#06245B] text-sm block">
+                            {formatCurrency(offer.totalAmount, offer.currency)}
+                          </span>
+                          <Badge variant={offer.status === 'Accepted' ? 'success' : 'info'} size="xs">
+                            {offer.status}
+                          </Badge>
+                        </div>
+                      </Link>
+                    ))
+                  ) : (
+                    <p className="text-xs text-slate-400 py-6 text-center">
+                      {isAr ? 'لم تقدم عروض أسعار بعد' : 'No offers submitted yet'}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <div className="mt-4 pt-3 border-t border-slate-100">
+                <Button as={Link} to="/offers" variant="outline" size="sm" fullWidth>
+                  {isAr ? 'إدارة ومتابعة عروضي' : 'Manage My Submitted Offers'}
+                </Button>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* ============================================================
+          QUICK COMMERCIAL WORKFLOW ACCESS SHORTCUTS
           ============================================================ */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Link
@@ -308,21 +705,21 @@ export default function DashboardPage() {
           className="group bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs hover:border-[#1266D6] hover:shadow-lg transition-all duration-200 flex flex-col justify-between"
         >
           <div>
-            <div className="w-12 h-12 rounded-2xl bg-[#EAF4FF] text-[#1266D6] flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+            <div className="w-12 h-12 rounded-2xl bg-[#EAF4FF] text-[#1266D6] flex items-center justify-center mb-4 group-hover:scale-105 transition-transform">
               <FileText size={24} />
             </div>
-            <h3 className="text-base font-bold text-[#06245B] mb-2">
-              {isAr ? 'إدارة طلبات الأسعار (RFQs)' : 'Manage RFQ Tenders'}
+            <h3 className="font-bold text-[#06245B] text-base mb-1">
+              {isAr ? 'طلبات الأسعار (RFQs)' : 'Structured RFQ Sourcing'}
             </h3>
             <p className="text-xs text-slate-500 leading-relaxed">
               {isAr
-                ? 'استعرض طلبات الشراء المنشورة، قارن عروض الأسعار الواردة من الموردين، واطلب مراجعات الأسعار.'
-                : 'Monitor live requests for quotation, compare incoming line-item proposals, and request audited revisions.'}
+                ? 'طرح ومراجعة المناقصات وتحديد المواصفات الفنية وجداول التوريد بدقة.'
+                : 'Publish reverse bidding tenders, define technical specs, and schedule delivery windows.'}
             </p>
           </div>
-          <div className="mt-5 inline-flex items-center gap-1 text-xs font-bold text-[#1266D6]">
-            <span>{isAr ? 'فتح مركز العروض' : 'Go to RFQs'}</span>
-            <ArrowUpRight size={14} />
+          <div className="mt-6 flex items-center gap-1.5 text-xs font-bold text-[#1266D6] group-hover:text-[#06245B]">
+            <span>{isAr ? 'الانتقال إلى طلبات الأسعار' : 'Manage RFQs'}</span>
+            {isAr ? <ArrowLeft size={14} /> : <ArrowRight size={14} />}
           </div>
         </Link>
 
@@ -331,44 +728,44 @@ export default function DashboardPage() {
           className="group bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs hover:border-[#1266D6] hover:shadow-lg transition-all duration-200 flex flex-col justify-between"
         >
           <div>
-            <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+            <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mb-4 group-hover:scale-105 transition-transform">
               <Handshake size={24} />
             </div>
-            <h3 className="text-base font-bold text-[#06245B] mb-2">
-              {isAr ? 'الصفقات والعقود الملزمة' : 'Active Binding Deals'}
+            <h3 className="font-bold text-[#06245B] text-base mb-1">
+              {isAr ? 'الصفقات والعقود الملزمة' : 'Commercial Deals'}
             </h3>
             <p className="text-xs text-slate-500 leading-relaxed">
               {isAr
-                ? 'متابعة الصفقات المتفق عليها، مراحل التسليم، تأكيد الاستلام، وتقييم الطرف المقابل بعد الإتمام.'
-                : 'Track formed commercial deals with frozen price snapshots, delivery confirmation, and counterparty reviews.'}
+                ? 'متابعة الصفقات المنعقدة وتجميد الأسعار والكميات وتأكيد استلام الدفعات.'
+                : 'Atomic contracts with frozen commercial snapshots, payment milestones, and execution tracking.'}
             </p>
           </div>
-          <div className="mt-5 inline-flex items-center gap-1 text-xs font-bold text-emerald-600">
-            <span>{isAr ? 'سجل الصفقات' : 'View Deals'}</span>
-            <ArrowUpRight size={14} />
+          <div className="mt-6 flex items-center gap-1.5 text-xs font-bold text-emerald-600 group-hover:text-emerald-800">
+            <span>{isAr ? 'عرض الصفقات الجارية' : 'View Deals'}</span>
+            {isAr ? <ArrowLeft size={14} /> : <ArrowRight size={14} />}
           </div>
         </Link>
 
         <Link
-          to="/shipments/00000000-0000-0000-0000-000000000000"
+          to="/catalog"
           className="group bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs hover:border-[#1266D6] hover:shadow-lg transition-all duration-200 flex flex-col justify-between"
         >
           <div>
-            <div className="w-12 h-12 rounded-2xl bg-cyan-50 text-cyan-700 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-              <Truck size={24} />
+            <div className="w-12 h-12 rounded-2xl bg-cyan-50 text-cyan-600 flex items-center justify-center mb-4 group-hover:scale-105 transition-transform">
+              <Package size={24} />
             </div>
-            <h3 className="text-base font-bold text-[#06245B] mb-2">
-              {isAr ? 'تتبع الشحن واللوجستيات' : 'Logistics & Dispatch Tracking'}
+            <h3 className="font-bold text-[#06245B] text-base mb-1">
+              {isAr ? 'الكتالوج الصناعي الموحد' : 'Unified Materials Catalog'}
             </h3>
             <p className="text-xs text-slate-500 leading-relaxed">
               {isAr
-                ? 'متابعة مسار الشحنات عبر شركاء النقل المعتمدين وتحديث معالم التوصيل من المستودع إلى المصنع.'
-                : 'End-to-end milestone tracking across verified freight carriers from supplier dispatch to factory gate.'}
+                ? 'استكشاف المواد الخام عبر القطاعات الصناعية والمواصفات القياسية المصرية.'
+                : 'Standardized industrial taxonomy across steel, chemicals, plastics, and packaging.'}
             </p>
           </div>
-          <div className="mt-5 inline-flex items-center gap-1 text-xs font-bold text-cyan-700">
-            <span>{isAr ? 'متابعة الشحنات' : 'Track Shipments'}</span>
-            <ArrowUpRight size={14} />
+          <div className="mt-6 flex items-center gap-1.5 text-xs font-bold text-cyan-600 group-hover:text-cyan-800">
+            <span>{isAr ? 'تصفح الكتالوج' : 'Explore Catalog'}</span>
+            {isAr ? <ArrowLeft size={14} /> : <ArrowRight size={14} />}
           </div>
         </Link>
       </div>

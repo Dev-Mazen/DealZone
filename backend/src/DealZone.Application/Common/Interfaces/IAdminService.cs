@@ -21,5 +21,13 @@ public interface IAdminService
         Guid companyId,
         Guid documentId,
         CancellationToken cancellationToken = default);
-}
 
+    Task<AdminAnalyticsResponse> GetAnalyticsAsync(
+        DateTimeOffset? fromDate = null,
+        DateTimeOffset? toDate = null,
+        CancellationToken cancellationToken = default);
+
+    Task<byte[]> ExportCompaniesCsvAsync(CancellationToken cancellationToken = default);
+
+    Task<byte[]> ExportDealsCsvAsync(CancellationToken cancellationToken = default);
+}

@@ -8,39 +8,41 @@ import { ArrowLeft, Plus, Trash2, AlertCircle } from 'lucide-react'
 import { rfqService } from '../shared/api/services/rfqService'
 import { catalogService } from '../shared/api/services/catalogService'
 import { useTranslation } from '../hooks/useTranslation'
+import { usePermissions } from '../hooks/usePermissions'
 import { useToast } from '../hooks/useToast'
 import Button from '../components/ui/Button'
 import Input from '../components/ui/Input'
 import Card, { CardHeader } from '../components/ui/Card'
 import { PageSpinner } from '../components/ui/Spinner'
 
-// Schema aligned with backend CreateRfqRequest
-const rfqItemSchema = z.object({
-  categoryId: z.string().min(1, 'Category is required'),
-  materialId: z.string().optional(),
-  materialName: z.string().min(2, 'Material name is required'),
-  specifications: z.string().min(5, 'Specifications required'),
-  quantity: z.number({ invalid_type_error: 'Enter a quantity' }).positive('Must be > 0'),
-  unitOfMeasureId: z.string().optional(),
-  targetPricePerUnit: z.number().positive().optional(),
-  notes: z.string().optional(),
-})
+const getCreateRfqSchema = (isAr) => {
+  const itemSchema = z.object({
+    categoryId: z.string().min(1, isAr ? 'القطاع/الفئة مطلوبة' : 'Category is required'),
+    materialId: z.string().optional(),
+    materialName: z.string().min(2, isAr ? 'اسم المادة مطلوب' : 'Material name is required'),
+    specifications: z.string().min(5, isAr ? 'المواصفات الفنية مطلوبة (5 أحرف على الأقل)' : 'Specifications required (min 5 chars)'),
+    quantity: z.coerce.number({ invalid_type_error: isAr ? 'يجب إدخال كمية رقمية' : 'Enter a numeric quantity' }).positive(isAr ? 'يجب أن تكون الكمية أكبر من الصفر' : 'Quantity must be > 0'),
+    unitOfMeasureId: z.string().optional(),
+    targetPricePerUnit: z.coerce.number().positive(isAr ? 'السعر المستهدف يجب أن يكون موجباً' : 'Target price must be positive').optional(),
+    notes: z.string().optional(),
+  })
 
-const createRfqSchema = z.object({
-  title: z.string().min(5, 'Title must be at least 5 characters'),
-  description: z.string().optional(),
-  targetCategoryId: z.string().optional(),
-  deliveryGovernorate: z.string().min(2, 'Required'),
-  deliveryCity: z.string().min(2, 'Required'),
-  deliveryAddress: z.string().min(5, 'Full delivery address required'),
-  closingDateUtc: z.string().min(1, 'Closing date required'),
-  requiredDeliveryDateUtc: z.string().optional(),
-  targetBudget: z.number().positive().optional(),
-  currency: z.string().optional(),
-  notes: z.string().optional(),
-  publishImmediately: z.boolean(),
-  items: z.array(rfqItemSchema).min(1, 'At least one line item is required'),
-})
+  return z.object({
+    title: z.string().min(5, isAr ? 'عنوان الطلب يجب ألا يقل عن 5 أحرف' : 'Title must be at least 5 characters'),
+    description: z.string().optional(),
+    targetCategoryId: z.string().optional(),
+    deliveryGovernorate: z.string().min(1, isAr ? 'المحافظة مطلوبة' : 'Governorate is required'),
+    deliveryCity: z.string().min(1, isAr ? 'المدينة مطلوبة' : 'City is required'),
+    deliveryAddress: z.string().min(5, isAr ? 'عنوان التسليم بالتفصيل مطلوب' : 'Full delivery address required'),
+    closingDateUtc: z.string().min(1, isAr ? 'تاريخ إغلاق العطاءات مطلوب' : 'Closing date required'),
+    requiredDeliveryDateUtc: z.string().optional(),
+    targetBudget: z.coerce.number().positive(isAr ? 'الميزانية التقديرية يجب أن تكون أكبر من الصفر' : 'Target budget must be positive').optional(),
+    currency: z.string().optional(),
+    notes: z.string().optional(),
+    publishImmediately: z.boolean(),
+    items: z.array(itemSchema).min(1, isAr ? 'يجب إضافة بند واحد على الأقل' : 'At least one line item is required'),
+  })
+}
 
 const EGYPT_GOVERNORATES = [
   'Cairo', 'Giza', 'Alexandria', 'Luxor', 'Aswan', 'Qena', 'Sohag',
@@ -224,6 +226,8 @@ export default function CreateRfqPage() {
   const toast = useToast()
   const isAr = language === 'ar'
 
+  const { canManageRfqs, isSupplierOnly } = usePermissions()
+
   const {
     register,
     handleSubmit,
@@ -232,7 +236,8 @@ export default function CreateRfqPage() {
     setValue,
     watch,
   } = useForm({
-    resolver: zodResolver(createRfqSchema),
+    resolver: zodResolver(getCreateRfqSchema(isAr)),
+    mode: 'onChange',
     defaultValues: {
       publishImmediately: false,
       currency: 'EGP',
@@ -313,6 +318,21 @@ export default function CreateRfqPage() {
       })),
     }
     createMutation.mutate(request)
+  }
+
+  if (isSupplierOnly || !canManageRfqs) {
+    return (
+      <div className="text-center py-16">
+        <p className="text-[#EF4444] mb-4 font-bold">
+          {isAr
+            ? 'غير مسموح للموردين بإنشاء طلبات شراء. يمكنك تصفح طلبات الأسعار وتقديم عروضك.'
+            : 'Suppliers are not permitted to create RFQs. You can browse open RFQs and submit bids.'}
+        </p>
+        <Button variant="primary" onClick={() => navigate('/rfqs')}>
+          {isAr ? 'استعراض طلبات الأسعار' : 'Discover RFQs'}
+        </Button>
+      </div>
+    )
   }
 
   if (loadingCategories || loadingUnits) return <PageSpinner />

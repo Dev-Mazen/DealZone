@@ -36,6 +36,7 @@ const ShipmentDetailPage = lazy(() => import('./pages/shipments/ShipmentDetailPa
 const ButtonTestPage = lazy(() => import('./pages/ButtonTestPage'))
 
 // Admin pages
+const AdminAnalyticsPage = lazy(() => import('./pages/admin/AdminAnalyticsPage'))
 const AdminLayout = lazy(() => import('./pages/admin/AdminLayout'))
 const AdminVerificationPage = lazy(() => import('./pages/admin/AdminVerificationPage'))
 const AdminVerificationDetailPage = lazy(() => import('./pages/admin/AdminVerificationDetailPage'))
@@ -88,7 +89,9 @@ function App() {
     const handler = () => {
       queryClient.clear()
       setUser(null)
-      window.location.href = '/login'
+      if (window.location.pathname !== '/login') {
+        window.location.href = '/login'
+      }
     }
     window.addEventListener('auth:session-expired', handler)
     return () => window.removeEventListener('auth:session-expired', handler)
@@ -163,7 +166,8 @@ function App() {
                   user?.isSystemAdmin ? <AdminLayout /> : <Navigate to="/dashboard" replace />
                 }
               >
-                <Route index element={<AdminVerificationPage />} />
+                <Route index element={<Navigate to="/admin/analytics" replace />} />
+                <Route path="analytics" element={<AdminAnalyticsPage />} />
                 <Route path="verification" element={<AdminVerificationPage />} />
                 <Route path="verification/:companyId" element={<AdminVerificationDetailPage />} />
                 <Route path="catalog" element={<AdminCatalogPage />} />

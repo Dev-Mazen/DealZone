@@ -249,6 +249,9 @@ const en = {
   'review.comment': 'Comment',
 
   // Admin
+  'admin.analytics': 'Analytics & KPIs',
+  'admin.exportCompanies': 'Export Companies (.csv)',
+  'admin.exportDeals': 'Export Deals (.csv)',
   'admin.verification': 'Verification Queue',
   'admin.catalog': 'Catalog Management',
   'admin.disputes': 'Disputes',
@@ -478,6 +481,9 @@ const ar = {
   'review.comment': 'التعليق',
 
   // Admin
+  'admin.analytics': 'المؤشرات والتحليلات',
+  'admin.exportCompanies': 'تصدير الشركات (.csv)',
+  'admin.exportDeals': 'تصدير الصفقات (.csv)',
   'admin.verification': 'قائمة التحقق',
   'admin.catalog': 'إدارة الكتالوج',
   'admin.disputes': 'النزاعات',

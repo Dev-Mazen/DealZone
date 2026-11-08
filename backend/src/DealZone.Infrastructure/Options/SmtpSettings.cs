@@ -11,5 +11,5 @@ public class SmtpSettings
     public bool EnableSsl { get; set; } = true;
     public string FromEmail { get; set; } = "noreply@dealzone.eg";
     public string FromName { get; set; } = "DealZone Marketplace";
+    public string FrontendBaseUrl { get; set; } = "http://localhost:5173";
 }
-

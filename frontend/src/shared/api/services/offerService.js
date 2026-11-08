@@ -25,6 +25,10 @@ export const offerService = {
   getMine: (params) =>
     api.get('/offers/mine', { params }).then((r) => r.data),
 
+  // Buyer views all received offers across their RFQs
+  getReceived: (params) =>
+    api.get('/offers/received', { params }).then((r) => r.data),
+
   // Supplier revises offer
   revise: (id, data) =>
     api.post(`/offers/${id}/revise`, data).then((r) => r.data),
@@ -41,4 +45,3 @@ export const offerService = {
   reject: (id, reason) =>
     api.post(`/offers/${id}/reject`, { reason }).then((r) => r.data),
 }
-
