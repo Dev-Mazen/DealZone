@@ -7,26 +7,25 @@ import './PageTransition.css'
  * 
  * Animations:
  * - Fade-in: opacity 0 → 1, duration 200ms
- * - Slide-up: translateY 10px → 0, duration 200ms
+ * - Slide-up: translateY 8px → 0, duration 200ms
  * 
- * Respects prefers-reduced-motion media query for accessibility
+ * Respects prefers-reduced-motion media query for accessibility.
+ * Robust design: never leaves content invisible or stuck at opacity: 0.
  * 
  * @param {Object} props - Component props
  * @param {React.ReactNode} props.children - Page content to animate
+ * @param {string} props.className - Optional extra classes
  */
-const PageTransition = ({ children }) => {
-  const [isVisible, setIsVisible] = useState(false)
+const PageTransition = ({ children, className = '' }) => {
+  const [isVisible, setIsVisible] = useState(true)
 
   useEffect(() => {
-    // Trigger animation on mount
+    // Ensure visibility is always active
     setIsVisible(true)
-
-    // Reset animation state when component unmounts (route change)
-    return () => setIsVisible(false)
   }, [])
 
   return (
-    <div className={`page-transition ${isVisible ? 'page-transition-enter' : ''}`}>
+    <div className={`page-transition ${isVisible ? 'page-transition-enter' : ''} ${className}`}>
       {children}
     </div>
   )

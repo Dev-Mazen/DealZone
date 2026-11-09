@@ -120,24 +120,44 @@ export default function Navbar() {
 
   const companyLinks = [
     { label: isAr ? 'لوحة التحكم' : 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
-    hasCompany && { label: isAr ? 'الكتالوج' : 'Catalog', path: '/catalog', icon: Package },
-    (canManageRfqs || canSubmitOffers) && {
-      label: isSupplierOnly ? (isAr ? 'طلبات السوق' : 'Market RFQs') : (isAr ? 'طلبات الأسعار' : 'RFQs'),
+    { label: isAr ? 'الكتالوج' : 'Catalog', path: '/catalog', icon: Package },
+    {
+      label: isSupplierOnly
+        ? (isAr ? 'مناقصات السوق' : 'Market Tenders')
+        : isBuyerOnly
+        ? (isAr ? 'طلبات الأسعار (RFQs)' : 'My RFQs')
+        : (isAr ? 'المناقصات وRFQs' : 'RFQs & Tenders'),
       path: '/rfqs',
       icon: FileText,
     },
-    (canSubmitOffers || canManageRfqs) && {
+    {
       label: isSupplierOnly
-        ? (isAr ? 'عروضي' : 'My Offers')
+        ? (isAr ? 'عروضي ومزايداتي' : 'My Bids')
         : isBuyerOnly
-        ? (isAr ? 'العروض المستلمة' : 'Received Offers')
-        : (isAr ? 'العروض' : 'Offers'),
+        ? (isAr ? 'العروض المستلمة' : 'Received Quotes')
+        : (isAr ? 'العروض والمزايدات' : 'Offers & Bids'),
       path: '/offers',
       icon: FileText,
     },
-    canViewCommercial && { label: isAr ? 'الصفقات' : 'Deals', path: '/deals', icon: Handshake },
-    canViewCommercial && { label: isAr ? 'الشحنات' : 'Shipments', path: '/shipments', icon: Truck },
-  ].filter(Boolean)
+    {
+      label: isSupplierOnly
+        ? (isAr ? 'عقود البيع' : 'Sales Deals')
+        : isBuyerOnly
+        ? (isAr ? 'عقود الشراء' : 'Purchasing Deals')
+        : (isAr ? 'الصفقات' : 'Deals'),
+      path: '/deals',
+      icon: Handshake,
+    },
+    {
+      label: isSupplierOnly
+        ? (isAr ? 'الشحن والتسليم' : 'Shipments')
+        : isBuyerOnly
+        ? (isAr ? 'الشحنات الواردة' : 'Inbound Shipments')
+        : (isAr ? 'الشحنات' : 'Shipments'),
+      path: '/shipments',
+      icon: Truck,
+    },
+  ]
 
   const authLinks = isSystemAdmin ? adminLinks : companyLinks
 

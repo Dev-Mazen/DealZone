@@ -33,6 +33,7 @@ const NotificationsPage = lazy(() => import('./pages/notifications/Notifications
 const ProfilePage = lazy(() => import('./pages/settings/ProfilePage'))
 const CompanySettingsPage = lazy(() => import('./pages/settings/CompanySettingsPage'))
 const ShipmentDetailPage = lazy(() => import('./pages/shipments/ShipmentDetailPage'))
+const ShipmentsListPage = lazy(() => import('./pages/shipments/ShipmentsListPage'))
 const ButtonTestPage = lazy(() => import('./pages/ButtonTestPage'))
 
 // Admin pages
@@ -120,7 +121,6 @@ function App() {
 
             {/* Protected routes */}
             <Route
-              path="/*"
               element={
                 isAuthenticated ? (
                   <AppLayout />
@@ -150,6 +150,7 @@ function App() {
               <Route path="deals/:dealId" element={<DealDetailPage />} />
 
               {/* Shipments */}
+              <Route path="shipments" element={<ShipmentsListPage />} />
               <Route path="shipments/:shipmentId" element={<ShipmentDetailPage />} />
 
               {/* Notifications */}

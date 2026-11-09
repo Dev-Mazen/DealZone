@@ -1,14 +1,25 @@
 /**
  * PageTransition styles
  * 
- * Implements smooth fade-in and slide-up animations
- * Respects user's motion preferences for accessibility
+ * Implements smooth fade-in and slide-up animations using pure CSS keyframes.
+ * This guarantees the component never gets stuck in an invisible state (opacity: 0)
+ * even during React 18/19 Suspense transitions, fast re-renders, or route changes.
  */
 
+@keyframes pageTransitionEnter {
+  0% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .page-transition {
-  opacity: 0;
-  transform: translateY(10px);
-  transition: opacity 200ms ease-out, transform 200ms ease-out;
+  animation: pageTransitionEnter 200ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  width: 100%;
 }
 
 .page-transition-enter {
@@ -22,13 +33,13 @@
  */
 @media (prefers-reduced-motion: reduce) {
   .page-transition {
-    opacity: 1;
-    transform: none;
-    transition: none;
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
   }
   
   .page-transition-enter {
-    opacity: 1;
-    transform: none;
+    opacity: 1 !important;
+    transform: none !important;
   }
 }

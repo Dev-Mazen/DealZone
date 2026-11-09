@@ -93,5 +93,6 @@ export function checkPermissions(user) {
  */
 export function usePermissions() {
   const user = useAuthStore((s) => s.user)
-  return checkPermissions(user)
+  const isAuthLoading = useAuthStore((s) => s.isLoading)
+  return { ...checkPermissions(user), isAuthLoading }
 }
