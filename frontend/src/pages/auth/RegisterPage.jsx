@@ -96,7 +96,7 @@ export default function RegisterPage() {
         <div className="relative z-10 p-12 flex flex-col justify-between h-full text-white">
           {/* Logo + tagline */}
           <div>
-            <Logo size="lg" link={false} className="brightness-0 invert" />
+            <Logo size="lg" variant="white" link={false} />
             <p className="mt-4 text-sm font-medium text-[#00D9F5]">
               {isAr ? 'منصة B2B الصناعية الرائدة في مصر' : "Egypt's Premier Industrial B2B Marketplace"}
             </p>
@@ -104,8 +104,18 @@ export default function RegisterPage() {
 
           {/* Trust bullets */}
           <div className="space-y-5">
-            <h2 className="text-2xl font-extrabold leading-snug">
-              {isAr ? 'ابدأ تجارتك الصناعية\nبثقة واحترافية' : 'Start trading with\ntrust & confidence'}
+            <h2 className="text-2xl sm:text-3xl font-extrabold leading-snug text-white">
+              {isAr ? (
+                <>
+                  ابدأ تجارتك الصناعية <br />
+                  <span className="text-[#00D9F5]">بثقة واحترافية</span>
+                </>
+              ) : (
+                <>
+                  Start trading with <br />
+                  <span className="text-[#00D9F5]">trust & confidence</span>
+                </>
+              )}
             </h2>
             <ul className="space-y-4">
               {trustPoints.map(({ icon: Icon, en, ar }) => (

@@ -9,7 +9,7 @@ namespace DealZone.Infrastructure.Seeding;
 /// <summary>
 /// Seeds essential industrial raw-material categories, standard units of measure,
 /// and baseline material definitions for development and initial deployment.
-/// Idempotent: checks for existing codes before adding.
+/// Restricted strictly to the 3 approved marketplace categories: Textiles, Food, Metals.
 /// </summary>
 public static class CatalogSeeder
 {
@@ -40,121 +40,99 @@ public static class CatalogSeeder
         }
         await context.SaveChangesAsync();
 
-        // 2. Seed Categories
+        // 2. Seed the 3 Approved Marketplace Categories: Metals, Textiles, Food
+        // Deactivate unsupported categories
+        var unsupported = await context.MaterialCategories
+            .Where(c => c.Code != "METALS" && c.Code != "TEXTILES" && c.Code != "FOOD")
+            .ToListAsync();
+        foreach (var u in unsupported)
+        {
+            u.IsActive = false;
+        }
+
+        // 2.1 Metals (معادن)
         var metalsCategory = await context.MaterialCategories.FirstOrDefaultAsync(c => c.Code == "METALS");
         if (metalsCategory == null)
         {
             metalsCategory = new MaterialCategory
             {
                 Code = "METALS",
-                NameAr = "المعادن والصلب",
-                NameEn = "Metals & Steel",
+                NameAr = "معادن",
+                NameEn = "Metals",
                 DescriptionAr = "منتجات الصلب والحديد والمعادن الصناعية",
                 DescriptionEn = "Industrial steel, iron, and metal raw materials",
                 DisplayOrder = 1,
                 IsActive = true
             };
             context.MaterialCategories.Add(metalsCategory);
-            await context.SaveChangesAsync();
+        }
+        else
+        {
+            metalsCategory.NameAr = "معادن";
+            metalsCategory.NameEn = "Metals";
+            metalsCategory.IsActive = true;
+            metalsCategory.DisplayOrder = 1;
         }
 
-        var rebarCategory = await context.MaterialCategories.FirstOrDefaultAsync(c => c.Code == "REBAR");
-        if (rebarCategory == null)
+        // 2.2 Textiles (منسوجات)
+        var textilesCategory = await context.MaterialCategories.FirstOrDefaultAsync(c => c.Code == "TEXTILES");
+        if (textilesCategory == null)
         {
-            rebarCategory = new MaterialCategory
+            textilesCategory = new MaterialCategory
             {
-                ParentCategoryId = metalsCategory.Id,
-                Code = "REBAR",
-                NameAr = "حديد التسليح والصلب الإنشائي",
-                NameEn = "Rebar & Structural Steel",
-                DescriptionAr = "أسياخ حديد التسليح والقطاعات الإنشائية",
-                DescriptionEn = "Steel reinforcing bars and structural sections",
-                DisplayOrder = 1,
-                IsActive = true
-            };
-            context.MaterialCategories.Add(rebarCategory);
-            await context.SaveChangesAsync();
-        }
-
-        var polymersCategory = await context.MaterialCategories.FirstOrDefaultAsync(c => c.Code == "POLYMERS");
-        if (polymersCategory == null)
-        {
-            polymersCategory = new MaterialCategory
-            {
-                Code = "POLYMERS",
-                NameAr = "البوليمرات والبلاستيك الصناعي",
-                NameEn = "Polymers & Plastics",
-                DescriptionAr = "حبيبات ومواد خام البلاستيك والبوليمرات",
-                DescriptionEn = "Plastic resins, polymers, and raw plastic materials",
+                Code = "TEXTILES",
+                NameAr = "منسوجات",
+                NameEn = "Textiles",
+                DescriptionAr = "خامات الغزل والنسيج والألياف الصناعية والقطنية",
+                DescriptionEn = "Textile yarns, fibers, cotton, and woven fabrics",
                 DisplayOrder = 2,
                 IsActive = true
             };
-            context.MaterialCategories.Add(polymersCategory);
-            await context.SaveChangesAsync();
+            context.MaterialCategories.Add(textilesCategory);
+        }
+        else
+        {
+            textilesCategory.NameAr = "منسوجات";
+            textilesCategory.NameEn = "Textiles";
+            textilesCategory.IsActive = true;
+            textilesCategory.DisplayOrder = 2;
         }
 
-        var peCategory = await context.MaterialCategories.FirstOrDefaultAsync(c => c.Code == "POLYETHYLENE");
-        if (peCategory == null)
+        // 2.3 Food (أغذية)
+        var foodCategory = await context.MaterialCategories.FirstOrDefaultAsync(c => c.Code == "FOOD");
+        if (foodCategory == null)
         {
-            peCategory = new MaterialCategory
+            foodCategory = new MaterialCategory
             {
-                ParentCategoryId = polymersCategory.Id,
-                Code = "POLYETHYLENE",
-                NameAr = "بولي إيثيلين",
-                NameEn = "Polyethylene (PE)",
-                DescriptionAr = "حبيبات البولي إيثيلين عالي ومنخفض الكثافة",
-                DescriptionEn = "High and low-density polyethylene resin grades",
-                DisplayOrder = 1,
-                IsActive = true
-            };
-            context.MaterialCategories.Add(peCategory);
-            await context.SaveChangesAsync();
-        }
-
-        var chemicalsCategory = await context.MaterialCategories.FirstOrDefaultAsync(c => c.Code == "CHEMICALS");
-        if (chemicalsCategory == null)
-        {
-            chemicalsCategory = new MaterialCategory
-            {
-                Code = "CHEMICALS",
-                NameAr = "الكيماويات والمذيبات الصناعية",
-                NameEn = "Industrial Chemicals & Solvents",
-                DescriptionAr = "الكيماويات والمذيبات والمواد الوسيطة الصناعية",
-                DescriptionEn = "Industrial chemicals, solvents, and intermediates",
+                Code = "FOOD",
+                NameAr = "أغذية",
+                NameEn = "Food",
+                DescriptionAr = "المواد الخام للصناعات الغذائية والتصنيع الزراعي",
+                DescriptionEn = "Food industry raw materials, agricultural processing ingredients",
                 DisplayOrder = 3,
                 IsActive = true
             };
-            context.MaterialCategories.Add(chemicalsCategory);
-            await context.SaveChangesAsync();
+            context.MaterialCategories.Add(foodCategory);
         }
-
-        var solventsCategory = await context.MaterialCategories.FirstOrDefaultAsync(c => c.Code == "SOLVENTS");
-        if (solventsCategory == null)
+        else
         {
-            solventsCategory = new MaterialCategory
-            {
-                ParentCategoryId = chemicalsCategory.Id,
-                Code = "SOLVENTS",
-                NameAr = "المذيبات الصناعية",
-                NameEn = "Industrial Solvents",
-                DescriptionAr = "المذيبات العضوية والصناعية",
-                DescriptionEn = "Organic and industrial solvents",
-                DisplayOrder = 1,
-                IsActive = true
-            };
-            context.MaterialCategories.Add(solventsCategory);
-            await context.SaveChangesAsync();
+            foodCategory.NameAr = "أغذية";
+            foodCategory.NameEn = "Food";
+            foodCategory.IsActive = true;
+            foodCategory.DisplayOrder = 3;
         }
 
-        // 3. Seed Materials
-        var tonUnit = await context.UnitsOfMeasure.FirstAsync(u => u.Code == "ton");
-        var literUnit = await context.UnitsOfMeasure.FirstAsync(u => u.Code == "l");
+        await context.SaveChangesAsync();
 
+        // 3. Seed Materials for the 3 Categories
+        var tonUnit = await context.UnitsOfMeasure.FirstAsync(u => u.Code == "ton");
+
+        // Metals: Rebar & Billets
         if (!await context.Materials.AnyAsync(m => m.Code == "STEEL-REBAR-B500D"))
         {
             context.Materials.Add(new Material
             {
-                CategoryId = rebarCategory.Id,
+                CategoryId = metalsCategory.Id,
                 DefaultUnitId = tonUnit.Id,
                 Code = "STEEL-REBAR-B500D",
                 NameAr = "حديد تسليح عالي المقاومة B500D",
@@ -166,40 +144,89 @@ public static class CatalogSeeder
             });
         }
 
-        if (!await context.Materials.AnyAsync(m => m.Code == "HDPE-BLOW-5502"))
+        if (!await context.Materials.AnyAsync(m => m.Code == "STEEL-BILLET-3SP"))
         {
             context.Materials.Add(new Material
             {
-                CategoryId = peCategory.Id,
+                CategoryId = metalsCategory.Id,
                 DefaultUnitId = tonUnit.Id,
-                Code = "HDPE-BLOW-5502",
-                NameAr = "حبيبات بولي إيثيلين عالي الكثافة للنفخ",
-                NameEn = "HDPE Blow Molding Resin Grade 5502",
-                DescriptionAr = "حبيبات بلاستيك بولي إيثيلين لتصنيع العبوات والجالونات بالنفخ",
-                DescriptionEn = "High-density polyethylene copolymer for blow-molded containers",
-                AttributesJson = "{\"melt_flow_index\":\"0.35 g/10min\",\"density\":\"0.954 g/cm3\",\"application\":\"Blow Molding Bottles and Jerrycans\"}",
+                Code = "STEEL-BILLET-3SP",
+                NameAr = "مربعات صلب بليت 150x150 مم كود 3SP",
+                NameEn = "Prime Continuous Cast Steel Billets 150x150mm (3SP/5SP)",
+                DescriptionAr = "مربعات صلب نصف مصنعة لدرفلة حديد التسليح والقطاعات",
+                DescriptionEn = "Continuous cast steel billets for rebar and wire rod re-rolling mills",
+                AttributesJson = "{\"standard\":\"GOST 380 / ASTM A615\",\"grade\":\"3SP/5SP\",\"cross_section\":\"150x150 mm\",\"length\":\"12 m\"}",
                 IsActive = true
             });
         }
 
-        if (!await context.Materials.AnyAsync(m => m.Code == "CHEM-ACETONE-995"))
+        // Textiles: Cotton Yarn & Polyester Fiber
+        if (!await context.Materials.AnyAsync(m => m.Code == "COTTON-YARN-GIZA"))
         {
             context.Materials.Add(new Material
             {
-                CategoryId = solventsCategory.Id,
-                DefaultUnitId = literUnit.Id,
-                Code = "CHEM-ACETONE-995",
-                NameAr = "أسيتون صناعي نقي 99.5%",
-                NameEn = "Technical Acetone Pure 99.5%",
-                DescriptionAr = "مذيب كيميائي نقي للتطبيقات الصناعية ومصانع الدهانات واللدائن",
-                DescriptionEn = "High-purity technical acetone solvent for coatings and chemical processing",
-                AttributesJson = "{\"purity_percent\":99.5,\"form\":\"Colorless Liquid\",\"flash_point_c\":-20,\"un_number\":\"UN1090\"}",
+                CategoryId = textilesCategory.Id,
+                DefaultUnitId = tonUnit.Id,
+                Code = "COTTON-YARN-GIZA",
+                NameAr = "غزل قطن مصري 100% جيزة مشط تمشيط",
+                NameEn = "100% Egyptian Combed Cotton Yarn Giza",
+                DescriptionAr = "غزل قطن مصري فاخر للمصانع والنسيج عالي الجودة",
+                DescriptionEn = "Premium combed Egyptian Giza cotton yarn for high-grade textile manufacturing",
+                AttributesJson = "{\"standard\":\"ISO 2060\",\"count\":\"Ne 30/1\",\"fiber_length\":\"34mm\",\"origin\":\"Egypt\"}",
+                IsActive = true
+            });
+        }
+
+        if (!await context.Materials.AnyAsync(m => m.Code == "POLY-FIBER-PSF"))
+        {
+            context.Materials.Add(new Material
+            {
+                CategoryId = textilesCategory.Id,
+                DefaultUnitId = tonUnit.Id,
+                Code = "POLY-FIBER-PSF",
+                NameAr = "ألياف بوليستر قصيرة للمنسوجات (PSF)",
+                NameEn = "Polyester Staple Fiber (PSF) Semi-Dull",
+                DescriptionAr = "ألياف بوليستر نقية لصناعة الغزل والأقمشة المنسوجة وغير المنسوجة",
+                DescriptionEn = "Semi-dull virgin polyester staple fiber for spinning and non-woven manufacturing",
+                AttributesJson = "{\"denier\":\"1.4D\",\"cut_length\":\"38mm\",\"tenacity\":\">6.5 g/denier\"}",
+                IsActive = true
+            });
+        }
+
+        // Food: Sugar & Palm Olein
+        if (!await context.Materials.AnyAsync(m => m.Code == "FOOD-SUGAR-REFINED"))
+        {
+            context.Materials.Add(new Material
+            {
+                CategoryId = foodCategory.Id,
+                DefaultUnitId = tonUnit.Id,
+                Code = "FOOD-SUGAR-REFINED",
+                NameAr = "سكر أبيض مكرر درجة تصنيع غذائي",
+                NameEn = "Refined White Sugar Industrial Grade ICUMSA 45",
+                DescriptionAr = "سكر مكرر نقي للصناعات الغذائية والمشروبات والحلويات",
+                DescriptionEn = "High-purity refined crystal white sugar for confectionery and beverage manufacturing",
+                AttributesJson = "{\"standard\":\"EOS 358 / ICUMSA 45\",\"polarization\":\"99.8% min\",\"moisture\":\"0.04% max\"}",
+                IsActive = true
+            });
+        }
+
+        if (!await context.Materials.AnyAsync(m => m.Code == "FOOD-PALM-OLEIN"))
+        {
+            context.Materials.Add(new Material
+            {
+                CategoryId = foodCategory.Id,
+                DefaultUnitId = tonUnit.Id,
+                Code = "FOOD-PALM-OLEIN",
+                NameAr = "زيت أولين النخيل الغذائي المكرر CP8",
+                NameEn = "RBD Palm Olein Edible Oil CP8",
+                DescriptionAr = "زيت طعام صناعي مكرر ومبيض ومزال الرائحة للقلي والتصنيع الغذائي",
+                DescriptionEn = "Refined bleached and deodorized palm olein for food processing and frying industries",
+                AttributesJson = "{\"standard\":\"Codex Stan 210\",\"cloud_point\":\"8°C max\",\"free_fatty_acids\":\"0.1% max\"}",
                 IsActive = true
             });
         }
 
         await context.SaveChangesAsync();
-        logger.LogInformation("CatalogSeeder: Baseline catalog seed completed.");
+        logger.LogInformation("CatalogSeeder: Baseline 3-category marketplace catalog seed completed.");
     }
 }
-

@@ -88,7 +88,7 @@ export default function SupplierDirectoryPage() {
             <ShieldCheck size={14} className="text-emerald-400" />
             <span>{isAr ? 'شبكة الموردين المعتمدين قانونياً' : 'Verified Industrial Suppliers Network'}</span>
           </div>
-          <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">
+          <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-white">
             {isAr ? 'دليل الموردين والمصانع المعتمدة' : 'Verified Supplier Directory'}
           </h1>
           <p className="text-sm md:text-base text-blue-100/90 mt-2 leading-relaxed">

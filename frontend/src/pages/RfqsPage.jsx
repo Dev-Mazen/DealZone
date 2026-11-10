@@ -44,146 +44,6 @@ const statusOptions = [
   { value: 'Cancelled', label: 'Cancelled', labelAr: 'ملغي' },
 ]
 
-// ============================================================
-// REALISTIC EGYPTIAN INDUSTRIAL TENDERS (ZERO BLANK SCREEN GUARANTEE)
-// ============================================================
-const DEFAULT_BUYER_RFQS = [
-  {
-    id: 'rfq-b1',
-    rfqNumber: 'RFQ-2026-0042',
-    title: 'توريد حديد تسليح 500 طن B500D لمصنع العاشر من رمضان',
-    titleEn: 'Supply 500 MT High-Tensile Rebar B500D (10th of Ramadan)',
-    targetCategoryNameAr: 'المعادن والصلب',
-    targetCategoryNameEn: 'Metals & Steel',
-    deliveryCity: 'العاشر من رمضان',
-    deliveryGovernorate: 'الشرقية',
-    closingDateUtc: new Date(Date.now() + 4 * 86400000).toISOString(),
-    createdAtUtc: new Date(Date.now() - 2 * 86400000).toISOString(),
-    itemCount: 3,
-    status: 'Published',
-    offersCount: 4,
-    lowestBidAmount: 22400000,
-    buyerCompanyName: 'المصرية للصناعات الهندسية المتطورة',
-  },
-  {
-    id: 'rfq-b2',
-    rfqNumber: 'RFQ-2026-0038',
-    title: 'توريد حبيبات بولي إيثيلين HDPE 5502 عالي الكثافة (60 طن)',
-    titleEn: 'Procurement of 60 MT HDPE Blow Molding Grade 5502',
-    targetCategoryNameAr: 'البوليمرات والبلاستيك الصناعي',
-    targetCategoryNameEn: 'Polymers & Plastics',
-    deliveryCity: 'السادس من أكتوبر',
-    deliveryGovernorate: 'الجيزة',
-    closingDateUtc: new Date(Date.now() + 2 * 86400000).toISOString(),
-    createdAtUtc: new Date(Date.now() - 3 * 86400000).toISOString(),
-    itemCount: 1,
-    status: 'Published',
-    offersCount: 3,
-    lowestBidAmount: 4320000,
-    buyerCompanyName: 'النيل للتغليف والعبوات البلاستيكية',
-  },
-  {
-    id: 'rfq-b3',
-    rfqNumber: 'RFQ-2026-0031',
-    title: 'توريد مذيب أسيتون صناعي 99.5% وصودا كاوية قشور',
-    titleEn: 'Supply Technical Acetone 99.5% and Caustic Soda Flakes',
-    targetCategoryNameAr: 'الكيماويات والمذيبات الصناعية',
-    targetCategoryNameEn: 'Industrial Chemicals & Solvents',
-    deliveryCity: 'مدينة السادات',
-    deliveryGovernorate: 'المنوفية',
-    closingDateUtc: new Date(Date.now() - 1 * 86400000).toISOString(),
-    createdAtUtc: new Date(Date.now() - 7 * 86400000).toISOString(),
-    itemCount: 2,
-    status: 'Closed',
-    offersCount: 5,
-    lowestBidAmount: 1850000,
-    buyerCompanyName: 'دلتا للكيماويات المتخصصة',
-  },
-]
-
-const DEFAULT_SUPPLIER_FEED = [
-  {
-    id: 'rfq-s1',
-    rfqNumber: 'RFQ-2026-0042',
-    title: 'توريد حديد تسليح 500 طن B500D لمصنع العاشر من رمضان',
-    titleEn: 'Supply 500 MT High-Tensile Rebar B500D (10th of Ramadan)',
-    targetCategoryNameAr: 'المعادن والصلب',
-    targetCategoryNameEn: 'Metals & Steel',
-    deliveryCity: 'العاشر من رمضان',
-    deliveryGovernorate: 'الشرقية',
-    closingDateUtc: new Date(Date.now() + 4 * 86400000).toISOString(),
-    createdAtUtc: new Date(Date.now() - 2 * 86400000).toISOString(),
-    itemCount: 3,
-    status: 'Published',
-    offersCount: 4,
-    currentLowestUnitPrice: 44800,
-    unit: 'طن متري',
-    unitEn: 'Metric Ton',
-    buyerCompanyName: 'المصرية للصناعات الهندسية المتطورة',
-    isReverseAuction: true,
-  },
-  {
-    id: 'rfq-s2',
-    rfqNumber: 'RFQ-2026-0038',
-    title: 'توريد حبيبات بولي إيثيلين HDPE 5502 عالي الكثافة (60 طن)',
-    titleEn: 'Procurement of 60 MT HDPE Blow Molding Grade 5502',
-    targetCategoryNameAr: 'البوليمرات والبلاستيك الصناعي',
-    targetCategoryNameEn: 'Polymers & Plastics',
-    deliveryCity: 'السادس من أكتوبر',
-    deliveryGovernorate: 'الجيزة',
-    closingDateUtc: new Date(Date.now() + 2 * 86400000).toISOString(),
-    createdAtUtc: new Date(Date.now() - 3 * 86400000).toISOString(),
-    itemCount: 1,
-    status: 'Published',
-    offersCount: 3,
-    currentLowestUnitPrice: 72000,
-    unit: 'طن متري',
-    unitEn: 'Metric Ton',
-    buyerCompanyName: 'النيل للتغليف والعبوات البلاستيكية',
-    isReverseAuction: true,
-  },
-  {
-    id: 'rfq-s3',
-    rfqNumber: 'RFQ-2026-0045',
-    title: 'مناقصة توريد 200 طن لفائف صلب مدلفن على الساخن HRC',
-    titleEn: 'Tender: 200 MT Hot-Rolled Steel Coils HRC',
-    targetCategoryNameAr: 'المعادن والصلب',
-    targetCategoryNameEn: 'Metals & Steel',
-    deliveryCity: 'برج العرب الصناعية',
-    deliveryGovernorate: 'الإسكندرية',
-    closingDateUtc: new Date(Date.now() + 5 * 86400000).toISOString(),
-    createdAtUtc: new Date(Date.now() - 1 * 86400000).toISOString(),
-    itemCount: 2,
-    status: 'Published',
-    offersCount: 2,
-    currentLowestUnitPrice: 39500,
-    unit: 'طن متري',
-    unitEn: 'Metric Ton',
-    buyerCompanyName: 'الإسكندرية لتصنيع الهياكل الفولاذية',
-    isReverseAuction: true,
-  },
-  {
-    id: 'rfq-s4',
-    rfqNumber: 'RFQ-2026-0047',
-    title: 'توريد صودا كاوية قشور 99% نقية 40 طن معبأة في باليتات',
-    titleEn: 'Supply 40 MT Caustic Soda Flakes 99% Palletized',
-    targetCategoryNameAr: 'الكيماويات والمذيبات الصناعية',
-    targetCategoryNameEn: 'Industrial Chemicals & Solvents',
-    deliveryCity: 'العين السخنة - المنطقة الاقتصادية',
-    deliveryGovernorate: 'السويس',
-    closingDateUtc: new Date(Date.now() + 3 * 86400000).toISOString(),
-    createdAtUtc: new Date(Date.now() - 12 * 3600000).toISOString(),
-    itemCount: 1,
-    status: 'Published',
-    offersCount: 1,
-    currentLowestUnitPrice: 31000,
-    unit: 'طن متري',
-    unitEn: 'Metric Ton',
-    buyerCompanyName: 'السويس للصناعات الدوائية والكيماوية',
-    isReverseAuction: true,
-  },
-]
-
 export default function RfqsPage() {
   const { language } = useTranslation()
   const isAr = language === 'ar'
@@ -218,48 +78,24 @@ export default function RfqsPage() {
 
   const isSupplierView = isSupplierOnly || (hasBothCapabilities && dualViewMode === 'discover')
 
-  // API query with fallback resilience
-  const { data: apiData, isLoading: isQueryLoading } = useQuery({
+  // Real API Query for RFQs
+  const { data: apiData, isLoading: isQueryLoading, error: queryError, refetch } = useQuery({
     queryKey: isSupplierView
       ? ['rfqs', 'discovery', { searchTerm, pageNumber, pageSize }]
-      : ['rfqs', 'mine', { status: statusFilter, pageNumber, pageSize }],
+      : ['rfqs', 'mine', { status: statusFilter, searchTerm, pageNumber, pageSize }],
     queryFn: async () => {
-      try {
-        if (isSupplierView) {
-          const res = await rfqService.discover({ searchTerm: searchTerm || undefined, pageNumber, pageSize })
-          return res?.items?.length ? res : null
-        } else {
-          const res = await rfqService.getMine({ status: statusFilter || undefined, pageNumber, pageSize })
-          return res?.items?.length ? res : null
-        }
-      } catch {
-        return null
+      if (isSupplierView) {
+        return rfqService.discover({ searchTerm: searchTerm.trim() || undefined, pageNumber, pageSize })
+      } else {
+        return rfqService.getMine({ status: statusFilter || undefined, searchTerm: searchTerm.trim() || undefined, pageNumber, pageSize })
       }
     },
     enabled: isVerified,
-    staleTime: 60_000,
+    staleTime: 30_000,
   })
 
-  // Resolve items (API response or rich fallback)
-  const rfqList = useMemo(() => {
-    if (apiData?.items?.length) {
-      return apiData.items
-    }
-    const sourceList = isSupplierView ? DEFAULT_SUPPLIER_FEED : DEFAULT_BUYER_RFQS
-    return sourceList.filter((rfq) => {
-      const term = searchTerm.trim().toLowerCase()
-      const matchesSearch =
-        !term ||
-        rfq.rfqNumber.toLowerCase().includes(term) ||
-        rfq.title.toLowerCase().includes(term) ||
-        (rfq.titleEn && rfq.titleEn.toLowerCase().includes(term)) ||
-        rfq.deliveryCity.toLowerCase().includes(term) ||
-        rfq.buyerCompanyName.toLowerCase().includes(term)
-
-      const matchesStatus = !statusFilter || rfq.status === statusFilter
-      return matchesSearch && matchesStatus
-    })
-  }, [apiData, isSupplierView, searchTerm, statusFilter])
+  // Real items from persisted database
+  const rfqList = apiData?.items || []
 
   // Company verification prompt for unverified users
   if (!isAuthLoading && (!hasCompany || !isVerified)) {
@@ -560,7 +396,15 @@ export default function RfqsPage() {
                       {isAr ? 'تقديم عرض تنافسي' : 'Bid on Tender'}
                     </Button>
                   ) : (
-                    <Button size="xs" variant="outline" icon={<Eye size={13} />}>
+                    <Button
+                      size="xs"
+                      variant="outline"
+                      icon={<Eye size={13} />}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        navigate(`/rfqs/${rfq.id}`)
+                      }}
+                    >
                       {isAr ? 'عرض العروض والترسية' : 'Manage Tender'}
                     </Button>
                   )}

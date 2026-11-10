@@ -25,11 +25,12 @@ builder.Services.AddApiServices(builder.Configuration);
 
 var app = builder.Build();
 
-// Seed admin user and baseline catalog in Development
+// Seed admin user, baseline catalog, and controlled demo data in Development
 if (app.Environment.IsDevelopment())
 {
     await AdminUserSeeder.SeedAsync(app.Services);
     await CatalogSeeder.SeedAsync(app.Services);
+    await DemoDataSeeder.SeedAsync(app.Services);
 }
 
 // Centralized error handling

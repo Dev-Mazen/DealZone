@@ -26,9 +26,9 @@ describe('Button Component', () => {
       render(<Button variant="outline">Outline Button</Button>);
       const button = screen.getByRole('button');
       
-      expect(button).toHaveClass('bg-transparent');
-      expect(button).toHaveClass('border-2');
-      expect(button).toHaveClass('border-[#06245B]');
+      expect(button).toHaveClass('bg-white');
+      expect(button).toHaveClass('border');
+      expect(button).toHaveClass('text-[#06245B]');
     });
 
     it('should render ghost variant with correct styles', () => {

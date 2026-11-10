@@ -1,12 +1,14 @@
 import { Link } from 'react-router-dom'
 import { useTranslation } from '../../hooks/useTranslation'
 import logoTransparent from '../../assets/logo-transparent.png'
-import logoImg from '../../assets/logo.jpeg'
 
 /**
  * Official DealZone Logo Component
- * Correctly renders brand name order in both RTL (ديل زون) and LTR (DEAL ZONE)
- * ensuring it never appears reversed as "ZoneDeal".
+ * - Uses the tightly cropped transparent DealZone logo mark (no artificial white box)
+ * - Seamlessly blends into light, dark, and navbar backgrounds
+ * - Correctly renders brand name order in both RTL (ديل زون) and LTR (DEAL ZONE)
+ * - Smoothly scrolls to the top of the page when clicked while already on the Landing Page ("/")
+ * - Safe for standalone rendering outside Router (e.g. FullPageSpinner during app loading)
  */
 export default function Logo({
   size = 'md',
@@ -18,32 +20,39 @@ export default function Logo({
   const { language } = useTranslation()
   const isAr = language === 'ar'
 
+  // Slightly increased display sizes for prominent brand visibility while preserving 4:3 aspect ratio
   const sizeMap = {
-    sm: { img: 'w-8 h-8', text: 'text-base', sub: 'text-[9px]', tag: 'text-[10px]' },
-    md: { img: 'w-10 h-10', text: 'text-lg', sub: 'text-[10px]', tag: 'text-xs' },
-    lg: { img: 'w-14 h-14', text: 'text-2xl', sub: 'text-xs', tag: 'text-sm' },
-    xl: { img: 'w-20 h-20', text: 'text-3xl', sub: 'text-sm', tag: 'text-base' },
+    sm: { img: 'h-8 w-auto max-w-[42px]', text: 'text-base', sub: 'text-[9px]', tag: 'text-[10px]' },
+    md: { img: 'h-10 w-auto max-w-[52px]', text: 'text-lg', sub: 'text-[10px]', tag: 'text-xs' },
+    lg: { img: 'h-14 w-auto max-w-[72px]', text: 'text-2xl', sub: 'text-xs', tag: 'text-sm' },
+    xl: { img: 'h-20 w-auto max-w-[105px]', text: 'text-3xl', sub: 'text-sm', tag: 'text-base' },
   }
 
   const currentSize = sizeMap[size] || sizeMap.md
   const isWhite = variant === 'white'
-  // Use transparent PNG on dark/colored backgrounds, jpeg on light
-  const logoSrc = isWhite ? logoTransparent : logoImg
+
+  // Smooth scroll to top when clicked on landing page without page reload
+  const handleLogoClick = (e) => {
+    if (typeof window !== 'undefined' && (window.location.pathname === '/' || window.location.pathname === '')) {
+      e.preventDefault()
+      window.scrollTo({
+        top: 0,
+        left: 0,
+        behavior: 'smooth',
+      })
+    }
+  }
 
   const content = (
     <div className={`inline-flex items-center gap-3 select-none group ${className}`}>
-      {/* Official DealZone Logo Image */}
+      {/* Official DealZone Logo Mark — Pure transparency, no artificial white square */}
       <div
-        className={`${currentSize.img} rounded-xl overflow-hidden shrink-0 flex items-center justify-center transition-transform duration-200 group-hover:scale-105 ${
-          isWhite
-            ? 'bg-transparent border border-white/20'
-            : 'bg-white shadow-sm border border-black/5'
-        }`}
+        className={`${currentSize.img} shrink-0 flex items-center justify-center transition-transform duration-200 group-hover:scale-105`}
       >
         <img
-          src={logoSrc}
+          src={logoTransparent}
           alt="DealZone Official Logo"
-          className="w-full h-full object-contain"
+          className="h-full w-auto object-contain block"
           loading="eager"
         />
       </div>
@@ -108,7 +117,12 @@ export default function Logo({
 
   if (link) {
     return (
-      <Link to="/" className="inline-flex items-center shrink-0" aria-label="DealZone Home">
+      <Link
+        to="/"
+        onClick={handleLogoClick}
+        className="inline-flex items-center shrink-0 cursor-pointer"
+        aria-label="DealZone Home"
+      >
         {content}
       </Link>
     )
