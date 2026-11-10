@@ -1,4 +1,5 @@
 using DealZone.Application.Catalog.DTOs;
+using DealZone.Domain.Catalog;
 using FluentValidation;
 
 namespace DealZone.Application.Catalog.Validators;
@@ -9,7 +10,9 @@ public class CreateCategoryRequestValidator : AbstractValidator<CreateCategoryRe
     {
         RuleFor(x => x.Code)
             .NotEmpty().WithMessage("Category code is required.")
-            .MaximumLength(50).WithMessage("Category code must not exceed 50 characters.");
+            .MaximumLength(50).WithMessage("Category code must not exceed 50 characters.")
+            .Must(code => string.IsNullOrWhiteSpace(code) || MarketplaceCategories.IsSupported(code))
+            .WithMessage("DealZone only supports three official marketplace categories: Textiles (TEXTILES), Food (FOOD), and Metals (METALS).");
 
         RuleFor(x => x.NameAr)
             .NotEmpty().WithMessage("Arabic category name is required.")
@@ -168,4 +171,86 @@ public class UpdateMaterialRequestValidator : AbstractValidator<UpdateMaterialRe
             .MaximumLength(4000).WithMessage("Attributes JSON must not exceed 4000 characters.");
     }
 }
+
+public class CreateCatalogProductRequestValidator : AbstractValidator<CreateCatalogProductRequest>
+{
+    public CreateCatalogProductRequestValidator()
+    {
+        RuleFor(x => x.MaterialId)
+            .NotEmpty().WithMessage("Material ID is required.");
+
+        RuleFor(x => x.Sku)
+            .NotEmpty().WithMessage("SKU is required.")
+            .MaximumLength(50).WithMessage("SKU must not exceed 50 characters.");
+
+        RuleFor(x => x.NameAr)
+            .NotEmpty().WithMessage("Arabic product name is required.")
+            .MaximumLength(200).WithMessage("Arabic product name must not exceed 200 characters.");
+
+        RuleFor(x => x.NameEn)
+            .NotEmpty().WithMessage("English product name is required.")
+            .MaximumLength(200).WithMessage("English product name must not exceed 200 characters.");
+
+        RuleFor(x => x.DescriptionAr)
+            .MaximumLength(1000).WithMessage("Arabic description must not exceed 1000 characters.");
+
+        RuleFor(x => x.DescriptionEn)
+            .MaximumLength(1000).WithMessage("English description must not exceed 1000 characters.");
+
+        RuleFor(x => x.UnitPrice)
+            .GreaterThan(0).WithMessage("Unit price must be greater than zero.");
+
+        RuleFor(x => x.Currency)
+            .NotEmpty().WithMessage("Currency is required.")
+            .Length(3).WithMessage("Currency must be a 3-letter ISO code.");
+
+        RuleFor(x => x.AvailableQuantity)
+            .GreaterThanOrEqualTo(0).WithMessage("Available quantity cannot be negative.");
+
+        RuleFor(x => x.MinimumOrderQuantity)
+            .GreaterThan(0).WithMessage("Minimum order quantity must be greater than zero.");
+
+        RuleFor(x => x.DeliveryLeadTimeDays)
+            .GreaterThan(0).WithMessage("Delivery lead time must be at least 1 day.")
+            .LessThanOrEqualTo(365).WithMessage("Delivery lead time cannot exceed 365 days.");
+    }
+}
+
+public class UpdateCatalogProductRequestValidator : AbstractValidator<UpdateCatalogProductRequest>
+{
+    public UpdateCatalogProductRequestValidator()
+    {
+        RuleFor(x => x.NameAr)
+            .NotEmpty().WithMessage("Arabic product name is required.")
+            .MaximumLength(200).WithMessage("Arabic product name must not exceed 200 characters.");
+
+        RuleFor(x => x.NameEn)
+            .NotEmpty().WithMessage("English product name is required.")
+            .MaximumLength(200).WithMessage("English product name must not exceed 200 characters.");
+
+        RuleFor(x => x.DescriptionAr)
+            .MaximumLength(1000).WithMessage("Arabic description must not exceed 1000 characters.");
+
+        RuleFor(x => x.DescriptionEn)
+            .MaximumLength(1000).WithMessage("English description must not exceed 1000 characters.");
+
+        RuleFor(x => x.UnitPrice)
+            .GreaterThan(0).WithMessage("Unit price must be greater than zero.");
+
+        RuleFor(x => x.Currency)
+            .NotEmpty().WithMessage("Currency is required.")
+            .Length(3).WithMessage("Currency must be a 3-letter ISO code.");
+
+        RuleFor(x => x.AvailableQuantity)
+            .GreaterThanOrEqualTo(0).WithMessage("Available quantity cannot be negative.");
+
+        RuleFor(x => x.MinimumOrderQuantity)
+            .GreaterThan(0).WithMessage("Minimum order quantity must be greater than zero.");
+
+        RuleFor(x => x.DeliveryLeadTimeDays)
+            .GreaterThan(0).WithMessage("Delivery lead time must be at least 1 day.")
+            .LessThanOrEqualTo(365).WithMessage("Delivery lead time cannot exceed 365 days.");
+    }
+}
+
 

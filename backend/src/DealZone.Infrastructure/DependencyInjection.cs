@@ -130,6 +130,7 @@ public static class DependencyInjection
         services.AddScoped<IRfqNumberGenerator, RfqNumberGenerator>();
         services.AddScoped<ITenderService, TenderService>();
         services.AddScoped<ITenderNumberGenerator, TenderNumberGenerator>();
+        services.AddScoped<IPurchasingService, PurchasingService>();
 
         // Background Job Infrastructure
         services.Configure<BackgroundJobOptions>(

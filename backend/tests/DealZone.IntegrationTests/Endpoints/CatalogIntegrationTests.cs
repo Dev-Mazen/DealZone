@@ -119,19 +119,24 @@ public class CatalogIntegrationTests
         var adminToken = await CreateAdminAndLoginAsync(factory, client, "catalog.admin@dealzone.eg");
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", adminToken);
 
-        // 1. Create a Category
-        var catReq = new CreateCategoryRequest(null, "CERAMICS", "سيراميك", "Ceramics", "مواد السيراميك والبورسلين", "Ceramic and porcelain materials", 5);
-        var catRes = await client.PostAsJsonAsync("/api/v1/admin/catalog/categories", catReq);
-        Assert.Equal(HttpStatusCode.Created, catRes.StatusCode);
-        var createdCategory = await catRes.Content.ReadFromJsonAsync<CategoryDto>(JsonOptions);
-        Assert.NotNull(createdCategory);
-        Assert.Equal("CERAMICS", createdCategory.Code);
+        // 1. Attempting to create an unsupported Category should return BadRequest
+        var invalidCatReq = new CreateCategoryRequest(null, "CERAMICS", "سيراميك", "Ceramics", "مواد السيراميك والبورسلين", "Ceramic and porcelain materials", 5);
+        var invalidCatRes = await client.PostAsJsonAsync("/api/v1/admin/catalog/categories", invalidCatReq);
+        Assert.Equal(HttpStatusCode.BadRequest, invalidCatRes.StatusCode);
 
-        // 2. Duplicate Category Code should return Conflict
-        var dupCatRes = await client.PostAsJsonAsync("/api/v1/admin/catalog/categories", catReq);
+        // 2. Attempting to duplicate an existing supported Category should return Conflict
+        var dupCatReq = new CreateCategoryRequest(null, "TEXTILES", "منسوجات", "Textiles", null, null, 1);
+        var dupCatRes = await client.PostAsJsonAsync("/api/v1/admin/catalog/categories", dupCatReq);
         Assert.Equal(HttpStatusCode.Conflict, dupCatRes.StatusCode);
 
-        // 3. Create a Unit
+        // 3. Fetch existing supported category
+        var getCategoriesRes = await client.GetAsync("/api/v1/catalog/categories");
+        Assert.Equal(HttpStatusCode.OK, getCategoriesRes.StatusCode);
+        var categories = await getCategoriesRes.Content.ReadFromJsonAsync<List<CategoryDto>>(JsonOptions);
+        Assert.NotNull(categories);
+        var targetCategory = categories.First(c => c.Code == "TEXTILES");
+
+        // 4. Create a Unit
         var unitReq = new CreateUnitRequest("SQM", "متر مربع", "Square Meter", "م²", "m²", 4);
         var unitRes = await client.PostAsJsonAsync("/api/v1/admin/catalog/units", unitReq);
         Assert.Equal(HttpStatusCode.Created, unitRes.StatusCode);
@@ -139,29 +144,29 @@ public class CatalogIntegrationTests
         Assert.NotNull(createdUnit);
         Assert.Equal("sqm", createdUnit.Code);
 
-        // 4. Create a Material
+        // 5. Create a Material under the supported Category
         var matReq = new CreateMaterialRequest(
-            createdCategory.Id,
+            targetCategory.Id,
             createdUnit.Id,
-            "CER-FLOOR-60X60",
-            "بلاط سيراميك أرضيات 60×60",
-            "Floor Ceramic Tiles 60x60",
-            "بلاط سيراميك عالي التحمل",
-            "Heavy-duty porcelain floor tile",
-            "{\"dimensions_cm\":\"60x60\",\"finish\":\"matte\"}");
+            "TEX-COTTON-FABRIC-100",
+            "قماش قطن مصري 100%",
+            "Egyptian Cotton Fabric 100%",
+            "أقمشة قطنية عالية الجودة للغزل والنسيج",
+            "High grade 100% Egyptian cotton fabric",
+            "{\"thread_count\":\"400\",\"width_cm\":\"150\"}");
 
         var matRes = await client.PostAsJsonAsync("/api/v1/admin/catalog/materials", matReq);
         Assert.Equal(HttpStatusCode.Created, matRes.StatusCode);
         var createdMat = await matRes.Content.ReadFromJsonAsync<MaterialDto>(JsonOptions);
         Assert.NotNull(createdMat);
-        Assert.Equal("CER-FLOOR-60X60", createdMat.Code);
+        Assert.Equal("TEX-COTTON-FABRIC-100", createdMat.Code);
 
-        // 5. Delete (archive) Category
-        var delRes = await client.DeleteAsync($"/api/v1/admin/catalog/categories/{createdCategory.Id}");
+        // 6. Delete (archive) Category
+        var delRes = await client.DeleteAsync($"/api/v1/admin/catalog/categories/{targetCategory.Id}");
         Assert.Equal(HttpStatusCode.NoContent, delRes.StatusCode);
 
-        // 6. Verify category is archived
-        var getCatRes = await client.GetAsync($"/api/v1/catalog/categories/{createdCategory.Id}");
+        // 7. Verify category is archived
+        var getCatRes = await client.GetAsync($"/api/v1/catalog/categories/{targetCategory.Id}");
         Assert.Equal(HttpStatusCode.OK, getCatRes.StatusCode);
         var fetchedCat = await getCatRes.Content.ReadFromJsonAsync<CategoryDto>(JsonOptions);
         Assert.NotNull(fetchedCat);

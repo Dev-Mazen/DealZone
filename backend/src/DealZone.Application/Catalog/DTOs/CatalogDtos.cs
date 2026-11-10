@@ -120,3 +120,73 @@ public record CatalogMaterialFilter(
     string? SortBy = null,
     bool SortDescending = false);
 
+// -----------------------------------------------------------------------------
+// Direct Purchase Catalog Products
+// -----------------------------------------------------------------------------
+
+public record CatalogProductResponse(
+    Guid Id,
+    Guid MaterialId,
+    string MaterialCode,
+    string MaterialNameAr,
+    string MaterialNameEn,
+    Guid CategoryId,
+    string CategoryCode,
+    string CategoryNameAr,
+    string CategoryNameEn,
+    Guid DefaultUnitId,
+    string DefaultUnitCode,
+    string DefaultUnitNameAr,
+    string DefaultUnitNameEn,
+    Guid SupplierCompanyId,
+    string SupplierCompanyName,
+    string Sku,
+    string NameAr,
+    string NameEn,
+    string? DescriptionAr,
+    string? DescriptionEn,
+    decimal UnitPrice,
+    string Currency,
+    decimal AvailableQuantity,
+    decimal MinimumOrderQuantity,
+    int DeliveryLeadTimeDays,
+    bool IsActive,
+    DateTimeOffset CreatedAtUtc);
+
+public record CreateCatalogProductRequest(
+    Guid MaterialId,
+    string Sku,
+    string NameAr,
+    string NameEn,
+    string? DescriptionAr,
+    string? DescriptionEn,
+    decimal UnitPrice,
+    string Currency,
+    decimal AvailableQuantity,
+    decimal MinimumOrderQuantity,
+    int DeliveryLeadTimeDays);
+
+public record UpdateCatalogProductRequest(
+    string NameAr,
+    string NameEn,
+    string? DescriptionAr,
+    string? DescriptionEn,
+    decimal UnitPrice,
+    string Currency,
+    decimal AvailableQuantity,
+    decimal MinimumOrderQuantity,
+    int DeliveryLeadTimeDays,
+    bool IsActive);
+
+public record CatalogProductFilter(
+    Guid? CategoryId = null,
+    Guid? MaterialId = null,
+    Guid? SupplierCompanyId = null,
+    string? SearchTerm = null,
+    bool? ActiveOnly = true,
+    int PageNumber = 1,
+    int PageSize = 20,
+    string? SortBy = null,
+    bool SortDescending = false);
+
+

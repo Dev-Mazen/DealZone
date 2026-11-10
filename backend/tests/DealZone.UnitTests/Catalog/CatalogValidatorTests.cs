@@ -12,6 +12,8 @@ public class CatalogValidatorTests
     private readonly UpdateUnitRequestValidator _updateUnitValidator = new();
     private readonly CreateMaterialRequestValidator _createMaterialValidator = new();
     private readonly UpdateMaterialRequestValidator _updateMaterialValidator = new();
+    private readonly CreateCatalogProductRequestValidator _createProductValidator = new();
+    private readonly UpdateCatalogProductRequestValidator _updateProductValidator = new();
 
     [Theory]
     [InlineData("")]
@@ -136,5 +138,163 @@ public class CatalogValidatorTests
 
         Assert.False(result.IsValid);
         Assert.Contains(result.Errors, e => e.PropertyName == nameof(CreateMaterialRequest.AttributesJson));
+    }
+
+    [Theory]
+    [InlineData("CERAMICS")]
+    [InlineData("PLASTICS")]
+    [InlineData("CHEMICALS")]
+    [InlineData("RANDOM_CAT")]
+    public void CreateCategory_WithUnsupportedCode_ShouldFail(string code)
+    {
+        var request = new CreateCategoryRequest(null, code, "اسم عربي", "English Name", null, null, 1);
+        var result = _createCategoryValidator.Validate(request);
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, e => e.PropertyName == nameof(CreateCategoryRequest.Code)
+            && e.ErrorMessage.Contains("DealZone only supports three official marketplace categories"));
+    }
+
+    [Theory]
+    [InlineData("TEXTILES")]
+    [InlineData("textiles")]
+    [InlineData("FOOD")]
+    [InlineData("food")]
+    [InlineData("METALS")]
+    [InlineData("metals")]
+    public void CreateCategory_WithSupportedCodes_ShouldPass(string code)
+    {
+        var request = new CreateCategoryRequest(null, code, "اسم عربي", "English Name", null, null, 1);
+        var result = _createCategoryValidator.Validate(request);
+
+        Assert.True(result.IsValid);
+    }
+
+    [Fact]
+    public void CreateCatalogProduct_WithValidData_ShouldPass()
+    {
+        var request = new CreateCatalogProductRequest(
+            Guid.NewGuid(),
+            "SKU-TEST-100",
+            "منتج تجريبي",
+            "Test Product",
+            "وصف المنتج",
+            "Product Description",
+            1500.50m,
+            "EGP",
+            500m,
+            10m,
+            5);
+
+        var result = _createProductValidator.Validate(request);
+        Assert.True(result.IsValid);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-10)]
+    public void CreateCatalogProduct_WithZeroOrNegativePrice_ShouldFail(decimal price)
+    {
+        var request = new CreateCatalogProductRequest(
+            Guid.NewGuid(),
+            "SKU-TEST-100",
+            "منتج تجريبي",
+            "Test Product",
+            null,
+            null,
+            price,
+            "EGP",
+            500m,
+            10m,
+            5);
+
+        var result = _createProductValidator.Validate(request);
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, e => e.PropertyName == nameof(CreateCatalogProductRequest.UnitPrice));
+    }
+
+    [Theory]
+    [InlineData(-1)]
+    public void CreateCatalogProduct_WithNegativeAvailableQuantity_ShouldFail(decimal qty)
+    {
+        var request = new CreateCatalogProductRequest(
+            Guid.NewGuid(),
+            "SKU-TEST-100",
+            "منتج تجريبي",
+            "Test Product",
+            null,
+            null,
+            100m,
+            "EGP",
+            qty,
+            10m,
+            5);
+
+        var result = _createProductValidator.Validate(request);
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, e => e.PropertyName == nameof(CreateCatalogProductRequest.AvailableQuantity));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-5)]
+    public void CreateCatalogProduct_WithInvalidMoq_ShouldFail(decimal moq)
+    {
+        var request = new CreateCatalogProductRequest(
+            Guid.NewGuid(),
+            "SKU-TEST-100",
+            "منتج تجريبي",
+            "Test Product",
+            null,
+            null,
+            100m,
+            "EGP",
+            100m,
+            moq,
+            5);
+
+        var result = _createProductValidator.Validate(request);
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, e => e.PropertyName == nameof(CreateCatalogProductRequest.MinimumOrderQuantity));
+    }
+
+    [Fact]
+    public void CreateCatalogProduct_WithEmptyMaterialId_ShouldFail()
+    {
+        var request = new CreateCatalogProductRequest(
+            Guid.Empty,
+            "SKU-TEST-100",
+            "منتج تجريبي",
+            "Test Product",
+            null,
+            null,
+            100m,
+            "EGP",
+            100m,
+            1m,
+            5);
+
+        var result = _createProductValidator.Validate(request);
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, e => e.PropertyName == nameof(CreateCatalogProductRequest.MaterialId));
+    }
+
+    [Fact]
+    public void UpdateCatalogProduct_WithValidData_ShouldPass()
+    {
+        var request = new UpdateCatalogProductRequest(
+            "منتج معدل",
+            "Updated Product",
+            "وصف جديد",
+            "New Description",
+            2000m,
+            "EGP",
+            300m,
+            5m,
+            3,
+            true);
+
+        var result = _updateProductValidator.Validate(request);
+        Assert.True(result.IsValid);
     }
 }

@@ -31,6 +31,110 @@ namespace DealZone.Infrastructure.Persistence.Migrations
             modelBuilder.HasSequence("TenderNumberSequence")
                 .StartsAt(1000L);
 
+            modelBuilder.Entity("DealZone.Domain.Catalog.CatalogProduct", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("AvailableQuantity")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("CreatedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(3)
+                        .HasColumnType("nvarchar(3)")
+                        .HasDefaultValue("EGP");
+
+                    b.Property<int>("DeliveryLeadTimeDays")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(7);
+
+                    b.Property<string>("DescriptionAr")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("DescriptionEn")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
+                    b.Property<bool>("IsArchived")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<DateTimeOffset?>("LastModifiedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<Guid>("MaterialId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("MinimumOrderQuantity")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)")
+                        .HasDefaultValue(1m);
+
+                    b.Property<string>("NameAr")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("NameEn")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<string>("Sku")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<Guid>("SupplierCompanyId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("UnitPrice")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MaterialId");
+
+                    b.HasIndex("Sku");
+
+                    b.HasIndex("SupplierCompanyId");
+
+                    b.HasIndex("IsActive", "IsArchived");
+
+                    b.ToTable("CatalogProducts", (string)null);
+                });
+
             modelBuilder.Entity("DealZone.Domain.Catalog.Material", b =>
                 {
                     b.Property<Guid>("Id")
@@ -609,6 +713,9 @@ namespace DealZone.Infrastructure.Persistence.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
 
+                    b.Property<Guid?>("DirectPurchaseId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<DateTimeOffset?>("EstimatedDeliveryDateUtc")
                         .HasColumnType("datetimeoffset");
 
@@ -665,6 +772,10 @@ namespace DealZone.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("DealNumber")
                         .IsUnique();
+
+                    b.HasIndex("DirectPurchaseId")
+                        .IsUnique()
+                        .HasFilter("[DirectPurchaseId] IS NOT NULL");
 
                     b.HasIndex("OfferId")
                         .IsUnique()
@@ -1090,6 +1201,107 @@ namespace DealZone.Infrastructure.Persistence.Migrations
                     b.HasIndex("RfqItemId");
 
                     b.ToTable("OfferItems", (string)null);
+                });
+
+            modelBuilder.Entity("DealZone.Domain.Purchasing.DirectPurchase", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("BuyerCompanyId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("BuyerUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("CatalogProductId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("CreatedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(3)
+                        .HasColumnType("nvarchar(3)")
+                        .HasDefaultValue("EGP");
+
+                    b.Property<string>("DeliveryAddress")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<int>("DeliveryLeadTimeDays")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset?>("EstimatedDeliveryDateUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset?>("LastModifiedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("ProductSnapshotJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("PurchaseNumber")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<decimal>("Quantity")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("SupplierCompanyId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("TotalPrice")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("UnitPrice")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BuyerCompanyId");
+
+                    b.HasIndex("BuyerUserId");
+
+                    b.HasIndex("CatalogProductId");
+
+                    b.HasIndex("PurchaseNumber")
+                        .IsUnique();
+
+                    b.HasIndex("Status");
+
+                    b.HasIndex("SupplierCompanyId");
+
+                    b.ToTable("DirectPurchases", (string)null);
                 });
 
             modelBuilder.Entity("DealZone.Domain.Reviews.Review", b =>
@@ -1822,6 +2034,25 @@ namespace DealZone.Infrastructure.Persistence.Migrations
                     b.ToTable("TenderItems", (string)null);
                 });
 
+            modelBuilder.Entity("DealZone.Domain.Catalog.CatalogProduct", b =>
+                {
+                    b.HasOne("DealZone.Domain.Catalog.Material", "Material")
+                        .WithMany()
+                        .HasForeignKey("MaterialId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("DealZone.Domain.Companies.Company", "SupplierCompany")
+                        .WithMany()
+                        .HasForeignKey("SupplierCompanyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Material");
+
+                    b.Navigation("SupplierCompany");
+                });
+
             modelBuilder.Entity("DealZone.Domain.Catalog.Material", b =>
                 {
                     b.HasOne("DealZone.Domain.Catalog.MaterialCategory", "Category")
@@ -1955,6 +2186,11 @@ namespace DealZone.Infrastructure.Persistence.Migrations
                         .HasForeignKey("BuyerCompanyId")
                         .OnDelete(DeleteBehavior.Restrict);
 
+                    b.HasOne("DealZone.Domain.Purchasing.DirectPurchase", "DirectPurchase")
+                        .WithOne("Deal")
+                        .HasForeignKey("DealZone.Domain.Deals.Deal", "DirectPurchaseId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("DealZone.Domain.Offers.Offer", "Offer")
                         .WithMany()
                         .HasForeignKey("OfferId")
@@ -1978,6 +2214,8 @@ namespace DealZone.Infrastructure.Persistence.Migrations
                     b.Navigation("Bid");
 
                     b.Navigation("BuyerCompany");
+
+                    b.Navigation("DirectPurchase");
 
                     b.Navigation("Offer");
 
@@ -2083,6 +2321,41 @@ namespace DealZone.Infrastructure.Persistence.Migrations
                     b.Navigation("Offer");
 
                     b.Navigation("RfqItem");
+                });
+
+            modelBuilder.Entity("DealZone.Domain.Purchasing.DirectPurchase", b =>
+                {
+                    b.HasOne("DealZone.Domain.Companies.Company", "BuyerCompany")
+                        .WithMany()
+                        .HasForeignKey("BuyerCompanyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("DealZone.Domain.Identity.User", "BuyerUser")
+                        .WithMany()
+                        .HasForeignKey("BuyerUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("DealZone.Domain.Catalog.CatalogProduct", "CatalogProduct")
+                        .WithMany()
+                        .HasForeignKey("CatalogProductId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("DealZone.Domain.Companies.Company", "SupplierCompany")
+                        .WithMany()
+                        .HasForeignKey("SupplierCompanyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("BuyerCompany");
+
+                    b.Navigation("BuyerUser");
+
+                    b.Navigation("CatalogProduct");
+
+                    b.Navigation("SupplierCompany");
                 });
 
             modelBuilder.Entity("DealZone.Domain.Reviews.Review", b =>
@@ -2313,6 +2586,11 @@ namespace DealZone.Infrastructure.Persistence.Migrations
                     b.Navigation("Items");
 
                     b.Navigation("Revisions");
+                });
+
+            modelBuilder.Entity("DealZone.Domain.Purchasing.DirectPurchase", b =>
+                {
+                    b.Navigation("Deal");
                 });
 
             modelBuilder.Entity("DealZone.Domain.Rfqs.Rfq", b =>

@@ -35,6 +35,10 @@ public class DealConfiguration : IEntityTypeConfiguration<Deal>
             .IsUnique()
             .HasFilter("[RfqId] IS NOT NULL");
 
+        builder.HasIndex(d => d.DirectPurchaseId)
+            .IsUnique()
+            .HasFilter("[DirectPurchaseId] IS NOT NULL");
+
         builder.Property(d => d.AgreedPrice)
             .HasPrecision(18, 2)
             .IsRequired();
@@ -90,6 +94,12 @@ public class DealConfiguration : IEntityTypeConfiguration<Deal>
         builder.HasOne(d => d.Bid)
             .WithMany()
             .HasForeignKey(d => d.BidId)
+            .IsRequired(false)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne(d => d.DirectPurchase)
+            .WithOne(dp => dp.Deal)
+            .HasForeignKey<Deal>(d => d.DirectPurchaseId)
             .IsRequired(false)
             .OnDelete(DeleteBehavior.Restrict);
 

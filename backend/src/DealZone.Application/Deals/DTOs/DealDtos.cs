@@ -94,7 +94,9 @@ public record DealSummaryResponse(
     Guid? TenderId = null,
     string? TenderNumber = null,
     Guid? BidId = null,
-    string? BidNumber = null);
+    string? BidNumber = null,
+    Guid? DirectPurchaseId = null,
+    string? DirectPurchaseNumber = null);
 
 public record DealDetailResponse(
     Guid Id,
@@ -133,5 +135,7 @@ public record DealDetailResponse(
     string? TenderNumber = null,
     Guid? BidId = null,
     string? BidNumber = null,
-    int? BidRevisionNumber = null);
+    int? BidRevisionNumber = null,
+    Guid? DirectPurchaseId = null,
+    string? DirectPurchaseNumber = null);
 

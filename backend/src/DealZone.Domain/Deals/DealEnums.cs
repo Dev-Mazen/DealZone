@@ -39,5 +39,6 @@ public enum DisputeResolutionAction
 public enum DealSource
 {
     Rfq = 1,
-    Tender = 2
+    Tender = 2,
+    DirectPurchase = 3
 }

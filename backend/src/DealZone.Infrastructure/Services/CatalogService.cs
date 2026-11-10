@@ -2,6 +2,7 @@ using DealZone.Application.Catalog.DTOs;
 using DealZone.Application.Common.Interfaces;
 using DealZone.Application.Common.Models;
 using DealZone.Domain.Catalog;
+using DealZone.Domain.Companies;
 using DealZone.Domain.Exceptions;
 using DealZone.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -12,11 +13,16 @@ namespace DealZone.Infrastructure.Services;
 public class CatalogService : ICatalogService
 {
     private readonly DealZoneDbContext _context;
+    private readonly ICurrentUser _currentUser;
     private readonly ILogger<CatalogService> _logger;
 
-    public CatalogService(DealZoneDbContext context, ILogger<CatalogService> logger)
+    public CatalogService(
+        DealZoneDbContext context,
+        ICurrentUser currentUser,
+        ILogger<CatalogService> logger)
     {
         _context = context;
+        _currentUser = currentUser;
         _logger = logger;
     }
 
@@ -34,6 +40,10 @@ public class CatalogService : ICatalogService
         {
             query = query.Where(c => c.IsActive && !c.IsArchived);
         }
+
+        // Restrict to the three official marketplace categories: Textiles, Food, Metals
+        var supportedCodes = MarketplaceCategories.SupportedCodes;
+        query = query.Where(c => supportedCodes.Contains(c.Code.ToUpper()));
 
         var allCategories = await query
             .OrderBy(c => c.DisplayOrder)
@@ -65,6 +75,12 @@ public class CatalogService : ICatalogService
         CancellationToken cancellationToken = default)
     {
         var codeNormalized = request.Code.Trim().ToUpperInvariant();
+
+        if (!MarketplaceCategories.IsSupported(codeNormalized))
+        {
+            throw new ConflictException(
+                $"DealZone only operates in three marketplace categories: Textiles (TEXTILES), Food (FOOD), and Metals (METALS). Creating additional categories is not permitted.");
+        }
 
         var codeExists = await _context.MaterialCategories
             .AnyAsync(c => c.Code == codeNormalized, cancellationToken);
@@ -400,6 +416,11 @@ public class CatalogService : ICatalogService
             .FirstOrDefaultAsync(c => c.Id == request.CategoryId && c.IsActive && !c.IsArchived, cancellationToken)
             ?? throw new NotFoundException($"Active category {request.CategoryId} was not found.");
 
+        if (!MarketplaceCategories.IsSupported(category.Code))
+        {
+            throw new ConflictException($"Material category must be one of the three supported marketplace categories: Textiles, Food, or Metals. Category '{category.Code}' is not supported.");
+        }
+
         var unit = await _context.UnitsOfMeasure
             .FirstOrDefaultAsync(u => u.Id == request.DefaultUnitId && u.IsActive, cancellationToken)
             ?? throw new NotFoundException($"Active unit of measure {request.DefaultUnitId} was not found.");
@@ -452,6 +473,11 @@ public class CatalogService : ICatalogService
         var category = await _context.MaterialCategories
             .FirstOrDefaultAsync(c => c.Id == request.CategoryId, cancellationToken)
             ?? throw new NotFoundException($"Category {request.CategoryId} was not found.");
+
+        if (!MarketplaceCategories.IsSupported(category.Code))
+        {
+            throw new ConflictException($"Material category must be one of the three supported marketplace categories: Textiles, Food, or Metals. Category '{category.Code}' is not supported.");
+        }
 
         var unit = await _context.UnitsOfMeasure
             .FirstOrDefaultAsync(u => u.Id == request.DefaultUnitId, cancellationToken)
@@ -569,6 +595,278 @@ public class CatalogService : ICatalogService
             material.IsActive,
             material.IsArchived,
             material.CreatedAtUtc);
+    }
+
+    // -------------------------------------------------------------------------
+    // Direct Purchasing Catalog Products
+    // -------------------------------------------------------------------------
+
+    public async Task<PagedResult<CatalogProductResponse>> GetProductsAsync(
+        CatalogProductFilter filter,
+        CancellationToken cancellationToken = default)
+    {
+        var query = _context.CatalogProducts
+            .AsNoTracking()
+            .Include(p => p.Material)
+                .ThenInclude(m => m.Category)
+            .Include(p => p.Material)
+                .ThenInclude(m => m.DefaultUnit)
+            .Include(p => p.SupplierCompany)
+            .AsQueryable();
+
+        if (filter.ActiveOnly == true)
+        {
+            query = query.Where(p => p.IsActive && !p.IsArchived);
+        }
+
+        // Only products in the three supported marketplace categories
+        var supportedCodes = MarketplaceCategories.SupportedCodes;
+        query = query.Where(p => supportedCodes.Contains(p.Material.Category.Code.ToUpper()));
+
+        if (filter.CategoryId.HasValue)
+        {
+            query = query.Where(p => p.Material.CategoryId == filter.CategoryId.Value);
+        }
+
+        if (filter.MaterialId.HasValue)
+        {
+            query = query.Where(p => p.MaterialId == filter.MaterialId.Value);
+        }
+
+        if (filter.SupplierCompanyId.HasValue)
+        {
+            query = query.Where(p => p.SupplierCompanyId == filter.SupplierCompanyId.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(filter.SearchTerm))
+        {
+            var search = filter.SearchTerm.Trim().ToLower();
+            query = query.Where(p =>
+                p.NameEn.ToLower().Contains(search) ||
+                p.NameAr.ToLower().Contains(search) ||
+                p.Sku.ToLower().Contains(search) ||
+                p.Material.NameEn.ToLower().Contains(search) ||
+                p.Material.NameAr.ToLower().Contains(search) ||
+                p.Material.Code.ToLower().Contains(search));
+        }
+
+        var totalCount = await query.CountAsync(cancellationToken);
+
+        query = filter.SortBy?.ToLowerInvariant() switch
+        {
+            "price" or "unitprice" => filter.SortDescending ? query.OrderByDescending(p => p.UnitPrice) : query.OrderBy(p => p.UnitPrice),
+            "name" or "nameen" => filter.SortDescending ? query.OrderByDescending(p => p.NameEn) : query.OrderBy(p => p.NameEn),
+            "namear" => filter.SortDescending ? query.OrderByDescending(p => p.NameAr) : query.OrderBy(p => p.NameAr),
+            "availablequantity" or "stock" => filter.SortDescending ? query.OrderByDescending(p => p.AvailableQuantity) : query.OrderBy(p => p.AvailableQuantity),
+            _ => filter.SortDescending ? query.OrderByDescending(p => p.CreatedAtUtc) : query.OrderBy(p => p.NameEn)
+        };
+
+        var pageNumber = Math.Max(1, filter.PageNumber);
+        var pageSize = Math.Clamp(filter.PageSize, 1, 100);
+
+        var products = await query
+            .Skip((pageNumber - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+
+        var items = products.Select(MapProduct).ToList();
+
+        return PagedResult<CatalogProductResponse>.Create(items, pageNumber, pageSize, totalCount);
+    }
+
+    public async Task<CatalogProductResponse> GetProductByIdAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        var product = await _context.CatalogProducts
+            .AsNoTracking()
+            .Include(p => p.Material)
+                .ThenInclude(m => m.Category)
+            .Include(p => p.Material)
+                .ThenInclude(m => m.DefaultUnit)
+            .Include(p => p.SupplierCompany)
+            .FirstOrDefaultAsync(p => p.Id == id, cancellationToken)
+            ?? throw new NotFoundException($"Catalog product {id} was not found.");
+
+        return MapProduct(product);
+    }
+
+    public async Task<CatalogProductResponse> CreateProductAsync(
+        CreateCatalogProductRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var (company, member) = await RequireApprovedCompanyAsync(cancellationToken);
+
+        if (member.Role is not (CompanyRole.Owner or CompanyRole.Admin or CompanyRole.SalesManager))
+        {
+            throw new ForbiddenException("Only company Owners, Admins, and Sales Managers can list catalog products.");
+        }
+
+        var material = await _context.Materials
+            .Include(m => m.Category)
+            .Include(m => m.DefaultUnit)
+            .FirstOrDefaultAsync(m => m.Id == request.MaterialId && m.IsActive && !m.IsArchived, cancellationToken)
+            ?? throw new NotFoundException($"Active material {request.MaterialId} was not found.");
+
+        if (!MarketplaceCategories.IsSupported(material.Category.Code))
+        {
+            throw new ConflictException($"Products can only be listed in one of the three supported marketplace categories: Textiles, Food, or Metals. Category '{material.Category.Code}' is not supported.");
+        }
+
+        var skuNormalized = request.Sku.Trim().ToUpperInvariant();
+        var skuExists = await _context.CatalogProducts
+            .AnyAsync(p => p.Sku == skuNormalized && p.SupplierCompanyId == company.Id, cancellationToken);
+
+        if (skuExists)
+        {
+            throw new ConflictException($"Product with SKU '{skuNormalized}' already exists for your company.");
+        }
+
+        var product = new CatalogProduct
+        {
+            MaterialId = material.Id,
+            SupplierCompanyId = company.Id,
+            Sku = skuNormalized,
+            NameAr = request.NameAr.Trim(),
+            NameEn = request.NameEn.Trim(),
+            DescriptionAr = request.DescriptionAr?.Trim(),
+            DescriptionEn = request.DescriptionEn?.Trim(),
+            UnitPrice = request.UnitPrice,
+            Currency = string.IsNullOrWhiteSpace(request.Currency) ? "EGP" : request.Currency.Trim().ToUpperInvariant(),
+            AvailableQuantity = request.AvailableQuantity,
+            MinimumOrderQuantity = request.MinimumOrderQuantity,
+            DeliveryLeadTimeDays = request.DeliveryLeadTimeDays,
+            IsActive = true,
+            IsArchived = false
+        };
+
+        _context.CatalogProducts.Add(product);
+        await _context.SaveChangesAsync(cancellationToken);
+
+        product.Material = material;
+        product.SupplierCompany = company;
+
+        _logger.LogInformation("Created catalog product {Sku} ({ProductId}) for supplier company {CompanyId}", product.Sku, product.Id, company.Id);
+
+        return MapProduct(product);
+    }
+
+    public async Task<CatalogProductResponse> UpdateProductAsync(
+        Guid id,
+        UpdateCatalogProductRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var (company, member) = await RequireApprovedCompanyAsync(cancellationToken);
+
+        if (member.Role is not (CompanyRole.Owner or CompanyRole.Admin or CompanyRole.SalesManager))
+        {
+            throw new ForbiddenException("Only company Owners, Admins, and Sales Managers can update catalog products.");
+        }
+
+        var product = await _context.CatalogProducts
+            .Include(p => p.Material)
+                .ThenInclude(m => m.Category)
+            .Include(p => p.Material)
+                .ThenInclude(m => m.DefaultUnit)
+            .Include(p => p.SupplierCompany)
+            .FirstOrDefaultAsync(p => p.Id == id, cancellationToken)
+            ?? throw new NotFoundException($"Catalog product {id} was not found.");
+
+        if (product.SupplierCompanyId != company.Id)
+        {
+            throw new ForbiddenException("You do not have permission to modify this catalog product.");
+        }
+
+        product.NameAr = request.NameAr.Trim();
+        product.NameEn = request.NameEn.Trim();
+        product.DescriptionAr = request.DescriptionAr?.Trim();
+        product.DescriptionEn = request.DescriptionEn?.Trim();
+        product.UnitPrice = request.UnitPrice;
+        product.Currency = string.IsNullOrWhiteSpace(request.Currency) ? "EGP" : request.Currency.Trim().ToUpperInvariant();
+        product.AvailableQuantity = request.AvailableQuantity;
+        product.MinimumOrderQuantity = request.MinimumOrderQuantity;
+        product.DeliveryLeadTimeDays = request.DeliveryLeadTimeDays;
+        product.IsActive = request.IsActive;
+
+        await _context.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("Updated catalog product {Sku} ({ProductId})", product.Sku, product.Id);
+
+        return MapProduct(product);
+    }
+
+    public async Task DeleteProductAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        var (company, member) = await RequireApprovedCompanyAsync(cancellationToken);
+
+        if (member.Role is not (CompanyRole.Owner or CompanyRole.Admin or CompanyRole.SalesManager))
+        {
+            throw new ForbiddenException("Only company Owners, Admins, and Sales Managers can delete catalog products.");
+        }
+
+        var product = await _context.CatalogProducts
+            .FirstOrDefaultAsync(p => p.Id == id, cancellationToken)
+            ?? throw new NotFoundException($"Catalog product {id} was not found.");
+
+        if (product.SupplierCompanyId != company.Id)
+        {
+            throw new ForbiddenException("You do not have permission to delete this catalog product.");
+        }
+
+        product.IsActive = false;
+        product.IsArchived = true;
+
+        await _context.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("Archived catalog product {Sku} ({ProductId})", product.Sku, product.Id);
+    }
+
+    private async Task<(Company company, CompanyMember member)> RequireApprovedCompanyAsync(CancellationToken cancellationToken)
+    {
+        var userId = _currentUser.Id ?? throw new UnauthorizedException("User is not authenticated.");
+
+        var member = await _context.CompanyMembers
+            .Include(m => m.Company)
+            .FirstOrDefaultAsync(m => m.UserId == userId && m.IsActive, cancellationToken)
+            ?? throw new UnauthorizedException("No active company membership found for the current user.");
+
+        var company = member.Company;
+        if (company == null || !company.CanPerformCommercialActivities)
+        {
+            throw new ForbiddenException("Only verified and approved companies are authorized to perform commercial marketplace activities.");
+        }
+
+        return (company, member);
+    }
+
+    private static CatalogProductResponse MapProduct(CatalogProduct p)
+    {
+        return new CatalogProductResponse(
+            p.Id,
+            p.MaterialId,
+            p.Material.Code,
+            p.Material.NameAr,
+            p.Material.NameEn,
+            p.Material.CategoryId,
+            p.Material.Category.Code,
+            p.Material.Category.NameAr,
+            p.Material.Category.NameEn,
+            p.Material.DefaultUnitId,
+            p.Material.DefaultUnit.Code,
+            p.Material.DefaultUnit.NameAr,
+            p.Material.DefaultUnit.NameEn,
+            p.SupplierCompanyId,
+            p.SupplierCompany.LegalName,
+            p.Sku,
+            p.NameAr,
+            p.NameEn,
+            p.DescriptionAr,
+            p.DescriptionEn,
+            p.UnitPrice,
+            p.Currency,
+            p.AvailableQuantity,
+            p.MinimumOrderQuantity,
+            p.DeliveryLeadTimeDays,
+            p.IsActive,
+            p.CreatedAtUtc);
     }
 }
 

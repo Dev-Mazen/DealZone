@@ -7,6 +7,7 @@ using DealZone.Domain.Companies;
 using DealZone.Domain.Deals;
 using DealZone.Domain.Exceptions;
 using DealZone.Domain.Notifications;
+using DealZone.Domain.Purchasing;
 using DealZone.Infrastructure.Persistence;
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;
@@ -71,6 +72,8 @@ public class DealService : IDealService
             .Include(d => d.Tender)
                 .ThenInclude(t => t!.TargetCategory)
             .Include(d => d.Bid)
+            .Include(d => d.DirectPurchase)
+                .ThenInclude(dp => dp!.CatalogProduct)
             .Include(d => d.BuyerCompany)
             .Include(d => d.SupplierCompany)
             .Where(d => d.BuyerCompanyId == company.Id || d.SupplierCompanyId == company.Id);
@@ -107,6 +110,8 @@ public class DealService : IDealService
             .Include(d => d.Offer)
             .Include(d => d.Tender)
             .Include(d => d.Bid)
+            .Include(d => d.DirectPurchase)
+                .ThenInclude(dp => dp!.CatalogProduct)
             .Include(d => d.BuyerCompany)
             .Include(d => d.SupplierCompany)
             .Include(d => d.Disputes)
@@ -145,6 +150,7 @@ public class DealService : IDealService
         var deal = await _context.Deals
             .Include(d => d.Rfq)
             .Include(d => d.Offer)
+            .Include(d => d.DirectPurchase)
             .Include(d => d.BuyerCompany)
                 .ThenInclude(c => c!.PrimaryContactUser)
             .Include(d => d.SupplierCompany)
@@ -197,6 +203,10 @@ public class DealService : IDealService
         {
             deal.Status = DealStatus.Confirmed;
             deal.ConfirmedAtUtc = now;
+            if (deal.DirectPurchase != null)
+            {
+                deal.DirectPurchase.Status = DirectPurchaseStatus.Confirmed;
+            }
             _logger.LogInformation("Deal {DealNumber} has been mutually confirmed by both buyer and supplier.", deal.DealNumber);
         }
 
@@ -281,6 +291,7 @@ public class DealService : IDealService
         var deal = await _context.Deals
             .Include(d => d.Rfq)
             .Include(d => d.Offer)
+            .Include(d => d.DirectPurchase)
             .Include(d => d.BuyerCompany)
                 .ThenInclude(c => c!.PrimaryContactUser)
             .Include(d => d.SupplierCompany)
@@ -310,6 +321,10 @@ public class DealService : IDealService
         deal.Status = DealStatus.InProgress;
         deal.StartedAtUtc = now;
         deal.StartedByUserId = userId;
+        if (deal.DirectPurchase != null)
+        {
+            deal.DirectPurchase.Status = DirectPurchaseStatus.InProgress;
+        }
 
         await _context.SaveChangesAsync(cancellationToken);
         _logger.LogInformation("Deal {DealNumber} moved to InProgress by Supplier.", deal.DealNumber);
@@ -343,6 +358,7 @@ public class DealService : IDealService
         var deal = await _context.Deals
             .Include(d => d.Rfq)
             .Include(d => d.Offer)
+            .Include(d => d.DirectPurchase)
             .Include(d => d.BuyerCompany)
                 .ThenInclude(c => c!.PrimaryContactUser)
             .Include(d => d.SupplierCompany)
@@ -385,6 +401,10 @@ public class DealService : IDealService
         deal.Status = DealStatus.Completed;
         deal.CompletedAtUtc = now;
         deal.CompletedByUserId = userId;
+        if (deal.DirectPurchase != null)
+        {
+            deal.DirectPurchase.Status = DirectPurchaseStatus.Completed;
+        }
 
         await _context.SaveChangesAsync(cancellationToken);
         _logger.LogInformation("Deal {DealNumber} has been marked Completed.", deal.DealNumber);
@@ -436,6 +456,7 @@ public class DealService : IDealService
         var deal = await _context.Deals
             .Include(d => d.Rfq)
             .Include(d => d.Offer)
+            .Include(d => d.DirectPurchase)
             .Include(d => d.BuyerCompany)
                 .ThenInclude(c => c!.PrimaryContactUser)
             .Include(d => d.SupplierCompany)
@@ -521,6 +542,11 @@ public class DealService : IDealService
             }
         }
 
+        if (deal.Status == DealStatus.Cancelled && deal.DirectPurchase != null)
+        {
+            deal.DirectPurchase.Status = DirectPurchaseStatus.Cancelled;
+        }
+
         await _context.SaveChangesAsync(cancellationToken);
 
         if (deal.Status == DealStatus.Cancelled)
@@ -587,6 +613,7 @@ public class DealService : IDealService
         var deal = await _context.Deals
             .Include(d => d.Rfq)
             .Include(d => d.Offer)
+            .Include(d => d.DirectPurchase)
             .Include(d => d.BuyerCompany)
             .Include(d => d.SupplierCompany)
             .FirstOrDefaultAsync(d => d.Id == dealId, cancellationToken)
@@ -957,17 +984,26 @@ public class DealService : IDealService
             }
         }
 
-        var title = deal.Source == DealSource.Tender
-            ? (deal.Tender?.Title ?? deal.Tender?.TenderNumber ?? string.Empty)
-            : (deal.Rfq?.Title ?? string.Empty);
+        var title = deal.Source switch
+        {
+            DealSource.Tender => deal.Tender?.Title ?? deal.Tender?.TenderNumber ?? string.Empty,
+            DealSource.DirectPurchase => deal.DirectPurchase?.CatalogProduct?.NameEn ?? "Direct Purchase",
+            _ => deal.Rfq?.Title ?? string.Empty
+        };
 
-        var rfqOrTenderNumber = deal.Source == DealSource.Tender
-            ? (deal.Tender?.TenderNumber ?? string.Empty)
-            : (deal.Rfq?.RfqNumber ?? string.Empty);
+        var rfqOrTenderNumber = deal.Source switch
+        {
+            DealSource.Tender => deal.Tender?.TenderNumber ?? string.Empty,
+            DealSource.DirectPurchase => deal.DirectPurchase?.PurchaseNumber ?? string.Empty,
+            _ => deal.Rfq?.RfqNumber ?? string.Empty
+        };
 
-        var offerOrBidNumber = deal.Source == DealSource.Tender
-            ? (deal.Bid?.BidNumber ?? string.Empty)
-            : (deal.Offer?.OfferNumber ?? string.Empty);
+        var offerOrBidNumber = deal.Source switch
+        {
+            DealSource.Tender => deal.Bid?.BidNumber ?? string.Empty,
+            DealSource.DirectPurchase => deal.DirectPurchase?.CatalogProduct?.Sku ?? string.Empty,
+            _ => deal.Offer?.OfferNumber ?? string.Empty
+        };
 
         return new DealSummaryResponse(
             deal.Id,
@@ -997,7 +1033,9 @@ public class DealService : IDealService
             deal.TenderId,
             deal.Tender?.TenderNumber,
             deal.BidId,
-            deal.Bid?.BidNumber);
+            deal.Bid?.BidNumber,
+            deal.DirectPurchaseId,
+            deal.DirectPurchase?.PurchaseNumber);
     }
 
     private static DealDetailResponse MapToDetailResponse(Deal deal, Guid? callerCompanyId)
@@ -1005,17 +1043,26 @@ public class DealService : IDealService
         var buyerName = GetSanitizedCompanyName(deal.BuyerCompany, callerCompanyId == deal.BuyerCompanyId);
         var supplierName = GetSanitizedCompanyName(deal.SupplierCompany, callerCompanyId == deal.SupplierCompanyId);
 
-        var title = deal.Source == DealSource.Tender
-            ? (deal.Tender?.Title ?? deal.Tender?.TenderNumber ?? string.Empty)
-            : (deal.Rfq?.Title ?? string.Empty);
+        var title = deal.Source switch
+        {
+            DealSource.Tender => deal.Tender?.Title ?? deal.Tender?.TenderNumber ?? string.Empty,
+            DealSource.DirectPurchase => deal.DirectPurchase?.CatalogProduct?.NameEn ?? "Direct Purchase",
+            _ => deal.Rfq?.Title ?? string.Empty
+        };
 
-        var rfqOrTenderNumber = deal.Source == DealSource.Tender
-            ? (deal.Tender?.TenderNumber ?? string.Empty)
-            : (deal.Rfq?.RfqNumber ?? string.Empty);
+        var rfqOrTenderNumber = deal.Source switch
+        {
+            DealSource.Tender => deal.Tender?.TenderNumber ?? string.Empty,
+            DealSource.DirectPurchase => deal.DirectPurchase?.PurchaseNumber ?? string.Empty,
+            _ => deal.Rfq?.RfqNumber ?? string.Empty
+        };
 
-        var offerOrBidNumber = deal.Source == DealSource.Tender
-            ? (deal.Bid?.BidNumber ?? string.Empty)
-            : (deal.Offer?.OfferNumber ?? string.Empty);
+        var offerOrBidNumber = deal.Source switch
+        {
+            DealSource.Tender => deal.Bid?.BidNumber ?? string.Empty,
+            DealSource.DirectPurchase => deal.DirectPurchase?.CatalogProduct?.Sku ?? string.Empty,
+            _ => deal.Offer?.OfferNumber ?? string.Empty
+        };
 
         DealCommercialTermsSnapshot? terms = null;
         if (!string.IsNullOrWhiteSpace(deal.CommercialTermsSnapshotJson))
@@ -1071,7 +1118,9 @@ public class DealService : IDealService
             deal.Tender?.TenderNumber,
             deal.BidId,
             deal.Bid?.BidNumber,
-            deal.BidRevisionNumber);
+            deal.BidRevisionNumber,
+            deal.DirectPurchaseId,
+            deal.DirectPurchase?.PurchaseNumber);
     }
 
     private static DisputeSummaryResponse MapToDisputeSummaryResponse(DealDispute dispute, Guid? callerCompanyId)

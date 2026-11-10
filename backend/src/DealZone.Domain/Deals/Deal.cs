@@ -1,6 +1,7 @@
 using DealZone.Domain.Common;
 using DealZone.Domain.Companies;
 using DealZone.Domain.Offers;
+using DealZone.Domain.Purchasing;
 using DealZone.Domain.Rfqs;
 using DealZone.Domain.Tenders;
 
@@ -29,6 +30,10 @@ public class Deal : AuditableEntity, IConcurrencyToken
     public Bid? Bid { get; set; }
 
     public int? BidRevisionNumber { get; set; }
+
+    // Direct Catalog Purchase Source
+    public Guid? DirectPurchaseId { get; set; }
+    public DirectPurchase? DirectPurchase { get; set; }
 
     public Guid BuyerCompanyId { get; set; }
     public Company? BuyerCompany { get; set; }

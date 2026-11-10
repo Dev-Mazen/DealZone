@@ -152,3 +152,84 @@ public class MaterialConfiguration : IEntityTypeConfiguration<Material>
     }
 }
 
+public class CatalogProductConfiguration : IEntityTypeConfiguration<CatalogProduct>
+{
+    public void Configure(EntityTypeBuilder<CatalogProduct> builder)
+    {
+        builder.ToTable("CatalogProducts");
+
+        builder.HasKey(p => p.Id);
+
+        builder.Property(p => p.Sku)
+            .HasMaxLength(50)
+            .IsRequired();
+
+        builder.HasIndex(p => p.Sku);
+
+        builder.Property(p => p.NameAr)
+            .HasMaxLength(200)
+            .IsRequired();
+
+        builder.Property(p => p.NameEn)
+            .HasMaxLength(200)
+            .IsRequired();
+
+        builder.Property(p => p.DescriptionAr)
+            .HasMaxLength(1000);
+
+        builder.Property(p => p.DescriptionEn)
+            .HasMaxLength(1000);
+
+        builder.Property(p => p.UnitPrice)
+            .HasPrecision(18, 2)
+            .IsRequired();
+
+        builder.Property(p => p.Currency)
+            .HasMaxLength(3)
+            .HasDefaultValue("EGP")
+            .IsRequired();
+
+        builder.Property(p => p.AvailableQuantity)
+            .HasPrecision(18, 2)
+            .IsRequired();
+
+        builder.Property(p => p.MinimumOrderQuantity)
+            .HasPrecision(18, 2)
+            .HasDefaultValue(1m)
+            .IsRequired();
+
+        builder.Property(p => p.DeliveryLeadTimeDays)
+            .HasDefaultValue(7)
+            .IsRequired();
+
+        builder.Property(p => p.IsActive)
+            .HasDefaultValue(true);
+
+        builder.Property(p => p.IsArchived)
+            .HasDefaultValue(false);
+
+        builder.Property(p => p.CreatedBy)
+            .HasMaxLength(100);
+
+        builder.Property(p => p.LastModifiedBy)
+            .HasMaxLength(100);
+
+        builder.Property(p => p.RowVersion)
+            .IsRowVersion();
+
+        builder.HasIndex(p => p.MaterialId);
+        builder.HasIndex(p => p.SupplierCompanyId);
+        builder.HasIndex(p => new { p.IsActive, p.IsArchived });
+
+        builder.HasOne(p => p.Material)
+            .WithMany()
+            .HasForeignKey(p => p.MaterialId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne(p => p.SupplierCompany)
+            .WithMany()
+            .HasForeignKey(p => p.SupplierCompanyId)
+            .OnDelete(DeleteBehavior.Restrict);
+    }
+}
+

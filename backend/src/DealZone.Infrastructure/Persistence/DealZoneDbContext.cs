@@ -6,6 +6,7 @@ using DealZone.Domain.Deals;
 using DealZone.Domain.Identity;
 using DealZone.Domain.Notifications;
 using DealZone.Domain.Offers;
+using DealZone.Domain.Purchasing;
 using DealZone.Domain.Reviews;
 using DealZone.Domain.Rfqs;
 using DealZone.Domain.Shipping;
@@ -44,6 +45,8 @@ public class DealZoneDbContext : DbContext
     public DbSet<MaterialCategory> MaterialCategories => Set<MaterialCategory>();
     public DbSet<UnitOfMeasure> UnitsOfMeasure => Set<UnitOfMeasure>();
     public DbSet<Material> Materials => Set<Material>();
+    public DbSet<CatalogProduct> CatalogProducts => Set<CatalogProduct>();
+    public DbSet<DirectPurchase> DirectPurchases => Set<DirectPurchase>();
     public DbSet<Rfq> Rfqs => Set<Rfq>();
     public DbSet<RfqItem> RfqItems => Set<RfqItem>();
     public DbSet<Offer> Offers => Set<Offer>();

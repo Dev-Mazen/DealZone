@@ -26,5 +26,12 @@ public interface ICatalogService
     Task<UnitOfMeasureDto> CreateUnitAsync(CreateUnitRequest request, CancellationToken cancellationToken = default);
     Task<UnitOfMeasureDto> UpdateUnitAsync(Guid id, UpdateUnitRequest request, CancellationToken cancellationToken = default);
     Task DeleteUnitAsync(Guid id, CancellationToken cancellationToken = default);
+
+    // Purchasable Catalog Products
+    Task<PagedResult<CatalogProductResponse>> GetProductsAsync(CatalogProductFilter filter, CancellationToken cancellationToken = default);
+    Task<CatalogProductResponse> GetProductByIdAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<CatalogProductResponse> CreateProductAsync(CreateCatalogProductRequest request, CancellationToken cancellationToken = default);
+    Task<CatalogProductResponse> UpdateProductAsync(Guid id, UpdateCatalogProductRequest request, CancellationToken cancellationToken = default);
+    Task DeleteProductAsync(Guid id, CancellationToken cancellationToken = default);
 }
 
