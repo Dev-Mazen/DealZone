@@ -35,8 +35,23 @@ if (app.Environment.IsDevelopment())
 // Centralized error handling
 app.UseExceptionHandler();
 
+// Forwarded headers for reverse proxy compatibility
+app.UseForwardedHeaders(new ForwardedHeadersOptions
+{
+    ForwardedHeaders = Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedFor |
+                       Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedProto
+});
+
+// Security HTTP headers
+app.UseSecurityHeaders();
+
 // Structured HTTP request logging
 app.UseSerilogRequestLogging();
+
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHsts();
+}
 
 // OpenAPI documentation & Swagger UI (development or explicit configuration opt-in)
 var enableSwagger = app.Environment.IsDevelopment() || app.Configuration.GetValue<bool>("Swagger:Enabled");
@@ -56,6 +71,8 @@ if (enableSwagger)
 app.UseHttpsRedirection();
 
 app.UseCors(CorsOptions.PolicyName);
+
+app.UseRateLimiter();
 
 app.UseAuthentication();
 app.UseAuthorization();

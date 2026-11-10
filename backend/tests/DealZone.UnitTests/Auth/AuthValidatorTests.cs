@@ -9,6 +9,7 @@ public class AuthValidatorTests
     private readonly LoginRequestValidator _loginValidator = new();
     private readonly ConfirmEmailRequestValidator _confirmEmailValidator = new();
     private readonly ResetPasswordRequestValidator _resetPasswordValidator = new();
+    private readonly UpdateProfileRequestValidator _updateProfileValidator = new();
 
     [Fact]
     public async Task RegisterRequestValidator_ValidRequest_ShouldPass()
@@ -106,5 +107,62 @@ public class AuthValidatorTests
 
         Assert.False(result.IsValid);
         Assert.Contains(result.Errors, e => e.PropertyName == nameof(ResetPasswordRequest.NewPassword));
+    }
+
+    // ─── UpdateProfileRequestValidator ────────────────────────────────────────
+
+    [Fact]
+    public async Task UpdateProfileRequestValidator_ValidRequest_ShouldPass()
+    {
+        var request = new UpdateProfileRequest("Ahmed Mansour", "+201001234567");
+
+        var result = await _updateProfileValidator.ValidateAsync(request);
+
+        Assert.True(result.IsValid);
+    }
+
+    [Fact]
+    public async Task UpdateProfileRequestValidator_NullPhone_ShouldPass()
+    {
+        var request = new UpdateProfileRequest("Ahmed Mansour", null);
+
+        var result = await _updateProfileValidator.ValidateAsync(request);
+
+        Assert.True(result.IsValid);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task UpdateProfileRequestValidator_InvalidFullName_ShouldFail(string fullName)
+    {
+        var request = new UpdateProfileRequest(fullName, null);
+
+        var result = await _updateProfileValidator.ValidateAsync(request);
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, e => e.PropertyName == nameof(UpdateProfileRequest.FullName));
+    }
+
+    [Fact]
+    public async Task UpdateProfileRequestValidator_TooLongFullName_ShouldFail()
+    {
+        var request = new UpdateProfileRequest(new string('A', 151), null);
+
+        var result = await _updateProfileValidator.ValidateAsync(request);
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, e => e.PropertyName == nameof(UpdateProfileRequest.FullName));
+    }
+
+    [Fact]
+    public async Task UpdateProfileRequestValidator_TooLongPhoneNumber_ShouldFail()
+    {
+        var request = new UpdateProfileRequest("Ahmed Mansour", new string('1', 31));
+
+        var result = await _updateProfileValidator.ValidateAsync(request);
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, e => e.PropertyName == nameof(UpdateProfileRequest.PhoneNumber));
     }
 }

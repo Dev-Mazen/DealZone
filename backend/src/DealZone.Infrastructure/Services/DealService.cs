@@ -66,7 +66,11 @@ public class DealService : IDealService
         var query = _context.Deals
             .AsNoTracking()
             .Include(d => d.Rfq)
+                .ThenInclude(r => r!.TargetCategory)
             .Include(d => d.Offer)
+            .Include(d => d.Tender)
+                .ThenInclude(t => t!.TargetCategory)
+            .Include(d => d.Bid)
             .Include(d => d.BuyerCompany)
             .Include(d => d.SupplierCompany)
             .Where(d => d.BuyerCompanyId == company.Id || d.SupplierCompanyId == company.Id);
@@ -101,6 +105,8 @@ public class DealService : IDealService
             .AsNoTracking()
             .Include(d => d.Rfq)
             .Include(d => d.Offer)
+            .Include(d => d.Tender)
+            .Include(d => d.Bid)
             .Include(d => d.BuyerCompany)
             .Include(d => d.SupplierCompany)
             .Include(d => d.Disputes)
@@ -922,14 +928,55 @@ public class DealService : IDealService
         var buyerName = GetSanitizedCompanyName(deal.BuyerCompany, callerCompanyId == deal.BuyerCompanyId);
         var supplierName = GetSanitizedCompanyName(deal.SupplierCompany, callerCompanyId == deal.SupplierCompanyId);
 
+        string? materialCategory = deal.Rfq?.TargetCategory?.NameEn ?? deal.Rfq?.TargetCategory?.NameAr;
+        string? deliveryZone = null;
+        if (deal.Rfq != null && (!string.IsNullOrWhiteSpace(deal.Rfq.DeliveryCity) || !string.IsNullOrWhiteSpace(deal.Rfq.DeliveryGovernorate)))
+        {
+            deliveryZone = $"{deal.Rfq.DeliveryCity}, {deal.Rfq.DeliveryGovernorate}".Trim(',', ' ');
+        }
+
+        string? paymentTerms = null;
+        int? leadTimeDays = null;
+        bool? shippingIncluded = null;
+
+        if (!string.IsNullOrWhiteSpace(deal.CommercialTermsSnapshotJson))
+        {
+            try
+            {
+                var snapshot = JsonSerializer.Deserialize<DealCommercialTermsSnapshot>(deal.CommercialTermsSnapshotJson);
+                if (snapshot != null)
+                {
+                    paymentTerms = snapshot.PaymentTerms;
+                    leadTimeDays = snapshot.DeliveryLeadTimeDays;
+                    shippingIncluded = snapshot.ShippingIncluded;
+                }
+            }
+            catch
+            {
+                // Fallback gracefully if snapshot JSON parsing fails
+            }
+        }
+
+        var title = deal.Source == DealSource.Tender
+            ? (deal.Tender?.Title ?? deal.Tender?.TenderNumber ?? string.Empty)
+            : (deal.Rfq?.Title ?? string.Empty);
+
+        var rfqOrTenderNumber = deal.Source == DealSource.Tender
+            ? (deal.Tender?.TenderNumber ?? string.Empty)
+            : (deal.Rfq?.RfqNumber ?? string.Empty);
+
+        var offerOrBidNumber = deal.Source == DealSource.Tender
+            ? (deal.Bid?.BidNumber ?? string.Empty)
+            : (deal.Offer?.OfferNumber ?? string.Empty);
+
         return new DealSummaryResponse(
             deal.Id,
             deal.DealNumber,
             deal.RfqId,
-            deal.Rfq?.RfqNumber ?? string.Empty,
-            deal.Rfq?.Title ?? string.Empty,
+            rfqOrTenderNumber,
+            title,
             deal.OfferId,
-            deal.Offer?.OfferNumber ?? string.Empty,
+            offerOrBidNumber,
             deal.BuyerCompanyId,
             buyerName,
             deal.SupplierCompanyId,
@@ -940,13 +987,35 @@ public class DealService : IDealService
             deal.CreatedAtUtc,
             deal.ConfirmedAtUtc,
             deal.CompletedAtUtc,
-            deal.CancelledAtUtc);
+            deal.CancelledAtUtc,
+            materialCategory,
+            deliveryZone,
+            paymentTerms,
+            leadTimeDays,
+            shippingIncluded,
+            deal.Source.ToString(),
+            deal.TenderId,
+            deal.Tender?.TenderNumber,
+            deal.BidId,
+            deal.Bid?.BidNumber);
     }
 
     private static DealDetailResponse MapToDetailResponse(Deal deal, Guid? callerCompanyId)
     {
         var buyerName = GetSanitizedCompanyName(deal.BuyerCompany, callerCompanyId == deal.BuyerCompanyId);
         var supplierName = GetSanitizedCompanyName(deal.SupplierCompany, callerCompanyId == deal.SupplierCompanyId);
+
+        var title = deal.Source == DealSource.Tender
+            ? (deal.Tender?.Title ?? deal.Tender?.TenderNumber ?? string.Empty)
+            : (deal.Rfq?.Title ?? string.Empty);
+
+        var rfqOrTenderNumber = deal.Source == DealSource.Tender
+            ? (deal.Tender?.TenderNumber ?? string.Empty)
+            : (deal.Rfq?.RfqNumber ?? string.Empty);
+
+        var offerOrBidNumber = deal.Source == DealSource.Tender
+            ? (deal.Bid?.BidNumber ?? string.Empty)
+            : (deal.Offer?.OfferNumber ?? string.Empty);
 
         DealCommercialTermsSnapshot? terms = null;
         if (!string.IsNullOrWhiteSpace(deal.CommercialTermsSnapshotJson))
@@ -969,10 +1038,10 @@ public class DealService : IDealService
             deal.Id,
             deal.DealNumber,
             deal.RfqId,
-            deal.Rfq?.RfqNumber ?? string.Empty,
-            deal.Rfq?.Title ?? string.Empty,
+            rfqOrTenderNumber,
+            title,
             deal.OfferId,
-            deal.Offer?.OfferNumber ?? string.Empty,
+            offerOrBidNumber,
             deal.OfferRevisionNumber,
             deal.BuyerCompanyId,
             buyerName,
@@ -996,7 +1065,13 @@ public class DealService : IDealService
             deal.EstimatedDeliveryDateUtc,
             deal.CreatedAtUtc,
             terms,
-            disputes);
+            disputes,
+            deal.Source.ToString(),
+            deal.TenderId,
+            deal.Tender?.TenderNumber,
+            deal.BidId,
+            deal.Bid?.BidNumber,
+            deal.BidRevisionNumber);
     }
 
     private static DisputeSummaryResponse MapToDisputeSummaryResponse(DealDispute dispute, Guid? callerCompanyId)

@@ -106,3 +106,17 @@ public class ResetPasswordRequestValidator : AbstractValidator<ResetPasswordRequ
     }
 }
 
+public class UpdateProfileRequestValidator : AbstractValidator<UpdateProfileRequest>
+{
+    public UpdateProfileRequestValidator()
+    {
+        RuleFor(x => x.FullName)
+            .NotEmpty().WithMessage("Full name is required.")
+            .MaximumLength(150).WithMessage("Full name cannot exceed 150 characters.");
+
+        RuleFor(x => x.PhoneNumber)
+            .MaximumLength(30).WithMessage("Phone number cannot exceed 30 characters.")
+            .When(x => !string.IsNullOrEmpty(x.PhoneNumber));
+    }
+}
+

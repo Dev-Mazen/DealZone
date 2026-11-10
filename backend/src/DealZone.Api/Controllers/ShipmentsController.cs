@@ -22,6 +22,18 @@ public class ShipmentsController : ApiControllerBase
     }
 
     /// <summary>
+    /// List all shipments linked to deals where the authenticated company is a buyer or supplier.
+    /// </summary>
+    [HttpGet("mine")]
+    public async Task<IActionResult> GetMyShipments(
+        [FromQuery] ShipmentFilter filter,
+        CancellationToken cancellationToken)
+    {
+        var response = await _shippingService.GetMyShipmentsAsync(filter, cancellationToken);
+        return Ok(response);
+    }
+
+    /// <summary>
     /// Get shipment details and tracking event history.
     /// Accessible to deal participants or system administrators.
     /// </summary>

@@ -260,47 +260,70 @@ public class SmtpEmailService : IEmailService
             return;
         }
 
-        try
-        {
-            using var client = new SmtpClient(_settings.Host, _settings.Port)
-            {
-                EnableSsl = _settings.EnableSsl,
-                Timeout = 10000
-            };
+        var timeoutMs = Math.Max(5000, _settings.TimeoutSeconds * 1000);
+        var maxRetries = Math.Max(1, _settings.MaxRetries);
+        var attempt = 0;
 
-            if (!string.IsNullOrWhiteSpace(_settings.Username) && !string.IsNullOrWhiteSpace(_settings.Password))
+        while (true)
+        {
+            attempt++;
+            try
             {
-                client.Credentials = new NetworkCredential(_settings.Username, _settings.Password);
+                using var client = new SmtpClient(_settings.Host, _settings.Port)
+                {
+                    EnableSsl = _settings.EnableSsl,
+                    Timeout = timeoutMs
+                };
+
+                if (!string.IsNullOrWhiteSpace(_settings.Username) && !string.IsNullOrWhiteSpace(_settings.Password))
+                {
+                    client.Credentials = new NetworkCredential(_settings.Username, _settings.Password);
+                }
+
+                using var message = new MailMessage
+                {
+                    From = new MailAddress(_settings.FromEmail, _settings.FromName),
+                    Subject = subject,
+                    Body = string.IsNullOrWhiteSpace(htmlBody) ? textBody : htmlBody,
+                    IsBodyHtml = !string.IsNullOrWhiteSpace(htmlBody)
+                };
+                message.To.Add(recipientEmail);
+
+                await client.SendMailAsync(message, cancellationToken);
+
+                _logger.LogInformation(
+                    "Successfully dispatched email for purpose {Purpose} to recipient {Recipient}.",
+                    purpose,
+                    recipientEmail);
+                return;
             }
-
-            using var message = new MailMessage
+            catch (Exception ex) when (attempt < maxRetries && !cancellationToken.IsCancellationRequested)
             {
-                From = new MailAddress(_settings.FromEmail, _settings.FromName),
-                Subject = subject,
-                Body = string.IsNullOrWhiteSpace(htmlBody) ? textBody : htmlBody,
-                IsBodyHtml = !string.IsNullOrWhiteSpace(htmlBody)
-            };
-            message.To.Add(recipientEmail);
+                _logger.LogWarning(
+                    ex,
+                    "Transient failure sending email for purpose {Purpose} to recipient {Recipient} on attempt {Attempt}/{MaxRetries}. Retrying...",
+                    purpose,
+                    recipientEmail,
+                    attempt,
+                    maxRetries);
 
-            await client.SendMailAsync(message, cancellationToken);
-
-            _logger.LogInformation(
-                "Successfully dispatched email for purpose {Purpose} to recipient {Recipient}.",
-                purpose,
-                recipientEmail);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(
-                ex,
-                "Failed to send email for purpose {Purpose} to recipient {Recipient}. Error: {Message}",
-                purpose,
-                recipientEmail,
-                ex.Message);
-
-            if (isCritical)
+                await Task.Delay(TimeSpan.FromMilliseconds(500 * attempt), cancellationToken);
+            }
+            catch (Exception ex)
             {
-                throw new EmailDeliveryException($"Email delivery to '{recipientEmail}' failed: {ex.Message}", ex);
+                _logger.LogError(
+                    ex,
+                    "Failed to send email for purpose {Purpose} to recipient {Recipient} after {Attempt} attempt(s). Error: {Message}",
+                    purpose,
+                    recipientEmail,
+                    attempt,
+                    ex.Message);
+
+                if (isCritical)
+                {
+                    throw new EmailDeliveryException($"Email delivery to '{recipientEmail}' failed: {ex.Message}", ex);
+                }
+                return;
             }
         }
     }

@@ -27,5 +27,24 @@ public class OfferAndRfqInvariantsTests
         Assert.NotNull(offer.Items);
         Assert.Empty(offer.Items);
     }
+
+    [Fact]
+    public void Offer_WithdrawalInvariants_ShouldSetWithdrawnStatusAndMetadata()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var userId = Guid.NewGuid();
+        var offer = new Offer
+        {
+            Status = OfferStatus.Withdrawn,
+            WithdrawnAtUtc = now,
+            WithdrawnByUserId = userId,
+            WithdrawalReason = "Supplier stock exhausted"
+        };
+
+        Assert.Equal(OfferStatus.Withdrawn, offer.Status);
+        Assert.Equal(now, offer.WithdrawnAtUtc);
+        Assert.Equal(userId, offer.WithdrawnByUserId);
+        Assert.Equal("Supplier stock exhausted", offer.WithdrawalReason);
+    }
 }
 

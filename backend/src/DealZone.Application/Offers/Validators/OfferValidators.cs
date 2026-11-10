@@ -93,3 +93,12 @@ public class RejectOfferRequestValidator : AbstractValidator<RejectOfferRequest>
     }
 }
 
+public class WithdrawOfferRequestValidator : AbstractValidator<WithdrawOfferRequest>
+{
+    public WithdrawOfferRequestValidator()
+    {
+        RuleFor(x => x.Reason)
+            .MaximumLength(1000).WithMessage("Withdrawal reason must not exceed 1000 characters.");
+    }
+}
+

@@ -4,6 +4,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using DealZone.Application.Auth.DTOs;
 using DealZone.Application.Catalog.DTOs;
+using DealZone.Application.Common.Models;
 using DealZone.Application.Companies.DTOs;
 using DealZone.Application.Deals.DTOs;
 using DealZone.Application.Offers.DTOs;
@@ -305,6 +306,68 @@ public class ShippingAndReviewIntegrationTests
         Assert.Equal(HttpStatusCode.OK, listRes.StatusCode);
         var reviews = await listRes.Content.ReadFromJsonAsync<List<ReviewResponse>>(JsonOptions);
         Assert.Equal(2, reviews!.Count);
+    }
+
+    // ─── GetMyShipments ───────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task GetMyShipments_Unauthenticated_ShouldReturn401()
+    {
+        await using var factory = new DealZoneWebApplicationFactory();
+        var client = factory.CreateClient();
+
+        var response = await client.GetAsync("/api/v1/shipments/mine");
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task GetMyShipments_AuthenticatedWithNoShipments_ShouldReturnEmptyPage()
+    {
+        await using var factory = new DealZoneWebApplicationFactory();
+        var client = factory.CreateClient();
+        DevelopmentEmailService.Clear();
+
+        var (buyerToken, _) = await CreateVerifiedCompanyAsync(
+            factory, client,
+            $"shipments.empty.{Guid.NewGuid():N}@dealzone.eg",
+            "Empty Buyer Co", "EmptyBuyerCo");
+
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", buyerToken);
+
+        var res = await client.GetAsync("/api/v1/shipments/mine");
+        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
+
+        var page = await res.Content.ReadFromJsonAsync<PagedResult<ShipmentSummaryResponse>>(JsonOptions);
+        Assert.NotNull(page);
+        Assert.Empty(page!.Items);
+        Assert.Equal(0, page.TotalCount);
+    }
+
+    [Fact]
+    public async Task GetMyShipments_TenantIsolation_BuyerCannotSeeOtherCompanyShipments()
+    {
+        await using var factory = new DealZoneWebApplicationFactory();
+        var client = factory.CreateClient();
+        DevelopmentEmailService.Clear();
+
+        // Create a full deal with a shipment under prefix "iso"
+        var prefix = $"iso{Guid.NewGuid():N}".Substring(0, 10);
+        var (_, buyerToken2, _) = await CreateConfirmedDealAsync(factory, client, prefix);
+
+        // Now create a totally unrelated third company
+        var (thirdToken, _) = await CreateVerifiedCompanyAsync(
+            factory, client,
+            $"third.{Guid.NewGuid():N}@dealzone.eg",
+            "Third Party Co", "ThirdPartyCo");
+
+        // The third party should see zero shipments
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", thirdToken);
+        var res = await client.GetAsync("/api/v1/shipments/mine");
+        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
+
+        var page = await res.Content.ReadFromJsonAsync<PagedResult<ShipmentSummaryResponse>>(JsonOptions);
+        Assert.NotNull(page);
+        Assert.Empty(page!.Items);
     }
 }
 

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -16,6 +16,7 @@ import {
   Check,
   X,
   ExternalLink,
+  Users,
 } from 'lucide-react'
 import { companyService } from '../../shared/api/services/companyService'
 import { useToast } from '../../hooks/useToast'
@@ -28,6 +29,7 @@ import Button from '../../components/ui/Button'
 import Badge from '../../components/ui/Badge'
 import { verificationStatusVariant, formatDate } from '../../utils/format'
 import { PageSpinner } from '../../components/ui/Spinner'
+import CompanyMembersTab from './CompanyMembersTab'
 
 const profileSchema = z.object({
   tradeName: z.string().min(1, 'Trade name is required'),
@@ -51,6 +53,8 @@ export default function CompanySettingsPage() {
   const { language } = useTranslation()
   const isAr = language === 'ar'
   const { canEditCompanyProfile, hasCompany } = usePermissions()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const activeTab = searchParams.get('tab') || 'profile'
   const [editMode, setEditMode] = useState(false)
 
   const { data: company, isLoading: loadingCompany } = useQuery({
@@ -163,7 +167,7 @@ export default function CompanySettingsPage() {
           </p>
         </div>
 
-        {canEditCompanyProfile && !editMode && (
+        {activeTab === 'profile' && canEditCompanyProfile && !editMode && (
           <Button
             variant="outline"
             size="sm"
@@ -175,8 +179,37 @@ export default function CompanySettingsPage() {
         )}
       </div>
 
-      {/* Grid: 2 Columns */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* Navigation Tabs */}
+      <div className="flex border-b border-slate-200 gap-2 pb-0">
+        <button
+          onClick={() => setSearchParams({ tab: 'profile' })}
+          className={`pb-3 px-4 text-sm font-bold border-b-2 flex items-center gap-2 transition-all ${
+            activeTab === 'profile'
+              ? 'border-[#1266D6] text-[#1266D6]'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <Building2 size={16} />
+          <span>{isAr ? 'بيانات المنشأة والتوثيق' : 'Company Profile & Legal'}</span>
+        </button>
+        <button
+          onClick={() => setSearchParams({ tab: 'members' })}
+          className={`pb-3 px-4 text-sm font-bold border-b-2 flex items-center gap-2 transition-all ${
+            activeTab === 'members'
+              ? 'border-[#1266D6] text-[#1266D6]'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <Users size={16} />
+          <span>{isAr ? 'فريق العمل والأعضاء' : 'Team Members'}</span>
+        </button>
+      </div>
+
+      {activeTab === 'members' ? (
+        <CompanyMembersTab />
+      ) : (
+        /* Grid: 2 Columns */
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column (2 Cols): Commercial & Profile Details */}
         <div className="lg:col-span-2 space-y-6">
           {/* Card 1: Official Legal Identity (Immutable verified data) */}
@@ -463,6 +496,7 @@ export default function CompanySettingsPage() {
           </Card>
         </div>
       </div>
+      )}
     </div>
   )
 }

@@ -16,6 +16,7 @@ import {
   Truck,
   ShieldCheck,
   Info,
+  Users,
 } from 'lucide-react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuthStore } from '../../store/authStore'
@@ -107,6 +108,7 @@ export default function Navbar() {
     { label: isAr ? 'الرئيسية' : 'Home', path: '/' },
     { label: isAr ? 'عن المنصة' : 'About', path: '/about' },
     { label: isAr ? 'الكتالوج الصناعي' : 'Catalog', path: '/catalog' },
+    { label: isAr ? 'دليل الموردين' : 'Suppliers', path: '/suppliers' },
   ]
 
   // Define authenticated quick links strictly separated by role
@@ -307,14 +309,24 @@ export default function Navbar() {
                               </Link>
 
                               {hasCompany && (
-                                <Link
-                                  to="/company"
-                                  className="flex items-center gap-3 px-4 py-2 text-sm text-slate-700 hover:bg-[#EAF4FF] hover:text-[#06245B] transition-colors"
-                                  onClick={() => setUserMenuOpen(false)}
-                                >
-                                  <Building2 size={16} className="text-slate-400" />
-                                  {t('nav.company')}
-                                </Link>
+                                <>
+                                  <Link
+                                    to="/company"
+                                    className="flex items-center gap-3 px-4 py-2 text-sm text-slate-700 hover:bg-[#EAF4FF] hover:text-[#06245B] transition-colors"
+                                    onClick={() => setUserMenuOpen(false)}
+                                  >
+                                    <Building2 size={16} className="text-slate-400" />
+                                    {t('nav.company')}
+                                  </Link>
+                                  <Link
+                                    to="/company?tab=members"
+                                    className="flex items-center gap-3 px-4 py-2 text-sm text-slate-700 hover:bg-[#EAF4FF] hover:text-[#06245B] transition-colors"
+                                    onClick={() => setUserMenuOpen(false)}
+                                  >
+                                    <Users size={16} className="text-slate-400" />
+                                    {t('nav.members')}
+                                  </Link>
+                                </>
                               )}
                             </>
                           )}

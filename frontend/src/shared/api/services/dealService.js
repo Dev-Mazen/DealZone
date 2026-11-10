@@ -41,6 +41,9 @@ export const dealService = {
 }
 
 export const shipmentService = {
+  getMine: (params) =>
+    api.get('/shipments/mine', { params }).then((r) => r.data),
+
   get: (id) =>
     api.get(`/shipments/${id}`).then((r) => r.data),
 

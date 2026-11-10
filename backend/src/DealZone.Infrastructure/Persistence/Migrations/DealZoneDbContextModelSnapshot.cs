@@ -22,6 +22,15 @@ namespace DealZone.Infrastructure.Persistence.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
+            modelBuilder.HasSequence("BidNumberSequence")
+                .StartsAt(1000L);
+
+            modelBuilder.HasSequence("RfqNumberSequence")
+                .StartsAt(1000L);
+
+            modelBuilder.HasSequence("TenderNumberSequence")
+                .StartsAt(1000L);
+
             modelBuilder.Entity("DealZone.Domain.Catalog.Material", b =>
                 {
                     b.Property<Guid>("Id")
@@ -517,6 +526,12 @@ namespace DealZone.Infrastructure.Persistence.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<Guid?>("BidId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int?>("BidRevisionNumber")
+                        .HasColumnType("int");
+
                     b.Property<Guid>("BuyerCompanyId")
                         .HasColumnType("uniqueidentifier");
 
@@ -604,16 +619,16 @@ namespace DealZone.Infrastructure.Persistence.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
-                    b.Property<Guid>("OfferId")
+                    b.Property<Guid?>("OfferId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<int>("OfferRevisionNumber")
+                    b.Property<int?>("OfferRevisionNumber")
                         .HasColumnType("int");
 
                     b.Property<int?>("PreviousStatus")
                         .HasColumnType("int");
 
-                    b.Property<Guid>("RfqId")
+                    b.Property<Guid?>("RfqId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<byte[]>("RowVersion")
@@ -621,6 +636,9 @@ namespace DealZone.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("rowversion");
+
+                    b.Property<int>("Source")
+                        .HasColumnType("int");
 
                     b.Property<DateTimeOffset?>("StartedAtUtc")
                         .HasColumnType("datetimeoffset");
@@ -634,7 +652,14 @@ namespace DealZone.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("SupplierCompanyId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<Guid?>("TenderId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.HasKey("Id");
+
+                    b.HasIndex("BidId")
+                        .IsUnique()
+                        .HasFilter("[BidId] IS NOT NULL");
 
                     b.HasIndex("BuyerCompanyId");
 
@@ -642,7 +667,8 @@ namespace DealZone.Infrastructure.Persistence.Migrations
                         .IsUnique();
 
                     b.HasIndex("OfferId")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasFilter("[OfferId] IS NOT NULL");
 
                     b.HasIndex("RfqId")
                         .IsUnique()
@@ -651,6 +677,10 @@ namespace DealZone.Infrastructure.Persistence.Migrations
                     b.HasIndex("Status");
 
                     b.HasIndex("SupplierCompanyId");
+
+                    b.HasIndex("TenderId")
+                        .IsUnique()
+                        .HasFilter("[TenderId] IS NOT NULL");
 
                     b.ToTable("Deals", (string)null);
                 });
@@ -989,6 +1019,16 @@ namespace DealZone.Infrastructure.Persistence.Migrations
 
                     b.Property<DateTimeOffset>("ValidityDateUtc")
                         .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("WithdrawalReason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<DateTimeOffset?>("WithdrawnAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("WithdrawnByUserId")
+                        .HasColumnType("uniqueidentifier");
 
                     b.HasKey("Id");
 
@@ -1415,6 +1455,373 @@ namespace DealZone.Infrastructure.Persistence.Migrations
                     b.ToTable("ShippingProviders", (string)null);
                 });
 
+            modelBuilder.Entity("DealZone.Domain.Tenders.Bid", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset?>("AcceptedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("AcceptedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("BidNumber")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<string>("ChangeSummary")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("CreatedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(3)
+                        .HasColumnType("nvarchar(3)")
+                        .HasDefaultValue("EGP");
+
+                    b.Property<int>("DeliveryLeadTimeDays")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset?>("LastModifiedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<Guid?>("OriginalBidId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("PaymentTerms")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTimeOffset?>("RejectedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("RejectedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("RejectionReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<int>("RevisionNumber")
+                        .HasColumnType("int");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<bool>("ShippingIncluded")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset>("SubmittedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("SupplierCompanyId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("TenderId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("TotalAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTimeOffset>("ValidityDateUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("WithdrawalReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTimeOffset?>("WithdrawnAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("WithdrawnByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BidNumber")
+                        .IsUnique();
+
+                    b.HasIndex("OriginalBidId");
+
+                    b.HasIndex("Status");
+
+                    b.HasIndex("SupplierCompanyId");
+
+                    b.HasIndex("TenderId");
+
+                    b.HasIndex("TenderId", "SupplierCompanyId", "RevisionNumber");
+
+                    b.ToTable("Bids", (string)null);
+                });
+
+            modelBuilder.Entity("DealZone.Domain.Tenders.BidItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("BidId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<decimal>("Quantity")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<Guid>("TenderItemId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("TotalPrice")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("UnitPrice")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BidId");
+
+                    b.HasIndex("TenderItemId");
+
+                    b.ToTable("BidItems", (string)null);
+                });
+
+            modelBuilder.Entity("DealZone.Domain.Tenders.Tender", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("AwardRationale")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<DateTimeOffset?>("AwardedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("AwardedBidId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("AwardedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("BuyerCompanyId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("CancellationReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTimeOffset?>("CancelledAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("CancelledByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("ClosingDateUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("CreatedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(3)
+                        .HasColumnType("nvarchar(3)")
+                        .HasDefaultValue("EGP");
+
+                    b.Property<DateTimeOffset?>("DeletedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("DeletedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("DeliveryAddress")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<string>("DeliveryCity")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("DeliveryGovernorate")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTimeOffset?>("LastModifiedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<DateTimeOffset?>("PublishedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<decimal?>("ReferencePrice")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTimeOffset?>("ReopenedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<int>("ReopenedCount")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset?>("RequiredDeliveryDateUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<Guid?>("TargetCategoryId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("TenderNumber")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AwardedBidId");
+
+                    b.HasIndex("BuyerCompanyId");
+
+                    b.HasIndex("ClosingDateUtc");
+
+                    b.HasIndex("Status");
+
+                    b.HasIndex("TargetCategoryId");
+
+                    b.HasIndex("TenderNumber")
+                        .IsUnique();
+
+                    b.ToTable("Tenders", (string)null);
+                });
+
+            modelBuilder.Entity("DealZone.Domain.Tenders.TenderItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("CategoryId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("LineNumber")
+                        .HasColumnType("int");
+
+                    b.Property<Guid?>("MaterialId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("MaterialName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<decimal>("Quantity")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<string>("Specifications")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<decimal?>("TargetPricePerUnit")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<Guid>("TenderId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Unit")
+                        .HasColumnType("int");
+
+                    b.Property<Guid?>("UnitOfMeasureId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CategoryId");
+
+                    b.HasIndex("MaterialId");
+
+                    b.HasIndex("TenderId");
+
+                    b.HasIndex("UnitOfMeasureId");
+
+                    b.ToTable("TenderItems", (string)null);
+                });
+
             modelBuilder.Entity("DealZone.Domain.Catalog.Material", b =>
                 {
                     b.HasOne("DealZone.Domain.Catalog.MaterialCategory", "Category")
@@ -1538,6 +1945,11 @@ namespace DealZone.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("DealZone.Domain.Deals.Deal", b =>
                 {
+                    b.HasOne("DealZone.Domain.Tenders.Bid", "Bid")
+                        .WithMany()
+                        .HasForeignKey("BidId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("DealZone.Domain.Companies.Company", "BuyerCompany")
                         .WithMany()
                         .HasForeignKey("BuyerCompanyId")
@@ -1558,6 +1970,13 @@ namespace DealZone.Infrastructure.Persistence.Migrations
                         .HasForeignKey("SupplierCompanyId")
                         .OnDelete(DeleteBehavior.Restrict);
 
+                    b.HasOne("DealZone.Domain.Tenders.Tender", "Tender")
+                        .WithMany()
+                        .HasForeignKey("TenderId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Bid");
+
                     b.Navigation("BuyerCompany");
 
                     b.Navigation("Offer");
@@ -1565,6 +1984,8 @@ namespace DealZone.Infrastructure.Persistence.Migrations
                     b.Navigation("Rfq");
 
                     b.Navigation("SupplierCompany");
+
+                    b.Navigation("Tender");
                 });
 
             modelBuilder.Entity("DealZone.Domain.Deals.DealDispute", b =>
@@ -1756,6 +2177,109 @@ namespace DealZone.Infrastructure.Persistence.Migrations
                     b.Navigation("ShippingProvider");
                 });
 
+            modelBuilder.Entity("DealZone.Domain.Tenders.Bid", b =>
+                {
+                    b.HasOne("DealZone.Domain.Tenders.Bid", "OriginalBid")
+                        .WithMany("Revisions")
+                        .HasForeignKey("OriginalBidId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("DealZone.Domain.Companies.Company", "SupplierCompany")
+                        .WithMany()
+                        .HasForeignKey("SupplierCompanyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("DealZone.Domain.Tenders.Tender", "Tender")
+                        .WithMany("Bids")
+                        .HasForeignKey("TenderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("OriginalBid");
+
+                    b.Navigation("SupplierCompany");
+
+                    b.Navigation("Tender");
+                });
+
+            modelBuilder.Entity("DealZone.Domain.Tenders.BidItem", b =>
+                {
+                    b.HasOne("DealZone.Domain.Tenders.Bid", "Bid")
+                        .WithMany("Items")
+                        .HasForeignKey("BidId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("DealZone.Domain.Tenders.TenderItem", "TenderItem")
+                        .WithMany()
+                        .HasForeignKey("TenderItemId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Bid");
+
+                    b.Navigation("TenderItem");
+                });
+
+            modelBuilder.Entity("DealZone.Domain.Tenders.Tender", b =>
+                {
+                    b.HasOne("DealZone.Domain.Tenders.Bid", "AwardedBid")
+                        .WithMany()
+                        .HasForeignKey("AwardedBidId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("DealZone.Domain.Companies.Company", "BuyerCompany")
+                        .WithMany()
+                        .HasForeignKey("BuyerCompanyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("DealZone.Domain.Catalog.MaterialCategory", "TargetCategory")
+                        .WithMany()
+                        .HasForeignKey("TargetCategoryId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("AwardedBid");
+
+                    b.Navigation("BuyerCompany");
+
+                    b.Navigation("TargetCategory");
+                });
+
+            modelBuilder.Entity("DealZone.Domain.Tenders.TenderItem", b =>
+                {
+                    b.HasOne("DealZone.Domain.Catalog.MaterialCategory", "Category")
+                        .WithMany()
+                        .HasForeignKey("CategoryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("DealZone.Domain.Catalog.Material", "Material")
+                        .WithMany()
+                        .HasForeignKey("MaterialId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("DealZone.Domain.Tenders.Tender", "Tender")
+                        .WithMany("Items")
+                        .HasForeignKey("TenderId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("DealZone.Domain.Catalog.UnitOfMeasure", "UnitOfMeasure")
+                        .WithMany()
+                        .HasForeignKey("UnitOfMeasureId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Category");
+
+                    b.Navigation("Material");
+
+                    b.Navigation("Tender");
+
+                    b.Navigation("UnitOfMeasure");
+                });
+
             modelBuilder.Entity("DealZone.Domain.Catalog.MaterialCategory", b =>
                 {
                     b.Navigation("Materials");
@@ -1796,6 +2320,20 @@ namespace DealZone.Infrastructure.Persistence.Migrations
                     b.Navigation("Items");
 
                     b.Navigation("Offers");
+                });
+
+            modelBuilder.Entity("DealZone.Domain.Tenders.Bid", b =>
+                {
+                    b.Navigation("Items");
+
+                    b.Navigation("Revisions");
+                });
+
+            modelBuilder.Entity("DealZone.Domain.Tenders.Tender", b =>
+                {
+                    b.Navigation("Bids");
+
+                    b.Navigation("Items");
                 });
 #pragma warning restore 612, 618
         }

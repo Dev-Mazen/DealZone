@@ -2,6 +2,7 @@ using DealZone.Domain.Common;
 using DealZone.Domain.Companies;
 using DealZone.Domain.Offers;
 using DealZone.Domain.Rfqs;
+using DealZone.Domain.Tenders;
 
 namespace DealZone.Domain.Deals;
 
@@ -9,13 +10,25 @@ public class Deal : AuditableEntity, IConcurrencyToken
 {
     public string DealNumber { get; set; } = string.Empty;
 
-    public Guid RfqId { get; set; }
+    public DealSource Source { get; set; } = DealSource.Rfq;
+
+    // RFQ Source
+    public Guid? RfqId { get; set; }
     public Rfq? Rfq { get; set; }
 
-    public Guid OfferId { get; set; }
+    public Guid? OfferId { get; set; }
     public Offer? Offer { get; set; }
 
-    public int OfferRevisionNumber { get; set; }
+    public int? OfferRevisionNumber { get; set; }
+
+    // Tender Source
+    public Guid? TenderId { get; set; }
+    public Tender? Tender { get; set; }
+
+    public Guid? BidId { get; set; }
+    public Bid? Bid { get; set; }
+
+    public int? BidRevisionNumber { get; set; }
 
     public Guid BuyerCompanyId { get; set; }
     public Company? BuyerCompany { get; set; }

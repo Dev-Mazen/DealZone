@@ -468,5 +468,230 @@ public class OfferIntegrationTests
         var secondAcceptRes = await client.PostAsync($"/api/v1/offers/{offer1.Id}/accept", null);
         Assert.Equal(HttpStatusCode.Conflict, secondAcceptRes.StatusCode);
     }
+
+    [Fact]
+    public async Task OfferWithdrawal_LifecycleAndAuthorization_EnforcesAllInvariants()
+    {
+        var factory = new DealZoneWebApplicationFactory();
+        var client = factory.CreateClient();
+
+        var (buyerToken, _) = await CreateVerifiedCompanyAsync(factory, client, "buyer.wth@dealzone.eg", "Buyer WTH SAE", "BuyerWth");
+        var rfq = await CreateAndPublishRfqAsync(client, buyerToken);
+
+        var (suppToken, _) = await CreateVerifiedCompanyAsync(factory, client, "supp.wth@dealzone.eg", "Supplier WTH SAE", "SuppWth");
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", suppToken);
+
+        var offerReq = new CreateOfferRequest(
+            DeliveryLeadTimeDays: 7,
+            ShippingIncluded: true,
+            PaymentTerms: "Cash on delivery",
+            ValidityDateUtc: DateTimeOffset.UtcNow.AddDays(14),
+            Currency: "EGP",
+            Notes: "Withdrawal test offer",
+            Items: new List<CreateOfferItemRequest>
+            {
+                new(rfq.Items.First().Id, 32000, 10, null, null)
+            });
+
+        var createRes = await client.PostAsJsonAsync($"/api/v1/rfqs/{rfq.Id}/offers", offerReq);
+        Assert.Equal(HttpStatusCode.Created, createRes.StatusCode);
+        var createdOffer = await createRes.Content.ReadFromJsonAsync<OfferDetailResponse>(JsonOptions);
+        Assert.NotNull(createdOffer);
+
+        // 1. Unauthorized supplier cannot withdraw another supplier's offer
+        var (otherSuppToken, _) = await CreateVerifiedCompanyAsync(factory, client, "other.wth@dealzone.eg", "Other WTH SAE", "OtherWth");
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", otherSuppToken);
+
+        var unauthWithdraw = await client.PostAsJsonAsync($"/api/v1/offers/{createdOffer.Id}/withdraw", new WithdrawOfferRequest("Illegitimate"));
+        Assert.Equal(HttpStatusCode.Forbidden, unauthWithdraw.StatusCode);
+
+        // 2. Owning supplier successfully withdraws offer
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", suppToken);
+        var withdrawRes = await client.PostAsJsonAsync($"/api/v1/offers/{createdOffer.Id}/withdraw", new WithdrawOfferRequest("Material stock sold to domestic partner"));
+        Assert.Equal(HttpStatusCode.OK, withdrawRes.StatusCode);
+
+        var withdrawnOffer = await withdrawRes.Content.ReadFromJsonAsync<OfferDetailResponse>(JsonOptions);
+        Assert.NotNull(withdrawnOffer);
+        Assert.Equal("Withdrawn", withdrawnOffer.Status);
+        Assert.Equal("Material stock sold to domestic partner", withdrawnOffer.WithdrawalReason);
+        Assert.NotNull(withdrawnOffer.WithdrawnAtUtc);
+
+        // 3. Duplicate withdrawal is idempotent and returns 200 OK
+        var duplicateWithdraw = await client.PostAsJsonAsync($"/api/v1/offers/{createdOffer.Id}/withdraw", new WithdrawOfferRequest("Material stock sold to domestic partner"));
+        Assert.Equal(HttpStatusCode.OK, duplicateWithdraw.StatusCode);
+
+        // 4. Buyer cannot accept a withdrawn offer -> Conflict
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", buyerToken);
+        var acceptWithdrawnRes = await client.PostAsync($"/api/v1/offers/{createdOffer.Id}/accept", null);
+        Assert.Equal(HttpStatusCode.Conflict, acceptWithdrawnRes.StatusCode);
+    }
+
+    [Fact]
+    public async Task OfferWithdrawal_AfterAcceptanceAndSupersession_ReturnsConflict()
+    {
+        var factory = new DealZoneWebApplicationFactory();
+        var client = factory.CreateClient();
+
+        var (buyerToken, _) = await CreateVerifiedCompanyAsync(factory, client, "buyer.supwth@dealzone.eg", "Buyer SupWth SAE", "BuyerSupWth");
+        var rfq = await CreateAndPublishRfqAsync(client, buyerToken);
+
+        var (suppToken, _) = await CreateVerifiedCompanyAsync(factory, client, "supp.supwth@dealzone.eg", "Supplier SupWth SAE", "SuppSupWth");
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", suppToken);
+
+        var offerReq = new CreateOfferRequest(
+            DeliveryLeadTimeDays: 7,
+            ShippingIncluded: true,
+            PaymentTerms: "Bank Transfer",
+            ValidityDateUtc: DateTimeOffset.UtcNow.AddDays(14),
+            Currency: "EGP",
+            Notes: "Initial offer R1",
+            Items: new List<CreateOfferItemRequest>
+            {
+                new(rfq.Items.First().Id, 40000, 15, null, null)
+            });
+
+        var createRes = await client.PostAsJsonAsync($"/api/v1/rfqs/{rfq.Id}/offers", offerReq);
+        var offerR1 = await createRes.Content.ReadFromJsonAsync<OfferDetailResponse>(JsonOptions);
+
+        // Revise offer -> R1 becomes Superseded, R2 is created
+        var reviseReq = new ReviseOfferRequest(
+            DeliveryLeadTimeDays: 5,
+            ShippingIncluded: true,
+            PaymentTerms: "Bank Transfer",
+            ValidityDateUtc: DateTimeOffset.UtcNow.AddDays(14),
+            Currency: "EGP",
+            Notes: "Revised offer R2",
+            ChangeSummary: "Lowered lead time",
+            Items: new List<CreateOfferItemRequest>
+            {
+                new(rfq.Items.First().Id, 39000, 15, null, null)
+            });
+
+        var reviseRes = await client.PostAsJsonAsync($"/api/v1/offers/{offerR1!.Id}/revise", reviseReq);
+        Assert.Equal(HttpStatusCode.Created, reviseRes.StatusCode);
+        var offerR2 = await reviseRes.Content.ReadFromJsonAsync<OfferDetailResponse>(JsonOptions);
+
+        // Attempt to withdraw superseded offer R1 -> Conflict
+        var withdrawR1Res = await client.PostAsJsonAsync($"/api/v1/offers/{offerR1.Id}/withdraw", new WithdrawOfferRequest("Old offer"));
+        Assert.Equal(HttpStatusCode.Conflict, withdrawR1Res.StatusCode);
+
+        // Buyer accepts R2
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", buyerToken);
+        var acceptRes = await client.PostAsync($"/api/v1/offers/{offerR2!.Id}/accept", null);
+        Assert.Equal(HttpStatusCode.OK, acceptRes.StatusCode);
+
+        // Attempt to withdraw accepted offer R2 -> Conflict
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", suppToken);
+        var withdrawR2Res = await client.PostAsJsonAsync($"/api/v1/offers/{offerR2.Id}/withdraw", new WithdrawOfferRequest("Accepted offer"));
+        Assert.Equal(HttpStatusCode.Conflict, withdrawR2Res.StatusCode);
+    }
+
+    [Fact]
+    public async Task OfferAcceptance_ExpiredOffer_ReturnsConflictAndDoesNotCreateDeal()
+    {
+        var factory = new DealZoneWebApplicationFactory();
+        var client = factory.CreateClient();
+
+        var (buyerToken, _) = await CreateVerifiedCompanyAsync(factory, client, "buyer.exp@dealzone.eg", "Buyer Exp SAE", "BuyerExp");
+        var rfq = await CreateAndPublishRfqAsync(client, buyerToken);
+
+        var (suppToken, _) = await CreateVerifiedCompanyAsync(factory, client, "supp.exp@dealzone.eg", "Supplier Exp SAE", "SuppExp");
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", suppToken);
+
+        var offerReq = new CreateOfferRequest(
+            DeliveryLeadTimeDays: 7,
+            ShippingIncluded: true,
+            PaymentTerms: "Letter of Credit",
+            ValidityDateUtc: DateTimeOffset.UtcNow.AddDays(14),
+            Currency: "EGP",
+            Notes: "Will expire in DB directly",
+            Items: new List<CreateOfferItemRequest>
+            {
+                new(rfq.Items.First().Id, 30000, 10, null, null)
+            });
+
+        var createRes = await client.PostAsJsonAsync($"/api/v1/rfqs/{rfq.Id}/offers", offerReq);
+        var offer = await createRes.Content.ReadFromJsonAsync<OfferDetailResponse>(JsonOptions);
+
+        // Manually age the offer validity to the past in database
+        using (var scope = factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<DealZoneDbContext>();
+            var dbOffer = await db.Offers.FirstAsync(o => o.Id == offer!.Id);
+            dbOffer.ValidityDateUtc = DateTimeOffset.UtcNow.AddDays(-1);
+            await db.SaveChangesAsync();
+        }
+
+        // Buyer attempts to accept expired offer -> Conflict
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", buyerToken);
+        var acceptRes = await client.PostAsync($"/api/v1/offers/{offer!.Id}/accept", null);
+        Assert.Equal(HttpStatusCode.Conflict, acceptRes.StatusCode);
+
+        // Verify no Deal was created
+        using (var scope = factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<DealZoneDbContext>();
+            var dealExists = await db.Deals.AnyAsync(d => d.OfferId == offer.Id);
+            Assert.False(dealExists);
+        }
+    }
+
+    [Fact]
+    public async Task OfferExpiryProcessor_BatchExpiresPastValidityOffers_LeavesActiveUntouched()
+    {
+        var factory = new DealZoneWebApplicationFactory();
+        var client = factory.CreateClient();
+
+        var (buyerToken, _) = await CreateVerifiedCompanyAsync(factory, client, "buyer.batch@dealzone.eg", "Buyer Batch SAE", "BuyerBatch");
+        var rfq = await CreateAndPublishRfqAsync(client, buyerToken);
+
+        var (suppToken, _) = await CreateVerifiedCompanyAsync(factory, client, "supp.batch@dealzone.eg", "Supplier Batch SAE", "SuppBatch");
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", suppToken);
+
+        // Create 2 offers
+        var req1 = new CreateOfferRequest(7, true, "Cash", DateTimeOffset.UtcNow.AddDays(14), "EGP", "Offer 1",
+            new List<CreateOfferItemRequest> { new(rfq.Items.First().Id, 25000, 5, null, null) });
+        var res1 = await client.PostAsJsonAsync($"/api/v1/rfqs/{rfq.Id}/offers", req1);
+        var offer1 = await res1.Content.ReadFromJsonAsync<OfferDetailResponse>(JsonOptions);
+
+        var (suppToken2, _) = await CreateVerifiedCompanyAsync(factory, client, "supp.batch2@dealzone.eg", "Supplier Batch 2 SAE", "SuppBatch2");
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", suppToken2);
+
+        var req2 = new CreateOfferRequest(7, true, "Cash", DateTimeOffset.UtcNow.AddDays(14), "EGP", "Offer 2",
+            new List<CreateOfferItemRequest> { new(rfq.Items.First().Id, 26000, 5, null, null) });
+        var res2 = await client.PostAsJsonAsync($"/api/v1/rfqs/{rfq.Id}/offers", req2);
+        res2.EnsureSuccessStatusCode();
+        var offer2 = await res2.Content.ReadFromJsonAsync<OfferDetailResponse>(JsonOptions);
+
+        // Age offer1 in database
+        using (var scope = factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<DealZoneDbContext>();
+            var dbOffer1 = await db.Offers.FirstAsync(o => o.Id == offer1!.Id);
+            dbOffer1.ValidityDateUtc = DateTimeOffset.UtcNow.AddHours(-2);
+            await db.SaveChangesAsync();
+        }
+
+        // Run processor from factory scope
+        using (var scope = factory.Services.CreateScope())
+        {
+            var processor = scope.ServiceProvider.GetRequiredService<DealZone.Application.Common.Interfaces.IOfferExpiryProcessor>();
+            var expiredCount = await processor.ProcessExpiredOffersAsync();
+            Assert.True(expiredCount >= 1);
+        }
+
+        // Verify offer 1 is Expired (as supplier 1) and offer 2 is still Submitted (as supplier 2)
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", suppToken);
+        var getO1 = await client.GetAsync($"/api/v1/offers/{offer1!.Id}");
+        getO1.EnsureSuccessStatusCode();
+        var o1 = await getO1.Content.ReadFromJsonAsync<OfferDetailResponse>(JsonOptions);
+        Assert.Equal("Expired", o1!.Status);
+
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", suppToken2);
+        var getO2 = await client.GetAsync($"/api/v1/offers/{offer2!.Id}");
+        getO2.EnsureSuccessStatusCode();
+        var o2 = await getO2.Content.ReadFromJsonAsync<OfferDetailResponse>(JsonOptions);
+        Assert.Equal("Submitted", o2!.Status);
+    }
 }
 

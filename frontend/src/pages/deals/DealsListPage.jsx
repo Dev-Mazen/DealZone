@@ -50,109 +50,8 @@ const statusOptions = [
   { value: 'Cancelled', label: 'Cancelled', labelAr: 'ملغاة' },
 ]
 
-// Fallback Egyptian industrial commercial deals (when DB is offline)
-const SAMPLE_DEALS = [
-  {
-    id: 'deal-001',
-    dealNumber: 'DEAL-2026-0891',
-    rfqTitle: 'Prime Structural Steel Billets 150x150mm (Grade 3SP/5SP)',
-    rfqNumber: 'RFQ-2026-0891',
-    materialCategory: 'Metals & Steel',
-    buyerCompanyId: 'comp-buyer-001',
-    buyerCompanyName: 'Cairo Metal Fabricators SAE',
-    supplierCompanyId: 'comp-supplier-001',
-    supplierCompanyName: 'Al Ezz Dekheila Steel Co.',
-    agreedPrice: 1680000,
-    currency: 'EGP',
-    status: 'InProgress',
-    deliveryZone: '10th of Ramadan Industrial Zone B3, Sharkia',
-    paymentTerms: '30% Advance, 70% against Bill of Lading & Inspection',
-    shippingIncluded: true,
-    leadTimeDays: 7,
-    createdAtUtc: new Date(Date.now() - 3 * 86400000).toISOString(),
-    completedAtUtc: null,
-  },
-  {
-    id: 'deal-002',
-    dealNumber: 'DEAL-2026-0845',
-    rfqTitle: 'HDPE Injection Molding Grade Resin (MFI 4.0)',
-    rfqNumber: 'RFQ-2026-0845',
-    materialCategory: 'Polymers & Plastics',
-    buyerCompanyId: 'comp-buyer-001',
-    buyerCompanyName: 'Cairo Metal Fabricators SAE',
-    supplierCompanyId: 'comp-supplier-002',
-    supplierCompanyName: 'Sidi Kerir Petrochemicals (SIDPEC)',
-    agreedPrice: 840000,
-    currency: 'EGP',
-    status: 'Confirmed',
-    deliveryZone: 'Borg El Arab Industrial Area 2, Alexandria',
-    paymentTerms: 'Bank Letter of Credit (L/C 30 Days)',
-    shippingIncluded: true,
-    leadTimeDays: 5,
-    createdAtUtc: new Date(Date.now() - 6 * 86400000).toISOString(),
-    completedAtUtc: null,
-  },
-  {
-    id: 'deal-003',
-    dealNumber: 'DEAL-2026-0792',
-    rfqTitle: 'Caustic Soda Flakes 99% Rayon Grade (25kg Bags)',
-    rfqNumber: 'RFQ-2026-0792',
-    materialCategory: 'Chemicals & Solvents',
-    buyerCompanyId: 'comp-buyer-002',
-    buyerCompanyName: 'Misr Rayon & Textile Mills',
-    supplierCompanyId: 'comp-supplier-001',
-    supplierCompanyName: 'Al Ezz Dekheila Steel Co.',
-    agreedPrice: 420000,
-    currency: 'EGP',
-    status: 'Completed',
-    deliveryZone: 'Kafr El Dawar Industrial Complex, Beheira',
-    paymentTerms: '100% Cash on Delivery (COD) via DealZone Escrow',
-    shippingIncluded: false,
-    leadTimeDays: 3,
-    createdAtUtc: new Date(Date.now() - 25 * 86400000).toISOString(),
-    completedAtUtc: new Date(Date.now() - 20 * 86400000).toISOString(),
-  },
-  {
-    id: 'deal-004',
-    dealNumber: 'DEAL-2026-0710',
-    rfqTitle: 'Heavy-Duty 5-Ply Corrugated Shipping Boxes (Flute BC)',
-    rfqNumber: 'RFQ-2026-0710',
-    materialCategory: 'Packaging & Film',
-    buyerCompanyId: 'comp-buyer-001',
-    buyerCompanyName: 'Cairo Metal Fabricators SAE',
-    supplierCompanyId: 'comp-supplier-003',
-    supplierCompanyName: 'Modern Nile Packaging & Corrugated Board Co.',
-    agreedPrice: 275000,
-    currency: 'EGP',
-    status: 'AwaitingConfirmation',
-    deliveryZone: '6th of October Industrial Zone 4, Giza',
-    paymentTerms: 'Net 15 Days after Quality Certificate Validation',
-    shippingIncluded: true,
-    leadTimeDays: 10,
-    createdAtUtc: new Date(Date.now() - 1 * 86400000).toISOString(),
-    completedAtUtc: null,
-  },
-  {
-    id: 'deal-005',
-    dealNumber: 'DEAL-2026-0688',
-    rfqTitle: 'Polypropylene Homopolymer Raffia Grade (Tape & Woven Sacks)',
-    rfqNumber: 'RFQ-2026-0688',
-    materialCategory: 'Polymers & Plastics',
-    buyerCompanyId: 'comp-buyer-003',
-    buyerCompanyName: 'El Delta Industrial Sacks Co.',
-    supplierCompanyId: 'comp-supplier-001',
-    supplierCompanyName: 'Al Ezz Dekheila Steel Co.',
-    agreedPrice: 1250000,
-    currency: 'EGP',
-    status: 'InProgress',
-    deliveryZone: 'Sadat City Industrial Zone 7, Menoufia',
-    paymentTerms: '50% Advance, 50% on Inbound Delivery',
-    shippingIncluded: true,
-    leadTimeDays: 6,
-    createdAtUtc: new Date(Date.now() - 8 * 86400000).toISOString(),
-    completedAtUtc: null,
-  },
-]
+// Deal status configuration
+
 
 export default function DealsListPage() {
   const { language } = useTranslation()
@@ -187,52 +86,29 @@ export default function DealsListPage() {
   const [pageNumber, setPageNumber] = useState(1)
   const pageSize = 10
 
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['deals', 'mine', { status: statusFilter, pageNumber, pageSize }],
     queryFn: () => dealService.getMine({ status: statusFilter || undefined, pageNumber, pageSize }),
     enabled: hasCompany && isVerified,
     retry: 1,
   })
 
-  // Determine active dataset (API data or resilient Egyptian sample data)
-  const allDeals = useMemo(() => {
-    if (data?.items && data.items.length > 0) {
-      return data.items
-    }
-    return SAMPLE_DEALS
-  }, [data])
+  const allDeals = useMemo(() => data?.items ?? [], [data])
 
-  const currentCompanyId = (user?.company?.id || 'comp-buyer-001').toLowerCase()
+  const currentCompanyId = (user?.company?.id || '').toLowerCase()
 
   // Filter deals based on role filter, status, and search query
   const filteredItems = useMemo(() => {
     return allDeals.filter((deal) => {
       // Role filter check
       if (roleFilter === 'buyer') {
-        const isBuyerMatch =
-          (deal.buyerCompanyId || '').toLowerCase() === currentCompanyId ||
-          deal.buyerCompanyName?.toLowerCase().includes('buyer') ||
-          deal.buyerCompanyName === user?.company?.tradeName
-        if (!isBuyerMatch && !hasBothCapabilities && isBuyerOnly) {
-          // Fallback show buyer deals
-          return deal.buyerCompanyId === 'comp-buyer-001'
-        }
-        if (hasBothCapabilities && !isBuyerMatch) {
-          return deal.buyerCompanyId === 'comp-buyer-001'
-        }
+        const isBuyerMatch = (deal.buyerCompanyId || '').toLowerCase() === currentCompanyId
+        if (!isBuyerMatch) return false
       }
 
       if (roleFilter === 'supplier') {
-        const isSupplierMatch =
-          (deal.supplierCompanyId || '').toLowerCase() === currentCompanyId ||
-          deal.supplierCompanyName?.toLowerCase().includes('supplier') ||
-          deal.supplierCompanyName === user?.company?.tradeName
-        if (!isSupplierMatch && !hasBothCapabilities && isSupplierOnly) {
-          return deal.supplierCompanyId === 'comp-supplier-001'
-        }
-        if (hasBothCapabilities && !isSupplierMatch) {
-          return deal.supplierCompanyId === 'comp-supplier-001'
-        }
+        const isSupplierMatch = (deal.supplierCompanyId || '').toLowerCase() === currentCompanyId
+        if (!isSupplierMatch) return false
       }
 
       // Status filter check
@@ -255,7 +131,7 @@ export default function DealsListPage() {
 
       return true
     })
-  }, [allDeals, roleFilter, statusFilter, searchQuery, currentCompanyId, isBuyerOnly, isSupplierOnly, hasBothCapabilities, user])
+  }, [allDeals, roleFilter, statusFilter, searchQuery, currentCompanyId])
 
   // Company onboarding wall check (only when user has zero company record)
   if (!hasCompany) {
@@ -442,11 +318,31 @@ export default function DealsListPage() {
         </div>
       </div>
 
+      {/* Error State */}
+      {error && !isLoading && (
+        <div className="bg-red-50 border border-red-200 rounded-2xl p-4 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <AlertCircle className="text-red-500 shrink-0" size={20} />
+            <div>
+              <p className="text-xs font-bold text-red-900">
+                {isAr ? 'تعذر تحميل الصفقات التجارية' : 'Failed to load commercial deals'}
+              </p>
+              <p className="text-[11px] text-red-700 mt-0.5">
+                {error?.problem?.detail || error?.message || (isAr ? 'يرجى المحاولة مرة أخرى لاحقاً' : 'Please try again later')}
+              </p>
+            </div>
+          </div>
+          <Button size="xs" variant="outline" onClick={() => refetch()}>
+            {isAr ? 'إعادة المحاولة' : 'Retry'}
+          </Button>
+        </div>
+      )}
+
       {/* Loading State */}
       {isLoading && <PageSpinner />}
 
       {/* Empty State */}
-      {!isLoading && filteredItems.length === 0 && (
+      {!isLoading && !error && filteredItems.length === 0 && (
         <EmptyState
           icon={Handshake}
           title={isAr ? 'لا توجد صفقات تجارية مطابقة' : 'No Deals Found'}
@@ -470,14 +366,13 @@ export default function DealsListPage() {
       )}
 
       {/* Deals Grid */}
-      {!isLoading && filteredItems.length > 0 && (
+      {!isLoading && !error && filteredItems.length > 0 && (
         <div className="space-y-4">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {filteredItems.map((deal) => {
               const isBuyerDeal =
                 roleFilter === 'buyer' ||
-                (deal.buyerCompanyId || '').toLowerCase() === currentCompanyId ||
-                (!isSupplierOnly && deal.buyerCompanyId === 'comp-buyer-001')
+                (deal.buyerCompanyId || '').toLowerCase() === currentCompanyId
 
               const counterparty = isBuyerDeal ? deal.supplierCompanyName : deal.buyerCompanyName
               const counterpartyRole = isBuyerDeal

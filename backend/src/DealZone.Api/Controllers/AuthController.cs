@@ -1,9 +1,11 @@
+using DealZone.Api.Options;
 using DealZone.Application.Auth.DTOs;
 using DealZone.Application.Common.Interfaces;
 using DealZone.Application.Common.Validation;
 using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace DealZone.Api.Controllers;
 
@@ -18,6 +20,7 @@ public class AuthController : ApiControllerBase
         _authService = authService;
     }
 
+    [EnableRateLimiting(RateLimitPolicies.AuthRegister)]
     [HttpPost("register")]
     public async Task<IActionResult> Register(
         [FromBody] RegisterRequest request,
@@ -29,6 +32,7 @@ public class AuthController : ApiControllerBase
         return StatusCode(StatusCodes.Status201Created, response);
     }
 
+    [EnableRateLimiting(RateLimitPolicies.AuthLogin)]
     [HttpPost("login")]
     public async Task<IActionResult> Login(
         [FromBody] LoginRequest request,
@@ -74,6 +78,7 @@ public class AuthController : ApiControllerBase
         return Ok(new { message = "Email confirmed successfully. You can now log in." });
     }
 
+    [EnableRateLimiting(RateLimitPolicies.AuthResendConfirmation)]
     [HttpPost("resend-confirmation")]
     public async Task<IActionResult> ResendConfirmation(
         [FromBody] ResendConfirmationRequest request,
@@ -85,6 +90,7 @@ public class AuthController : ApiControllerBase
         return Ok(new { message = "If the account exists and is unconfirmed, a new confirmation email has been dispatched." });
     }
 
+    [EnableRateLimiting(RateLimitPolicies.AuthPassword)]
     [HttpPost("forgot-password")]
     public async Task<IActionResult> ForgotPassword(
         [FromBody] ForgotPasswordRequest request,
@@ -96,6 +102,7 @@ public class AuthController : ApiControllerBase
         return Ok(new { message = "If the account exists, a password reset link has been dispatched." });
     }
 
+    [EnableRateLimiting(RateLimitPolicies.AuthPassword)]
     [HttpPost("reset-password")]
     public async Task<IActionResult> ResetPassword(
         [FromBody] ResetPasswordRequest request,
@@ -112,6 +119,18 @@ public class AuthController : ApiControllerBase
     public async Task<IActionResult> GetCurrentUserProfile(CancellationToken cancellationToken)
     {
         var profile = await _authService.GetCurrentUserProfileAsync(cancellationToken);
+        return Ok(profile);
+    }
+
+    [Authorize]
+    [HttpPut("profile")]
+    public async Task<IActionResult> UpdateProfile(
+        [FromBody] UpdateProfileRequest request,
+        [FromServices] IValidator<UpdateProfileRequest> validator,
+        CancellationToken cancellationToken)
+    {
+        await validator.ValidateAndThrowDomainAsync(request, cancellationToken);
+        var profile = await _authService.UpdateUserProfileAsync(request, cancellationToken);
         return Ok(profile);
     }
 }

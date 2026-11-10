@@ -153,5 +153,71 @@ public class AuthIntegrationTests
         var response = await client.GetAsync("/api/v1/auth/me");
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
+
+    // ─── UpdateProfile ────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task UpdateProfile_ValidData_ShouldUpdateFullNameAndPhone()
+    {
+        await using var factory = new DealZoneWebApplicationFactory();
+        var client = factory.CreateClient();
+        DevelopmentEmailService.Clear();
+
+        var email = "profile.test@dealzone.eg";
+        var reg = new RegisterRequest(email, "StrongPassword2026!", "Original Name", "+201099988877");
+        await client.PostAsJsonAsync("/api/v1/auth/register", reg);
+
+        var confirm = DevelopmentEmailService.SentEmails.Last(e => e.Email == email && e.Purpose == "EmailConfirmation");
+        await client.PostAsJsonAsync("/api/v1/auth/confirm-email", new ConfirmEmailRequest(email, confirm.Token));
+
+        var loginRes = await client.PostAsJsonAsync("/api/v1/auth/login", new LoginRequest(email, "StrongPassword2026!"));
+        var auth = await loginRes.Content.ReadFromJsonAsync<AuthResponse>(JsonOptions);
+
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", auth!.AccessToken);
+
+        var updateRes = await client.PutAsJsonAsync("/api/v1/auth/profile", new UpdateProfileRequest("Updated Name", "+201011122233"));
+        Assert.Equal(HttpStatusCode.OK, updateRes.StatusCode);
+
+        var profile = await updateRes.Content.ReadFromJsonAsync<UserProfileResponse>(JsonOptions);
+        Assert.NotNull(profile);
+        Assert.Equal("Updated Name", profile!.FullName);
+        Assert.Equal("+201011122233", profile.PhoneNumber);
+        Assert.Equal(email, profile.Email);
+    }
+
+    [Fact]
+    public async Task UpdateProfile_Unauthenticated_ShouldReturn401()
+    {
+        await using var factory = new DealZoneWebApplicationFactory();
+        var client = factory.CreateClient();
+
+        var response = await client.PutAsJsonAsync("/api/v1/auth/profile", new UpdateProfileRequest("Some Name", null));
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task UpdateProfile_InvalidFullName_ShouldReturn400(string invalidName)
+    {
+        await using var factory = new DealZoneWebApplicationFactory();
+        var client = factory.CreateClient();
+        DevelopmentEmailService.Clear();
+
+        var email = $"profile.invalid.{Guid.NewGuid():N}@dealzone.eg";
+        var reg = new RegisterRequest(email, "StrongPassword2026!", "Valid Name", null);
+        await client.PostAsJsonAsync("/api/v1/auth/register", reg);
+
+        var confirm = DevelopmentEmailService.SentEmails.Last(e => e.Email == email && e.Purpose == "EmailConfirmation");
+        await client.PostAsJsonAsync("/api/v1/auth/confirm-email", new ConfirmEmailRequest(email, confirm.Token));
+
+        var loginRes = await client.PostAsJsonAsync("/api/v1/auth/login", new LoginRequest(email, "StrongPassword2026!"));
+        var auth = await loginRes.Content.ReadFromJsonAsync<AuthResponse>(JsonOptions);
+
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", auth!.AccessToken);
+
+        var response = await client.PutAsJsonAsync("/api/v1/auth/profile", new UpdateProfileRequest(invalidName, null));
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
 }
 

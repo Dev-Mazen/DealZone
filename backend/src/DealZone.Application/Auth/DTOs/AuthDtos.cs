@@ -60,3 +60,7 @@ public record UserProfileResponse(
     bool IsSystemAdmin,
     UserCompanyDto? Company);
 
+public record UpdateProfileRequest(
+    string FullName,
+    string? PhoneNumber = null);
+

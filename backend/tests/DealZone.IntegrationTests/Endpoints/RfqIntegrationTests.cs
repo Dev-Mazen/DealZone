@@ -327,4 +327,60 @@ public class RfqIntegrationTests
         var cancelRes = await client.PostAsync($"/api/v1/rfqs/{createdRfq!.Id}/cancel", null);
         Assert.Equal(HttpStatusCode.Forbidden, cancelRes.StatusCode);
     }
+
+    [Fact]
+    public async Task ConcurrentRfqCreation_GeneratesUniqueRfqNumbersWithoutCollisions()
+    {
+        var factory = new DealZoneWebApplicationFactory();
+        var client = factory.CreateClient();
+
+        var (buyerToken, _) = await CreateVerifiedCompanyAsync(
+            factory,
+            client,
+            "buyer.concurrent@dealzone.eg",
+            "Concurrent Buyer SAE",
+            "ConcurrentBuyer");
+
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", buyerToken);
+
+        var catRes = await client.GetAsync("/api/v1/catalog/categories");
+        var categories = await catRes.Content.ReadFromJsonAsync<List<CategoryDto>>(JsonOptions);
+        var categoryId = categories!.First().Id;
+
+        const int rfqCount = 10;
+        var rfqTasks = Enumerable.Range(0, rfqCount).Select(async i =>
+        {
+            var rfqClient = factory.CreateClient();
+            rfqClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", buyerToken);
+
+            var req = new CreateRfqRequest(
+                $"Concurrent RFQ #{i}",
+                "Testing concurrency safety of RFQ number sequence",
+                categoryId,
+                "Cairo",
+                "Nasr City",
+                "Makram Ebeid",
+                DateTimeOffset.UtcNow.AddDays(10),
+                null,
+                null,
+                "EGP",
+                null,
+                PublishImmediately: false,
+                Items: new List<CreateRfqItemRequest>());
+
+            var res = await rfqClient.PostAsJsonAsync("/api/v1/rfqs", req);
+            Assert.Equal(HttpStatusCode.Created, res.StatusCode);
+            var detail = await res.Content.ReadFromJsonAsync<RfqDetailResponse>(JsonOptions);
+            return detail!.RfqNumber;
+        });
+
+        var rfqNumbers = await Task.WhenAll(rfqTasks);
+
+        // Verify all generated numbers are distinct
+        Assert.Equal(rfqCount, rfqNumbers.Distinct().Count());
+
+        // Verify all match standard prefix
+        var nowPrefix = $"RFQ-{DateTimeOffset.UtcNow:yyyyMM}-";
+        Assert.All(rfqNumbers, num => Assert.StartsWith(nowPrefix, num));
+    }
 }

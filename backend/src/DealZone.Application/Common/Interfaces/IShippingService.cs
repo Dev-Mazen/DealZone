@@ -12,6 +12,10 @@ public interface IShippingService
         CreateShipmentRequest request,
         CancellationToken cancellationToken = default);
 
+    Task<PagedResult<ShipmentSummaryResponse>> GetMyShipmentsAsync(
+        ShipmentFilter filter,
+        CancellationToken cancellationToken = default);
+
     Task<IReadOnlyList<ShipmentResponse>> GetDealShipmentsAsync(
         Guid dealId,
         CancellationToken cancellationToken = default);

@@ -225,3 +225,25 @@ export function disputeStatusVariant(status) {
   }[status] ?? 'gray'
 }
 
+export function tenderStatusVariant(status) {
+  return {
+    Draft: 'navy',
+    Published: 'success',
+    Closed: 'warning',
+    Awarded: 'info',
+    Cancelled: 'error',
+    NoAward: 'gray',
+  }[status] ?? 'gray'
+}
+
+export function bidStatusVariant(status) {
+  return {
+    Submitted: 'info',
+    UnderReview: 'warning',
+    Accepted: 'success',
+    Rejected: 'error',
+    Withdrawn: 'gray',
+    Superseded: 'navy',
+  }[status] ?? 'gray'
+}
+

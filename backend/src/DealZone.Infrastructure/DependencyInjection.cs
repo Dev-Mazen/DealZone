@@ -1,5 +1,6 @@
 using System.Text;
 using DealZone.Application.Common.Interfaces;
+using DealZone.Infrastructure.BackgroundJobs;
 using DealZone.Infrastructure.Options;
 using DealZone.Infrastructure.Persistence;
 using DealZone.Infrastructure.Services;
@@ -39,6 +40,11 @@ public static class DependencyInjection
                 throw new InvalidOperationException(
                     "In non-development environments, 'JwtSettings:SecretKey' must be set to a custom cryptographically secure secret (at least 32 bytes / 256 bits) and must not use the development default key.");
             }
+
+            if (string.IsNullOrWhiteSpace(jwtSettings.Issuer) || string.IsNullOrWhiteSpace(jwtSettings.Audience))
+            {
+                throw new InvalidOperationException("'JwtSettings:Issuer' and 'JwtSettings:Audience' must be configured in non-development environments.");
+            }
         }
         else if (string.IsNullOrWhiteSpace(jwtSettings.SecretKey) || Encoding.UTF8.GetByteCount(jwtSettings.SecretKey) < 16)
         {
@@ -52,7 +58,7 @@ public static class DependencyInjection
         })
         .AddJwtBearer(options =>
         {
-            options.RequireHttpsMetadata = false;
+            options.RequireHttpsMetadata = !isDev;
             options.SaveToken = true;
             options.TokenValidationParameters = new TokenValidationParameters
             {
@@ -121,6 +127,19 @@ public static class DependencyInjection
         services.AddScoped<IShippingService, ShippingService>();
         services.AddScoped<IReviewService, ReviewService>();
         services.AddScoped<INotificationService, NotificationService>();
+        services.AddScoped<IRfqNumberGenerator, RfqNumberGenerator>();
+        services.AddScoped<ITenderService, TenderService>();
+        services.AddScoped<ITenderNumberGenerator, TenderNumberGenerator>();
+
+        // Background Job Infrastructure
+        services.Configure<BackgroundJobOptions>(
+            configuration.GetSection(BackgroundJobOptions.SectionName));
+        services.AddScoped<IOfferExpiryProcessor, OfferExpiryProcessor>();
+        services.AddScoped<ITokenCleanupProcessor, TokenCleanupProcessor>();
+        services.AddScoped<ITenderClosingProcessor, TenderClosingProcessor>();
+        services.AddHostedService<OfferExpiryBackgroundService>();
+        services.AddHostedService<TokenCleanupBackgroundService>();
+        services.AddHostedService<TenderClosingBackgroundService>();
 
         var connectionString = configuration.GetConnectionString("DefaultConnection");
 

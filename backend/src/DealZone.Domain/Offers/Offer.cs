@@ -40,6 +40,11 @@ public class Offer : AuditableEntity, IConcurrencyToken
     public Guid? RejectedByUserId { get; set; }
     public string? RejectionReason { get; set; }
 
+    // Withdrawal metadata
+    public DateTimeOffset? WithdrawnAtUtc { get; set; }
+    public Guid? WithdrawnByUserId { get; set; }
+    public string? WithdrawalReason { get; set; }
+
     // IConcurrencyToken
     public byte[] RowVersion { get; set; } = [];
 

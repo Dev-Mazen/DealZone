@@ -52,6 +52,9 @@ export function checkPermissions(user) {
   // ── Verification document management ──
   const canManageVerificationDocs = hasCompany && (isOwner || isAdmin)
 
+  // ── Company member management ──
+  const canManageCompanyMembers = hasCompany && (isOwner || isAdmin)
+
   // ── Shipment management ──
   const canManageShipments =
     hasCompany &&
@@ -83,6 +86,7 @@ export function checkPermissions(user) {
     canManageDeals,
     canEditCompanyProfile,
     canManageVerificationDocs,
+    canManageCompanyMembers,
     canManageShipments,
     canViewCommercial,
   }

@@ -54,5 +54,68 @@ public class CompaniesController : ApiControllerBase
         var response = await _companyService.GetMyCompanyContactDetailsAsync(cancellationToken);
         return Ok(response);
     }
+
+    // ─── Phase B: Company Member Management ──────────────────────────────────
+
+    [HttpGet("me/members")]
+    public async Task<IActionResult> GetMyCompanyMembers(CancellationToken cancellationToken)
+    {
+        var members = await _companyService.GetMyCompanyMembersAsync(cancellationToken);
+        return Ok(members);
+    }
+
+    [HttpPost("me/members")]
+    public async Task<IActionResult> AddCompanyMember(
+        [FromBody] AddCompanyMemberRequest request,
+        [FromServices] IValidator<AddCompanyMemberRequest> validator,
+        CancellationToken cancellationToken)
+    {
+        await validator.ValidateAndThrowDomainAsync(request, cancellationToken);
+        var member = await _companyService.AddCompanyMemberAsync(request, cancellationToken);
+        return StatusCode(StatusCodes.Status201Created, member);
+    }
+
+    [HttpPut("me/members/{userId:guid}/role")]
+    public async Task<IActionResult> UpdateCompanyMemberRole(
+        [FromRoute] Guid userId,
+        [FromBody] UpdateCompanyMemberRoleRequest request,
+        [FromServices] IValidator<UpdateCompanyMemberRoleRequest> validator,
+        CancellationToken cancellationToken)
+    {
+        await validator.ValidateAndThrowDomainAsync(request, cancellationToken);
+        var member = await _companyService.UpdateCompanyMemberRoleAsync(userId, request, cancellationToken);
+        return Ok(member);
+    }
+
+    [HttpDelete("me/members/{userId:guid}")]
+    public async Task<IActionResult> RemoveCompanyMember(
+        [FromRoute] Guid userId,
+        CancellationToken cancellationToken)
+    {
+        await _companyService.RemoveCompanyMemberAsync(userId, cancellationToken);
+        return NoContent();
+    }
+
+    // ─── Phase B: Supplier Directory & Public Company Profile ────────────────
+
+    [AllowAnonymous]
+    [HttpGet("")]
+    public async Task<IActionResult> GetPublicSuppliers(
+        [FromQuery] CompanyDirectoryFilter filter,
+        CancellationToken cancellationToken)
+    {
+        var result = await _companyService.GetPublicSuppliersAsync(filter, cancellationToken);
+        return Ok(result);
+    }
+
+    [AllowAnonymous]
+    [HttpGet("{companyId:guid}")]
+    public async Task<IActionResult> GetPublicCompanyProfile(
+        [FromRoute] Guid companyId,
+        CancellationToken cancellationToken)
+    {
+        var profile = await _companyService.GetPublicCompanyProfileAsync(companyId, cancellationToken);
+        return Ok(profile);
+    }
 }
 

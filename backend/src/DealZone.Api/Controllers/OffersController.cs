@@ -112,5 +112,24 @@ public class OffersController : ApiControllerBase
         var response = await _offerService.RejectOfferAsync(id, request, cancellationToken);
         return Ok(response);
     }
+
+    /// <summary>
+    /// Withdraw a submitted or under-review offer.
+    /// Restricted to the owning supplier company.
+    /// </summary>
+    [HttpPost("{id:guid}/withdraw")]
+    public async Task<IActionResult> WithdrawOffer(
+        Guid id,
+        [FromBody] WithdrawOfferRequest? request,
+        [FromServices] IValidator<WithdrawOfferRequest>? validator,
+        CancellationToken cancellationToken)
+    {
+        if (request != null && validator != null)
+        {
+            await validator.ValidateAndThrowDomainAsync(request, cancellationToken);
+        }
+        var response = await _offerService.WithdrawOfferAsync(id, request, cancellationToken);
+        return Ok(response);
+    }
 }
 

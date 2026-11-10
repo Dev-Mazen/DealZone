@@ -35,3 +35,9 @@ public enum DisputeResolutionAction
     ResumeDeal = 1,
     CancelDeal = 2
 }
+
+public enum DealSource
+{
+    Rfq = 1,
+    Tender = 2
+}

@@ -92,3 +92,27 @@ public class UpdateCompanyProfileRequestValidator : AbstractValidator<UpdateComp
     }
 }
 
+public class AddCompanyMemberRequestValidator : AbstractValidator<AddCompanyMemberRequest>
+{
+    public AddCompanyMemberRequestValidator()
+    {
+        RuleFor(x => x.Email)
+            .NotEmpty().WithMessage("Member email address is required.")
+            .EmailAddress().WithMessage("A valid email address is required.")
+            .MaximumLength(256).WithMessage("Email cannot exceed 256 characters.");
+
+        RuleFor(x => x.Role)
+            .IsInEnum().WithMessage("A valid company role is required.");
+    }
+}
+
+public class UpdateCompanyMemberRoleRequestValidator : AbstractValidator<UpdateCompanyMemberRoleRequest>
+{
+    public UpdateCompanyMemberRoleRequestValidator()
+    {
+        RuleFor(x => x.Role)
+            .IsInEnum().WithMessage("A valid company role is required.");
+    }
+}
+
+

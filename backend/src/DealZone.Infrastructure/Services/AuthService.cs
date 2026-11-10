@@ -378,5 +378,29 @@ public class AuthService : IAuthService
             user.IsSystemAdmin,
             companyDto);
     }
+
+    public async Task<UserProfileResponse> UpdateUserProfileAsync(
+        UpdateProfileRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var userId = _currentUser.Id;
+        if (!userId.HasValue)
+        {
+            throw new UnauthorizedException("User is not authenticated.");
+        }
+
+        var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId.Value, cancellationToken);
+        if (user == null)
+        {
+            throw new NotFoundException("User not found.");
+        }
+
+        user.FullName = request.FullName.Trim();
+        user.PhoneNumber = string.IsNullOrWhiteSpace(request.PhoneNumber) ? null : request.PhoneNumber.Trim();
+
+        await _context.SaveChangesAsync(cancellationToken);
+
+        return await GetCurrentUserProfileAsync(cancellationToken);
+    }
 }
 

@@ -48,6 +48,9 @@ public class OfferConfiguration : IEntityTypeConfiguration<Offer>
         builder.Property(o => o.RejectionReason)
             .HasMaxLength(1000);
 
+        builder.Property(o => o.WithdrawalReason)
+            .HasMaxLength(1000);
+
         builder.Property(o => o.CreatedBy)
             .HasMaxLength(100);
 

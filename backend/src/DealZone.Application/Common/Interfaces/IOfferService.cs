@@ -80,4 +80,12 @@ public interface IOfferService
         Guid offerId,
         RejectOfferRequest request,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Withdraw a submitted or under-review offer by the owning supplier company.
+    /// </summary>
+    Task<OfferDetailResponse> WithdrawOfferAsync(
+        Guid offerId,
+        WithdrawOfferRequest? request = null,
+        CancellationToken cancellationToken = default);
 }

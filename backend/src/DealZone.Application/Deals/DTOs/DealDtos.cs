@@ -69,10 +69,10 @@ public record DisputeDetailResponse(
 public record DealSummaryResponse(
     Guid Id,
     string DealNumber,
-    Guid RfqId,
+    Guid? RfqId,
     string RfqNumber,
     string RfqTitle,
-    Guid OfferId,
+    Guid? OfferId,
     string OfferNumber,
     Guid BuyerCompanyId,
     string BuyerCompanyName,
@@ -84,17 +84,27 @@ public record DealSummaryResponse(
     DateTimeOffset CreatedAtUtc,
     DateTimeOffset? ConfirmedAtUtc,
     DateTimeOffset? CompletedAtUtc,
-    DateTimeOffset? CancelledAtUtc);
+    DateTimeOffset? CancelledAtUtc,
+    string? MaterialCategory = null,
+    string? DeliveryZone = null,
+    string? PaymentTerms = null,
+    int? LeadTimeDays = null,
+    bool? ShippingIncluded = null,
+    string DealSource = "Rfq",
+    Guid? TenderId = null,
+    string? TenderNumber = null,
+    Guid? BidId = null,
+    string? BidNumber = null);
 
 public record DealDetailResponse(
     Guid Id,
     string DealNumber,
-    Guid RfqId,
+    Guid? RfqId,
     string RfqNumber,
     string RfqTitle,
-    Guid OfferId,
+    Guid? OfferId,
     string OfferNumber,
-    int OfferRevisionNumber,
+    int? OfferRevisionNumber,
     Guid BuyerCompanyId,
     string BuyerCompanyName,
     Guid SupplierCompanyId,
@@ -117,5 +127,11 @@ public record DealDetailResponse(
     DateTimeOffset? EstimatedDeliveryDateUtc,
     DateTimeOffset CreatedAtUtc,
     DealCommercialTermsSnapshot? CommercialTerms,
-    IReadOnlyList<DisputeSummaryResponse> Disputes);
+    IReadOnlyList<DisputeSummaryResponse> Disputes,
+    string DealSource = "Rfq",
+    Guid? TenderId = null,
+    string? TenderNumber = null,
+    Guid? BidId = null,
+    string? BidNumber = null,
+    int? BidRevisionNumber = null);
 

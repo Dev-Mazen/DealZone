@@ -166,6 +166,80 @@ public class ShippingService : IShippingService
     }
 
     // -------------------------------------------------------------------------
+    // 1b. Get My Shipments (Buyer or Supplier Company)
+    // -------------------------------------------------------------------------
+
+    public async Task<PagedResult<ShipmentSummaryResponse>> GetMyShipmentsAsync(
+        ShipmentFilter filter,
+        CancellationToken cancellationToken = default)
+    {
+        var (company, _) = await RequireApprovedCompanyAsync(cancellationToken);
+
+        var query = _context.Shipments
+            .AsNoTracking()
+            .Include(s => s.Deal)
+                .ThenInclude(d => d.Rfq)
+            .Include(s => s.Deal)
+                .ThenInclude(d => d.BuyerCompany)
+            .Include(s => s.Deal)
+                .ThenInclude(d => d.SupplierCompany)
+            .Include(s => s.ShippingProvider)
+            .Where(s => s.Deal.BuyerCompanyId == company.Id || s.Deal.SupplierCompanyId == company.Id);
+
+        if (filter.Status.HasValue)
+        {
+            query = query.Where(s => s.Status == filter.Status.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(filter.Role))
+        {
+            if (filter.Role.Equals("buyer", StringComparison.OrdinalIgnoreCase))
+            {
+                query = query.Where(s => s.Deal.BuyerCompanyId == company.Id);
+            }
+            else if (filter.Role.Equals("supplier", StringComparison.OrdinalIgnoreCase))
+            {
+                query = query.Where(s => s.Deal.SupplierCompanyId == company.Id);
+            }
+        }
+
+        var totalCount = await query.CountAsync(cancellationToken);
+
+        var pageNumber = Math.Max(1, filter.PageNumber);
+        var pageSize = Math.Clamp(filter.PageSize, 1, 100);
+
+        var shipments = await query
+            .OrderByDescending(s => s.CreatedAtUtc)
+            .Skip((pageNumber - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+
+        var items = shipments.Select(s => new ShipmentSummaryResponse(
+            s.Id,
+            s.ShipmentNumber,
+            s.DealId,
+            s.Deal.DealNumber,
+            s.Deal.Rfq?.Title ?? s.Deal.DealNumber,
+            s.Arrangement.ToString(),
+            s.ShippingProviderId,
+            s.ShippingProvider?.Name,
+            s.CarrierName,
+            s.TrackingNumber,
+            s.Status.ToString(),
+            s.Deal.SupplierCompany != null ? $"{s.Deal.SupplierCompany.City}, {s.Deal.SupplierCompany.Governorate}".Trim(',', ' ') : null,
+            s.Deal.Rfq != null ? $"{s.Deal.Rfq.DeliveryCity}, {s.Deal.Rfq.DeliveryGovernorate}".Trim(',', ' ') : null,
+            s.EstimatedDeliveryDateUtc,
+            s.PickupDateUtc,
+            s.ActualDeliveryDateUtc,
+            s.CreatedAtUtc,
+            s.Deal.BuyerCompanyId == company.Id,
+            s.Deal.SupplierCompanyId == company.Id
+        )).ToList();
+
+        return PagedResult<ShipmentSummaryResponse>.Create(items, pageNumber, pageSize, totalCount);
+    }
+
+    // -------------------------------------------------------------------------
     // 2. Get Deal Shipments (Participant or Admin)
     // -------------------------------------------------------------------------
 

@@ -49,6 +49,7 @@ export default function Sidebar() {
   const buyerNavItems = [
     { label: t('nav.dashboard'), icon: LayoutDashboard, path: '/dashboard' },
     { label: isAr ? 'كتالوج الخامات' : 'Materials Catalog', icon: Package, path: '/catalog' },
+    { label: isAr ? 'دليل الموردين' : 'Supplier Directory', icon: Building2, path: '/suppliers' },
     { label: isAr ? 'طلبات الأسعار (RFQs)' : 'My RFQs & Tenders', icon: FileText, path: '/rfqs' },
     { label: isAr ? 'العروض المستلمة' : 'Received Quotes', icon: Inbox, path: '/offers' },
     { label: isAr ? 'عقود الشراء والتوريد' : 'Purchasing Deals', icon: Handshake, path: '/deals' },
@@ -71,6 +72,7 @@ export default function Sidebar() {
   const dualNavItems = [
     { label: t('nav.dashboard'), icon: LayoutDashboard, path: '/dashboard' },
     { label: isAr ? 'الكتالوج الصناعي' : 'Industrial Catalog', icon: Package, path: '/catalog' },
+    { label: isAr ? 'دليل الموردين' : 'Supplier Directory', icon: Building2, path: '/suppliers' },
     { label: isAr ? 'طلبات الأسعار والمناقصات' : 'RFQs & Tenders', icon: FileText, path: '/rfqs' },
     { label: isAr ? 'العروض والمزايدات' : 'Offers & Bids', icon: DollarSign, path: '/offers' },
     { label: isAr ? 'الصفقات التجارية' : 'Commercial Deals', icon: Handshake, path: '/deals' },
@@ -89,6 +91,7 @@ export default function Sidebar() {
 
   const isActive = (path) => {
     if (path === '/rfqs') return location.pathname.startsWith('/rfqs')
+    if (path === '/suppliers') return location.pathname.startsWith('/suppliers')
     if (path === '/offers') return location.pathname.startsWith('/offers')
     if (path === '/deals') return location.pathname.startsWith('/deals')
     if (path === '/catalog') return location.pathname.startsWith('/catalog')

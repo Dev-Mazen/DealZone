@@ -34,7 +34,16 @@ const ProfilePage = lazy(() => import('./pages/settings/ProfilePage'))
 const CompanySettingsPage = lazy(() => import('./pages/settings/CompanySettingsPage'))
 const ShipmentDetailPage = lazy(() => import('./pages/shipments/ShipmentDetailPage'))
 const ShipmentsListPage = lazy(() => import('./pages/shipments/ShipmentsListPage'))
+const SupplierDirectoryPage = lazy(() => import('./pages/suppliers/SupplierDirectoryPage'))
+const CompanyProfilePage = lazy(() => import('./pages/suppliers/CompanyProfilePage'))
 const ButtonTestPage = lazy(() => import('./pages/ButtonTestPage'))
+
+// Tender & Bidding pages
+const TendersListPage = lazy(() => import('./pages/tenders/TendersListPage'))
+const CreateTenderPage = lazy(() => import('./pages/tenders/CreateTenderPage'))
+const TenderDetailPage = lazy(() => import('./pages/tenders/TenderDetailPage'))
+const BidDetailPage = lazy(() => import('./pages/tenders/BidDetailPage'))
+const MyBidsPage = lazy(() => import('./pages/tenders/MyBidsPage'))
 
 // Admin pages
 const AdminAnalyticsPage = lazy(() => import('./pages/admin/AdminAnalyticsPage'))
@@ -111,12 +120,15 @@ function App() {
             <Route element={<PublicLayout />}>
               <Route path="/" element={<LandingPage />} />
               <Route path="/about" element={<AboutPage />} />
+              <Route path="/suppliers" element={<SupplierDirectoryPage />} />
+              <Route path="/suppliers/:companyId" element={<CompanyProfilePage />} />
+              <Route path="/companies/:companyId" element={<CompanyProfilePage />} />
               <Route path="/login" element={<LoginPage />} />
               <Route path="/register" element={<RegisterPage />} />
               <Route path="/confirm-email" element={<ConfirmEmailPage />} />
               <Route path="/forgot-password" element={<ForgotPasswordPage />} />
               <Route path="/reset-password" element={<ResetPasswordPage />} />
-              <Route path="/button-test" element={<ButtonTestPage />} />
+              {import.meta.env.DEV && <Route path="/button-test" element={<ButtonTestPage />} />}
             </Route>
 
             {/* Protected routes */}
@@ -131,6 +143,9 @@ function App() {
             >
               <Route path="dashboard" element={<DashboardPage />} />
               <Route path="catalog" element={<CatalogPage />} />
+              <Route path="suppliers" element={<SupplierDirectoryPage />} />
+              <Route path="suppliers/:companyId" element={<CompanyProfilePage />} />
+              <Route path="companies/:companyId" element={<CompanyProfilePage />} />
               <Route path="onboarding/company" element={<CompanyOnboardingPage />} />
               <Route path="onboarding/verification" element={<VerificationPage />} />
 
@@ -139,6 +154,13 @@ function App() {
               <Route path="rfqs/create" element={<CreateRfqPage />} />
               <Route path="rfqs/:rfqId" element={<RfqDetailPage />} />
               <Route path="rfqs/:rfqId/submit-offer" element={<SubmitOfferPage />} />
+
+              {/* Tenders & Reverse Bidding */}
+              <Route path="tenders" element={<TendersListPage />} />
+              <Route path="tenders/create" element={<CreateTenderPage />} />
+              <Route path="tenders/:tenderId" element={<TenderDetailPage />} />
+              <Route path="tenders/bids/mine" element={<MyBidsPage />} />
+              <Route path="tenders/bids/:bidId" element={<BidDetailPage />} />
 
               {/* Offers */}
               <Route path="offers" element={<MyOffersPage />} />
@@ -159,6 +181,7 @@ function App() {
               {/* Profile & Company settings */}
               <Route path="profile" element={<ProfilePage />} />
               <Route path="company" element={<CompanySettingsPage />} />
+              <Route path="company/members" element={<Navigate to="/company?tab=members" replace />} />
 
               {/* Admin — nested under AdminLayout */}
               <Route

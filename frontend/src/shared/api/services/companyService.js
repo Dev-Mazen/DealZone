@@ -38,5 +38,25 @@ export const companyService = {
 
   getMyCompanyReviews: (params) =>
     api.get('/companies/me/reviews', { params }).then((r) => r.data),
+
+  // Phase B: Company Member Management
+  getMembers: () =>
+    api.get('/companies/me/members').then((r) => r.data),
+
+  addMember: (data) =>
+    api.post('/companies/me/members', data).then((r) => r.data),
+
+  updateMemberRole: (userId, data) =>
+    api.put(`/companies/me/members/${userId}/role`, data).then((r) => r.data),
+
+  removeMember: (userId) =>
+    api.delete(`/companies/me/members/${userId}`).then((r) => r.data),
+
+  // Phase B: Supplier Directory & Public Company Profile
+  getSuppliers: (params) =>
+    api.get('/companies', { params }).then((r) => r.data),
+
+  getPublicProfile: (companyId) =>
+    api.get(`/companies/${companyId}`).then((r) => r.data),
 }
 

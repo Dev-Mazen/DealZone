@@ -19,6 +19,7 @@ public class RfqService : IRfqService
     private readonly ICurrentUser _currentUser;
     private readonly INotificationService _notificationService;
     private readonly IDateTimeProvider _dateTimeProvider;
+    private readonly IRfqNumberGenerator _rfqNumberGenerator;
     private readonly ILogger<RfqService> _logger;
 
     public RfqService(
@@ -26,12 +27,14 @@ public class RfqService : IRfqService
         ICurrentUser currentUser,
         INotificationService notificationService,
         IDateTimeProvider dateTimeProvider,
+        IRfqNumberGenerator rfqNumberGenerator,
         ILogger<RfqService> logger)
     {
         _context = context;
         _currentUser = currentUser;
         _notificationService = notificationService;
         _dateTimeProvider = dateTimeProvider;
+        _rfqNumberGenerator = rfqNumberGenerator;
         _logger = logger;
     }
 
@@ -63,7 +66,7 @@ public class RfqService : IRfqService
             throw new ValidationException("Items", "An RFQ must have at least one line item to be published.");
         }
 
-        var rfqNumber = GenerateRfqNumber(now);
+        var rfqNumber = await _rfqNumberGenerator.NextRfqNumberAsync(now, cancellationToken);
 
         var rfq = new Rfq
         {

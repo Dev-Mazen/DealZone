@@ -30,6 +30,8 @@ public record AcceptOfferRequest(string? Notes = null);
 
 public record RejectOfferRequest(string Reason);
 
+public record WithdrawOfferRequest(string? Reason = null);
+
 public record OfferItemResponse(
     Guid Id,
     Guid RfqItemId,
@@ -67,7 +69,9 @@ public record OfferDetailResponse(
     DateTimeOffset? RejectedAtUtc,
     bool IsOwner,
     IReadOnlyList<OfferItemResponse> Items,
-    Guid? DealId = null);
+    Guid? DealId = null,
+    DateTimeOffset? WithdrawnAtUtc = null,
+    string? WithdrawalReason = null);
 
 public record OfferSummaryResponse(
     Guid Id,

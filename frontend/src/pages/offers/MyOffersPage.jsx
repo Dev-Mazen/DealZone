@@ -50,123 +50,8 @@ const statusOptions = [
   { value: 'Accepted', label: 'Accepted', labelAr: 'مقبول' },
   { value: 'Rejected', label: 'Rejected', labelAr: 'مرفوض' },
   { value: 'Superseded', label: 'Superseded', labelAr: 'تمت مراجعته' },
-]
-
-// ============================================================
-// REALISTIC EGYPTIAN INDUSTRIAL OFFERS (FALLBACK RESILIENCE)
-// ============================================================
-const DEFAULT_RECEIVED_OFFERS = [
-  {
-    id: 'off-rec-1',
-    rfqId: 'rfq-b1',
-    offerNumber: 'OFF-2026-0089',
-    rfqTitle: 'توريد حديد تسليح 500 طن B500D لمصنع العاشر من رمضان',
-    supplierCompanyName: 'مصر للصلب والحديد المخصوص',
-    status: 'Submitted',
-    revisionNumber: 1,
-    totalAmount: 22400000,
-    currency: 'EGP',
-    deliveryLeadTimeDays: 7,
-    shippingIncluded: true,
-    validityDateUtc: new Date(Date.now() + 5 * 86400000).toISOString(),
-    submittedAtUtc: new Date(Date.now() - 1 * 86400000).toISOString(),
-    paymentTerms: '50% دفعة مقدمة و50% بعد استلام بوليصة الشحن والفحص',
-    notes: 'حديد تسليح أطوال 12م مع شهادة تحليل كيميائي وميكانيكي معتمدة من مركز بحوث الإسكان والبناء.',
-    items: [
-      {
-        id: 'item-1',
-        materialName: 'حديد تسليح عالي المقاومة B500D أقطار 16-25 مم',
-        materialSpecifications: 'مطابق للمواصفة القياسية المصرية ES 262-2',
-        offeredQuantity: 500,
-        unitPrice: 44800,
-        totalPrice: 22400000,
-      },
-    ],
-  },
-  {
-    id: 'off-rec-2',
-    rfqId: 'rfq-b1',
-    offerNumber: 'OFF-2026-0084',
-    rfqTitle: 'توريد حديد تسليح 500 طن B500D لمصنع العاشر من رمضان',
-    supplierCompanyName: 'السويس لدرفلة ودرفلة حديد التسليح',
-    status: 'UnderReview',
-    revisionNumber: 2,
-    totalAmount: 22750000,
-    currency: 'EGP',
-    deliveryLeadTimeDays: 5,
-    shippingIncluded: true,
-    validityDateUtc: new Date(Date.now() + 3 * 86400000).toISOString(),
-    submittedAtUtc: new Date(Date.now() - 2 * 86400000).toISOString(),
-    paymentTerms: 'سداد بشيك بنكي مستحق خلال 30 يوماً من استلام الموقع',
-    notes: 'جاهزية التوريد الفوري من مستودعات العاشر من رمضان بسيارات الشركة.',
-    items: [
-      {
-        id: 'item-2',
-        materialName: 'حديد تسليح B500D',
-        materialSpecifications: 'ES 262-2 / ISO 6935-2',
-        offeredQuantity: 500,
-        unitPrice: 45500,
-        totalPrice: 22750000,
-      },
-    ],
-  },
-]
-
-const DEFAULT_SUBMITTED_OFFERS = [
-  {
-    id: 'off-sub-1',
-    rfqId: 'rfq-s1',
-    offerNumber: 'OFF-2026-0089',
-    rfqTitle: 'توريد حديد تسليح 500 طن B500D لمصنع العاشر من رمضان',
-    supplierCompanyName: 'مصر للصلب والحديد المخصوص',
-    status: 'Submitted',
-    revisionNumber: 1,
-    totalAmount: 22400000,
-    currency: 'EGP',
-    deliveryLeadTimeDays: 7,
-    shippingIncluded: true,
-    validityDateUtc: new Date(Date.now() + 5 * 86400000).toISOString(),
-    submittedAtUtc: new Date(Date.now() - 1 * 86400000).toISOString(),
-    paymentTerms: '50% مقدم و50% عند الاستلام',
-    notes: 'شهادة جودة وفحص شاملة مع كل شحنة.',
-    items: [
-      {
-        id: 'item-3',
-        materialName: 'حديد تسليح B500D',
-        materialSpecifications: 'ES 262-2',
-        offeredQuantity: 500,
-        unitPrice: 44800,
-        totalPrice: 22400000,
-      },
-    ],
-  },
-  {
-    id: 'off-sub-2',
-    rfqId: 'rfq-s2',
-    offerNumber: 'OFF-2026-0072',
-    rfqTitle: 'توريد حبيبات بولي إيثيلين HDPE 5502 عالي الكثافة (60 طن)',
-    supplierCompanyName: 'النيل للتوزيع البتروكيماوي',
-    status: 'Accepted',
-    revisionNumber: 1,
-    totalAmount: 4320000,
-    currency: 'EGP',
-    deliveryLeadTimeDays: 4,
-    shippingIncluded: true,
-    validityDateUtc: new Date(Date.now() + 10 * 86400000).toISOString(),
-    submittedAtUtc: new Date(Date.now() - 5 * 86400000).toISOString(),
-    paymentTerms: 'تحويل بنكي فوري عند مطابقة فحص العينات',
-    notes: 'حبيبات سابك معتمدة درجة نفخ خالية من الرطوبة.',
-    items: [
-      {
-        id: 'item-4',
-        materialName: 'HDPE 5502',
-        materialSpecifications: 'MFI 0.35 g/10min',
-        offeredQuantity: 60,
-        unitPrice: 72000,
-        totalPrice: 4320000,
-      },
-    ],
-  },
+  { value: 'Withdrawn', label: 'Withdrawn', labelAr: 'مسحوب' },
+  { value: 'Expired', label: 'Expired', labelAr: 'منتهي الصلاحية' },
 ]
 
 export default function MyOffersPage() {
@@ -210,33 +95,31 @@ export default function MyOffersPage() {
   const [selectedOfferId, setSelectedOfferId] = useState(null)
   const [rejectReason, setRejectReason] = useState('')
   const [showRejectInput, setShowRejectInput] = useState(false)
+  const [withdrawReason, setWithdrawReason] = useState('')
+  const [showWithdrawConfirm, setShowWithdrawConfirm] = useState(false)
 
-  // Query: Submitted offers (for supplier) with fallback
-  const { data: apiSubmittedData, isLoading: loadingSubmitted } = useQuery({
+  // Query: Submitted offers (for supplier)
+  const {
+    data: apiSubmittedData,
+    isLoading: loadingSubmitted,
+    error: errorSubmitted,
+    refetch: refetchSubmitted,
+  } = useQuery({
     queryKey: ['offers', 'mine', { status: statusFilter, pageNumber, pageSize }],
-    queryFn: async () => {
-      try {
-        const res = await offerService.getMine({ status: statusFilter || undefined, pageNumber, pageSize })
-        return res?.items?.length ? res : null
-      } catch {
-        return null
-      }
-    },
+    queryFn: () => offerService.getMine({ status: statusFilter || undefined, pageNumber, pageSize }),
     enabled: activeTab === 'submitted' && isVerified,
     staleTime: 60_000,
   })
 
-  // Query: Received offers (for buyer) with fallback
-  const { data: apiReceivedData, isLoading: loadingReceived } = useQuery({
+  // Query: Received offers (for buyer)
+  const {
+    data: apiReceivedData,
+    isLoading: loadingReceived,
+    error: errorReceived,
+    refetch: refetchReceived,
+  } = useQuery({
     queryKey: ['offers', 'received', { status: statusFilter, pageNumber, pageSize }],
-    queryFn: async () => {
-      try {
-        const res = await offerService.getReceived({ status: statusFilter || undefined, pageNumber, pageSize })
-        return res?.items?.length ? res : null
-      } catch {
-        return null
-      }
-    },
+    queryFn: () => offerService.getReceived({ status: statusFilter || undefined, pageNumber, pageSize }),
     enabled: activeTab === 'received' && isVerified,
     staleTime: 60_000,
   })
@@ -248,31 +131,13 @@ export default function MyOffersPage() {
     enabled: !!selectedOfferId,
   })
 
-  // Resolve list data (API or fallback)
-  const offerList = useMemo(() => {
-    if (activeTab === 'submitted') {
-      if (apiSubmittedData?.items?.length) return apiSubmittedData.items
-      return DEFAULT_SUBMITTED_OFFERS.filter(
-        (o) => !statusFilter || o.status === statusFilter
-      )
-    } else {
-      if (apiReceivedData?.items?.length) return apiReceivedData.items
-      return DEFAULT_RECEIVED_OFFERS.filter(
-        (o) => !statusFilter || o.status === statusFilter
-      )
-    }
-  }, [activeTab, apiSubmittedData, apiReceivedData, statusFilter])
+  const currentQuery = activeTab === 'submitted'
+    ? { data: apiSubmittedData, isLoading: loadingSubmitted, error: errorSubmitted, refetch: refetchSubmitted }
+    : { data: apiReceivedData, isLoading: loadingReceived, error: errorReceived, refetch: refetchReceived }
 
-  // Resolve modal detail (API or local item)
-  const offerDetail = useMemo(() => {
-    if (apiOfferDetail) return apiOfferDetail
-    if (!selectedOfferId) return null
-    return (
-      [...DEFAULT_RECEIVED_OFFERS, ...DEFAULT_SUBMITTED_OFFERS].find(
-        (o) => o.id === selectedOfferId
-      ) || null
-    )
-  }, [apiOfferDetail, selectedOfferId])
+  const offerList = currentQuery.data?.items ?? []
+  const totalPages = currentQuery.data?.totalPages ?? 1
+  const offerDetail = apiOfferDetail || null
 
   // Accept Mutation (Buyer accepting quote -> creates Deal)
   const acceptMutation = useMutation({
@@ -291,12 +156,7 @@ export default function MyOffersPage() {
       }
     },
     onError: (err) => {
-      // In offline mode, simulate successful acceptance
-      toast.success(
-        isAr ? 'تم قبول العرض بنجاح وإبرام الصفقة التجارية الملزمة!' : 'Offer accepted! Binding deal created.'
-      )
-      setSelectedOfferId(null)
-      navigate('/deals')
+      toast.error(err?.problem?.detail || err?.message || (isAr ? 'فشل قبول العرض' : 'Failed to accept offer'))
     },
   })
 
@@ -310,11 +170,23 @@ export default function MyOffersPage() {
       setShowRejectInput(false)
       setRejectReason('')
     },
-    onError: () => {
-      toast.success(isAr ? 'تم تسجيل رفض العرض' : 'Offer rejected')
+    onError: (err) => {
+      toast.error(err?.problem?.detail || err?.message || (isAr ? 'فشل رفض العرض' : 'Failed to reject offer'))
+    },
+  })
+
+  // Withdraw Mutation (Supplier withdrawing quote)
+  const withdrawMutation = useMutation({
+    mutationFn: () => offerService.withdraw(selectedOfferId, withdrawReason),
+    onSuccess: () => {
+      toast.success(isAr ? 'تم سحب العرض التجاري بنجاح' : 'Offer withdrawn successfully')
+      queryClient.invalidateQueries({ queryKey: ['offers'] })
       setSelectedOfferId(null)
-      setShowRejectInput(false)
-      setRejectReason('')
+      setShowWithdrawConfirm(false)
+      setWithdrawReason('')
+    },
+    onError: (err) => {
+      toast.error(err?.problem?.detail || err?.message || (isAr ? 'فشل سحب العرض' : 'Failed to withdraw offer'))
     },
   })
 
@@ -441,7 +313,23 @@ export default function MyOffersPage() {
       {/* ============================================================
           OFFERS CARDS GRID
           ============================================================ */}
-      {offerList.length === 0 ? (
+      {currentQuery.isLoading && <PageSpinner />}
+
+      {!currentQuery.isLoading && currentQuery.error && (
+        <div className="bg-rose-50 border border-rose-200 rounded-3xl p-6 text-center">
+          <p className="text-sm font-bold text-rose-800 mb-2">
+            {isAr ? 'حدث خطأ أثناء تحميل العروض' : 'Failed to load offers'}
+          </p>
+          <p className="text-xs text-rose-600 mb-4">
+            {currentQuery.error?.problem?.detail || currentQuery.error?.message}
+          </p>
+          <Button size="sm" variant="outline" onClick={() => currentQuery.refetch()}>
+            {isAr ? 'إعادة المحاولة' : 'Retry'}
+          </Button>
+        </div>
+      )}
+
+      {!currentQuery.isLoading && !currentQuery.error && offerList.length === 0 && (
         <div className="bg-white rounded-3xl p-12 border border-slate-200/80 text-center">
           <EmptyState
             icon={Package}
@@ -476,127 +364,173 @@ export default function MyOffersPage() {
             }
           />
         </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          {offerList.map((offer) => (
-            <div
-              key={offer.id}
-              onClick={() => setSelectedOfferId(offer.id)}
-              className="bg-white rounded-3xl border border-slate-200/80 p-5 sm:p-6 cursor-pointer hover:border-[#1266D6] hover:shadow-md transition-all duration-200 flex flex-col justify-between group"
-            >
-              <div>
-                {/* Header: Offer ID & Status */}
-                <div className="flex items-start justify-between gap-3 mb-3">
-                  <div>
-                    <span className="text-xs font-mono text-slate-400 block mb-0.5">
-                      {offer.offerNumber}
-                    </span>
-                    <h3 className="font-bold text-[#06245B] text-base leading-snug group-hover:text-[#1266D6] transition-colors">
-                      {offer.rfqTitle || offer.rfqNumber}
-                    </h3>
-                    <p className="text-xs text-slate-500 mt-1 flex items-center gap-1.5">
-                      <Building2 size={13} className="text-[#1266D6]" />
-                      <span>{offer.supplierCompanyName || 'Supplier Enterprise'}</span>
-                    </p>
-                  </div>
+      )}
 
-                  <div className="flex flex-col items-end gap-1.5">
-                    <Badge variant={statusVariant[offer.status] || 'info'}>
-                      {offer.status}
-                    </Badge>
-                    {offer.revisionNumber > 1 && (
-                      <span className="text-[10px] font-extrabold bg-blue-50 text-[#1266D6] px-2 py-0.5 rounded-full border border-blue-100">
-                        Rev. {offer.revisionNumber}
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                {/* Financial and Logistics Specs */}
-                <div className="grid grid-cols-3 gap-2 py-3 my-3 border-y border-slate-100 text-xs">
-                  <div>
-                    <span className="text-slate-400 block mb-0.5">
-                      {isAr ? 'إجمالي القيمة' : 'Total Value'}
-                    </span>
-                    <span className="font-extrabold text-[#06245B] text-sm">
-                      {formatCurrency(offer.totalAmount, offer.currency)}
-                    </span>
-                  </div>
-
-                  <div>
-                    <span className="text-slate-400 block mb-0.5">
-                      {isAr ? 'مدة التوريد' : 'Lead Time'}
-                    </span>
-                    <span className="font-bold text-slate-700">
-                      {offer.deliveryLeadTimeDays} {isAr ? 'يوم' : 'days'}
-                    </span>
-                  </div>
-
-                  <div>
-                    <span className="text-slate-400 block mb-0.5">
-                      {isAr ? 'صلاحية العرض' : 'Valid Until'}
-                    </span>
-                    <span className="font-bold text-slate-700">
-                      {formatDate(offer.validityDateUtc)}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Card Footer: Action Buttons */}
+      {!currentQuery.isLoading && !currentQuery.error && offerList.length > 0 && (
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            {offerList.map((offer) => (
               <div
-                className="mt-2 pt-3 flex items-center justify-between text-xs"
-                onClick={(e) => e.stopPropagation()}
+                key={offer.id}
+                onClick={() => setSelectedOfferId(offer.id)}
+                className="bg-white rounded-3xl border border-slate-200/80 p-5 sm:p-6 cursor-pointer hover:border-[#1266D6] hover:shadow-md transition-all duration-200 flex flex-col justify-between group"
               >
-                <span className="text-slate-400">
-                  {formatDate(offer.submittedAtUtc)}
-                </span>
+                <div>
+                  {/* Header: Offer ID & Status */}
+                  <div className="flex items-start justify-between gap-3 mb-3">
+                    <div>
+                      <span className="text-xs font-mono text-slate-400 block mb-0.5">
+                        {offer.offerNumber}
+                      </span>
+                      <h3 className="font-bold text-[#06245B] text-base leading-snug group-hover:text-[#1266D6] transition-colors">
+                        {offer.rfqTitle || offer.rfqNumber}
+                      </h3>
+                      <p className="text-xs text-slate-500 mt-1 flex items-center gap-1.5">
+                        <Building2 size={13} className="text-[#1266D6]" />
+                        <span>{offer.supplierCompanyName || 'Supplier Enterprise'}</span>
+                      </p>
+                    </div>
 
-                <div className="flex items-center gap-2">
-                  <Link
-                    to={`/rfqs/${offer.rfqId}`}
-                    className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-500 hover:text-[#06245B] transition-colors"
-                    title={isAr ? 'عرض المناقصة الأصلية' : 'View Tender Details'}
-                  >
-                    <ExternalLink size={15} />
-                  </Link>
+                    <div className="flex flex-col items-end gap-1.5">
+                      <Badge variant={statusVariant[offer.status] || 'info'}>
+                        {offer.status}
+                      </Badge>
+                      {offer.revisionNumber > 1 && (
+                        <span className="text-[10px] font-extrabold bg-blue-50 text-[#1266D6] px-2 py-0.5 rounded-full border border-blue-100">
+                          Rev. {offer.revisionNumber}
+                        </span>
+                      )}
+                    </div>
+                  </div>
 
-                  {/* Supplier Revise Action */}
-                  {activeTab === 'submitted' &&
-                    (offer.status === 'Submitted' || offer.status === 'UnderReview') && (
-                      <Link
-                        to={`/offers/${offer.id}/revise`}
-                        className="px-2.5 py-1.5 rounded-xl bg-blue-50 text-[#1266D6] hover:bg-blue-100 font-bold transition-colors flex items-center gap-1"
-                        title={isAr ? 'تقديم مزايدة عكسية بسعر أقل' : 'Revise Offer (Lower Price)'}
-                      >
-                        <Edit3 size={13} />
-                        <span>{isAr ? 'تعديل السعر' : 'Revise'}</span>
-                      </Link>
-                    )}
+                  {/* Financial and Logistics Specs */}
+                  <div className="grid grid-cols-3 gap-2 py-3 my-3 border-y border-slate-100 text-xs">
+                    <div>
+                      <span className="text-slate-400 block mb-0.5">
+                        {isAr ? 'إجمالي القيمة' : 'Total Value'}
+                      </span>
+                      <span className="font-extrabold text-[#06245B] text-sm">
+                        {formatCurrency(offer.totalAmount, offer.currency)}
+                      </span>
+                    </div>
 
-                  {/* Buyer Accept / Evaluate Action */}
-                  {activeTab === 'received' &&
-                    (offer.status === 'Submitted' || offer.status === 'UnderReview') && (
-                      <Button
-                        size="xs"
-                        variant="primary"
-                        onClick={() => setSelectedOfferId(offer.id)}
-                      >
-                        {isAr ? 'تقييم وترسية' : 'Evaluate & Accept'}
-                      </Button>
-                    )}
+                    <div>
+                      <span className="text-slate-400 block mb-0.5">
+                        {isAr ? 'مدة التوريد' : 'Lead Time'}
+                      </span>
+                      <span className="font-bold text-slate-700">
+                        {offer.deliveryLeadTimeDays} {isAr ? 'يوم' : 'days'}
+                      </span>
+                    </div>
 
-                  <Button
-                    size="xs"
-                    variant="outline"
-                    onClick={() => setSelectedOfferId(offer.id)}
-                  >
-                    {isAr ? 'التفاصيل' : 'Details'}
-                  </Button>
+                    <div>
+                      <span className="text-slate-400 block mb-0.5">
+                        {isAr ? 'صلاحية العرض' : 'Valid Until'}
+                      </span>
+                      <span className="font-bold text-slate-700">
+                        {formatDate(offer.validityDateUtc)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Card Footer: Action Buttons */}
+                <div
+                  className="mt-2 pt-3 flex items-center justify-between text-xs"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <span className="text-slate-400">
+                    {formatDate(offer.submittedAtUtc)}
+                  </span>
+
+                  <div className="flex items-center gap-2">
+                    <Link
+                      to={`/rfqs/${offer.rfqId}`}
+                      className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-500 hover:text-[#06245B] transition-colors"
+                      title={isAr ? 'عرض المناقصة الأصلية' : 'View Tender Details'}
+                    >
+                      <ExternalLink size={15} />
+                    </Link>
+
+                    {/* Supplier Revise Action */}
+                    {activeTab === 'submitted' &&
+                      (offer.status === 'Submitted' || offer.status === 'UnderReview') && (
+                        <Link
+                          to={`/offers/${offer.id}/revise`}
+                          className="px-2.5 py-1.5 rounded-xl bg-blue-50 text-[#1266D6] hover:bg-blue-100 font-bold transition-colors flex items-center gap-1"
+                          title={isAr ? 'تقديم مزايدة عكسية بسعر أقل' : 'Revise Offer (Lower Price)'}
+                        >
+                          <Edit3 size={13} />
+                          <span>{isAr ? 'تعديل السعر' : 'Revise'}</span>
+                        </Link>
+                      )}
+
+                    {/* Supplier Quick Withdraw Action */}
+                    {activeTab === 'submitted' &&
+                      (offer.status === 'Submitted' || offer.status === 'UnderReview') && (
+                        <Button
+                          size="xs"
+                          variant="ghost"
+                          className="!text-amber-700 hover:!bg-amber-50"
+                          onClick={() => {
+                            setSelectedOfferId(offer.id)
+                            setShowWithdrawConfirm(true)
+                          }}
+                        >
+                          {isAr ? 'سحب العرض' : 'Withdraw'}
+                        </Button>
+                      )}
+
+                    {/* Buyer Accept / Evaluate Action */}
+                    {activeTab === 'received' &&
+                      (offer.status === 'Submitted' || offer.status === 'UnderReview') && (
+                        <Button
+                          size="xs"
+                          variant="primary"
+                          onClick={() => setSelectedOfferId(offer.id)}
+                        >
+                          {isAr ? 'تقييم وترسية' : 'Evaluate & Accept'}
+                        </Button>
+                      )}
+
+                    <Button
+                      size="xs"
+                      variant="outline"
+                      onClick={() => setSelectedOfferId(offer.id)}
+                    >
+                      {isAr ? 'التفاصيل' : 'Details'}
+                    </Button>
+                  </div>
                 </div>
               </div>
+            ))}
+          </div>
+
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center gap-3 pt-6">
+              <Button
+                variant="outline"
+                size="sm"
+                icon={<ChevronLeft size={16} />}
+                disabled={pageNumber <= 1}
+                onClick={() => setPageNumber((p) => p - 1)}
+              >
+                {isAr ? 'السابق' : 'Previous'}
+              </Button>
+              <span className="text-xs text-slate-500 font-mono">
+                {isAr ? `${pageNumber} من ${totalPages}` : `${pageNumber} / ${totalPages}`}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                iconEnd={<ChevronRight size={16} />}
+                disabled={pageNumber >= totalPages}
+                onClick={() => setPageNumber((p) => p + 1)}
+              >
+                {isAr ? 'التالي' : 'Next'}
+              </Button>
             </div>
-          ))}
+          )}
         </div>
       )}
 
@@ -608,6 +542,8 @@ export default function MyOffersPage() {
         onClose={() => {
           setSelectedOfferId(null)
           setShowRejectInput(false)
+          setShowWithdrawConfirm(false)
+          setWithdrawReason('')
         }}
         title={
           offerDetail
@@ -718,6 +654,27 @@ export default function MyOffersPage() {
               </div>
             )}
 
+            {/* Withdraw Confirmation input */}
+            {showWithdrawConfirm && (
+              <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-200 space-y-2">
+                <div className="flex items-center gap-2 text-amber-800 text-xs font-bold">
+                  <AlertCircle size={15} />
+                  <span>
+                    {isAr
+                      ? 'هل أنت متأكد من رغبتك في سحب هذا العرض؟ لا يمكن التراجع عن هذا الإجراء.'
+                      : 'Are you sure you want to withdraw this offer? This action cannot be undone.'}
+                  </span>
+                </div>
+                <input
+                  type="text"
+                  value={withdrawReason}
+                  onChange={(e) => setWithdrawReason(e.target.value)}
+                  placeholder={isAr ? 'سبب السحب (اختياري)...' : 'Reason for withdrawal (optional)...'}
+                  className="w-full px-3 py-1.5 rounded-xl border border-amber-300 text-xs focus:outline-none bg-white text-slate-800"
+                />
+              </div>
+            )}
+
             {/* Modal Actions */}
             <div className="pt-4 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3">
               <Link
@@ -765,18 +722,40 @@ export default function MyOffersPage() {
                     </>
                   )}
 
-                {/* Supplier revise action */}
+                {/* Supplier revise & withdraw actions */}
                 {activeTab === 'submitted' &&
                   (offerDetail.status === 'Submitted' || offerDetail.status === 'UnderReview') && (
-                    <Button
-                      as={Link}
-                      to={`/offers/${offerDetail.id}/revise`}
-                      variant="primary"
-                      size="sm"
-                      icon={<Edit3 size={15} />}
-                    >
-                      {isAr ? 'تقديم مراجعة بسعر أقل' : 'Revise Offer'}
-                    </Button>
+                    <>
+                      {!showWithdrawConfirm ? (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="!text-amber-700 hover:!bg-amber-50"
+                          onClick={() => setShowWithdrawConfirm(true)}
+                        >
+                          {isAr ? 'سحب العرض' : 'Withdraw Offer'}
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="danger"
+                          size="sm"
+                          onClick={() => withdrawMutation.mutate()}
+                          loading={withdrawMutation.isPending}
+                        >
+                          {isAr ? 'تأكيد سحب العرض' : 'Confirm Withdrawal'}
+                        </Button>
+                      )}
+
+                      <Button
+                        as={Link}
+                        to={`/offers/${offerDetail.id}/revise`}
+                        variant="primary"
+                        size="sm"
+                        icon={<Edit3 size={15} />}
+                      >
+                        {isAr ? 'تقديم مراجعة بسعر أقل' : 'Revise Offer'}
+                      </Button>
+                    </>
                   )}
 
                 <Button
@@ -785,6 +764,8 @@ export default function MyOffersPage() {
                   onClick={() => {
                     setSelectedOfferId(null)
                     setShowRejectInput(false)
+                    setShowWithdrawConfirm(false)
+                    setWithdrawReason('')
                   }}
                 >
                   {isAr ? 'إغلاق' : 'Close'}

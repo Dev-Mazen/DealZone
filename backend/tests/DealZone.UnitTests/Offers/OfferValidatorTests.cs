@@ -10,6 +10,7 @@ public class OfferValidatorTests
     private readonly CreateOfferItemRequestValidator _createItemValidator = new();
     private readonly ReviseOfferRequestValidator _reviseOfferValidator = new();
     private readonly RejectOfferRequestValidator _rejectOfferValidator = new();
+    private readonly WithdrawOfferRequestValidator _withdrawOfferValidator = new();
 
     [Fact]
     public void CreateOffer_WithValidData_ShouldPass()
@@ -171,6 +172,29 @@ public class OfferValidatorTests
         var result = _rejectOfferValidator.Validate(request);
 
         Assert.True(result.IsValid);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("Material no longer available in inventory.")]
+    public void WithdrawOffer_WithValidOrEmptyReason_ShouldPass(string? reason)
+    {
+        var request = new WithdrawOfferRequest(reason);
+        var result = _withdrawOfferValidator.Validate(request);
+
+        Assert.True(result.IsValid);
+    }
+
+    [Fact]
+    public void WithdrawOffer_WithReasonExceeding1000Chars_ShouldFail()
+    {
+        var longReason = new string('A', 1001);
+        var request = new WithdrawOfferRequest(longReason);
+        var result = _withdrawOfferValidator.Validate(request);
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, e => e.PropertyName == nameof(WithdrawOfferRequest.Reason));
     }
 }
 

@@ -7,6 +7,8 @@ public class CompanyValidatorTests
 {
     private readonly CreateCompanyRequestValidator _createValidator = new();
     private readonly UpdateCompanyProfileRequestValidator _updateValidator = new();
+    private readonly AddCompanyMemberRequestValidator _addMemberValidator = new();
+    private readonly UpdateCompanyMemberRoleRequestValidator _updateRoleValidator = new();
 
     [Fact]
     public async Task CreateCompanyRequestValidator_ValidRequest_ShouldPass()
@@ -112,6 +114,53 @@ public class CompanyValidatorTests
 
         Assert.False(result.IsValid);
         Assert.Contains(result.Errors, e => e.PropertyName == nameof(UpdateCompanyProfileRequest.TradeName));
+    }
+
+    // ─── Phase B: Company Member Validators ──────────────────────────────────
+
+    [Fact]
+    public async Task AddCompanyMemberRequestValidator_ValidRequest_ShouldPass()
+    {
+        var request = new AddCompanyMemberRequest("engineer@factory.eg", DealZone.Domain.Companies.CompanyRole.ProcurementManager);
+        var result = await _addMemberValidator.ValidateAsync(request);
+        Assert.True(result.IsValid);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("not-an-email")]
+    public async Task AddCompanyMemberRequestValidator_InvalidEmail_ShouldFail(string email)
+    {
+        var request = new AddCompanyMemberRequest(email, DealZone.Domain.Companies.CompanyRole.Member);
+        var result = await _addMemberValidator.ValidateAsync(request);
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, e => e.PropertyName == nameof(AddCompanyMemberRequest.Email));
+    }
+
+    [Fact]
+    public async Task AddCompanyMemberRequestValidator_InvalidRole_ShouldFail()
+    {
+        var request = new AddCompanyMemberRequest("valid@factory.eg", (DealZone.Domain.Companies.CompanyRole)999);
+        var result = await _addMemberValidator.ValidateAsync(request);
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, e => e.PropertyName == nameof(AddCompanyMemberRequest.Role));
+    }
+
+    [Fact]
+    public async Task UpdateCompanyMemberRoleRequestValidator_ValidRole_ShouldPass()
+    {
+        var request = new UpdateCompanyMemberRoleRequest(DealZone.Domain.Companies.CompanyRole.SalesManager);
+        var result = await _updateRoleValidator.ValidateAsync(request);
+        Assert.True(result.IsValid);
+    }
+
+    [Fact]
+    public async Task UpdateCompanyMemberRoleRequestValidator_InvalidRole_ShouldFail()
+    {
+        var request = new UpdateCompanyMemberRoleRequest((DealZone.Domain.Companies.CompanyRole)999);
+        var result = await _updateRoleValidator.ValidateAsync(request);
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, e => e.PropertyName == nameof(UpdateCompanyMemberRoleRequest.Role));
     }
 }
 

@@ -531,6 +531,13 @@ public class OfferService : IOfferService
             throw new ConflictException($"Cannot accept offer in '{offer.Status}' status. Only Submitted or UnderReview offers can be accepted.");
         }
 
+        if (offer.ValidityDateUtc <= now)
+        {
+            offer.Status = OfferStatus.Expired;
+            await _context.SaveChangesAsync(cancellationToken);
+            throw new ConflictException("Cannot accept this offer because its validity period has expired.");
+        }
+
         // Concurrency safeguard: ensure no offer for this RFQ is already accepted
         var alreadyAccepted = await _context.Offers
             .AnyAsync(o => o.RfqId == rfq.Id && o.Status == OfferStatus.Accepted, cancellationToken);
@@ -764,6 +771,87 @@ public class OfferService : IOfferService
         return MapToDetailResponse(offer, isSupplierOwner: false);
     }
 
+    public async Task<OfferDetailResponse> WithdrawOfferAsync(
+        Guid offerId,
+        WithdrawOfferRequest? request = null,
+        CancellationToken cancellationToken = default)
+    {
+        var (supplierCompany, member) = await RequireSupplierMemberAsync(cancellationToken);
+        var now = _dateTimeProvider.UtcNow;
+        var userId = _currentUser.Id;
+
+        var offer = await _context.Offers
+            .Include(o => o.Rfq)
+            .Include(o => o.SupplierCompany)
+            .Include(o => o.Items)
+                .ThenInclude(i => i.RfqItem)
+            .FirstOrDefaultAsync(o => o.Id == offerId, cancellationToken)
+            ?? throw new NotFoundException($"Offer with ID '{offerId}' was not found.");
+
+        if (offer.SupplierCompanyId != supplierCompany.Id)
+        {
+            throw new ForbiddenException("You are not authorized to withdraw another company's offer.");
+        }
+
+        // Idempotency: duplicate withdrawal returns existing state
+        if (offer.Status == OfferStatus.Withdrawn)
+        {
+            return MapToDetailResponse(offer, isSupplierOwner: true);
+        }
+
+        if (offer.Status == OfferStatus.Accepted)
+        {
+            throw new ConflictException("Cannot withdraw an offer that has already been accepted.");
+        }
+
+        if (offer.Status == OfferStatus.Superseded)
+        {
+            throw new ConflictException("Cannot withdraw an offer that has been superseded by a newer revision.");
+        }
+
+        if (offer.Status == OfferStatus.Rejected)
+        {
+            throw new ConflictException("Cannot withdraw an offer that has already been rejected.");
+        }
+
+        if (offer.Status == OfferStatus.Expired)
+        {
+            throw new ConflictException("Cannot withdraw an offer that has already expired.");
+        }
+
+        if (offer.Status != OfferStatus.Submitted && offer.Status != OfferStatus.UnderReview)
+        {
+            throw new ConflictException($"Cannot withdraw offer in '{offer.Status}' status. Only Submitted or UnderReview offers can be withdrawn.");
+        }
+
+        var rfq = offer.Rfq
+            ?? throw new NotFoundException($"Associated RFQ '{offer.RfqId}' was not found.");
+
+        offer.Status = OfferStatus.Withdrawn;
+        offer.WithdrawnAtUtc = now;
+        offer.WithdrawnByUserId = userId;
+        offer.WithdrawalReason = request?.Reason?.Trim();
+
+        await _context.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("Offer {OfferNumber} ({OfferId}) withdrawn by Supplier {SupplierId}",
+            offer.OfferNumber, offer.Id, supplierCompany.Id);
+
+        // Notify the buyer company
+        await _notificationService.CreateNotificationsForCompanyMembersAsync(
+            rfq.BuyerCompanyId,
+            null,
+            NotificationType.OfferWithdrawn,
+            "Offer Withdrawn",
+            $"Supplier '{supplierCompany.TradeName}' has withdrawn offer {offer.OfferNumber} for RFQ '{rfq.RfqNumber}'.",
+            "Offer",
+            offer.Id,
+            $"offer_withdrawn_{offer.Id}",
+            cancellationToken);
+
+        return MapToDetailResponse(offer, isSupplierOwner: true);
+    }
+
     // -------------------------------------------------------------------------
     // Helper Methods
     // -------------------------------------------------------------------------
@@ -878,7 +966,9 @@ public class OfferService : IOfferService
             offer.RejectedAtUtc,
             isSupplierOwner,
             items,
-            dealId);
+            dealId,
+            offer.WithdrawnAtUtc,
+            offer.WithdrawalReason);
     }
 
     private static OfferSummaryResponse MapToSummaryResponse(Offer offer)

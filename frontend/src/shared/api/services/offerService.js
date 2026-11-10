@@ -44,4 +44,8 @@ export const offerService = {
   // Buyer rejects offer
   reject: (id, reason) =>
     api.post(`/offers/${id}/reject`, { reason }).then((r) => r.data),
+
+  // Supplier withdraws submitted or under-review offer
+  withdraw: (id, reason) =>
+    api.post(`/offers/${id}/withdraw`, { reason }).then((r) => r.data),
 }

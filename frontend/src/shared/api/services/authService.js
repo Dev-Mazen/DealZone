@@ -27,5 +27,8 @@ export const authService = {
 
   me: () =>
     api.get('/auth/me').then((r) => r.data),
+
+  updateProfile: (data) =>
+    api.put('/auth/profile', data).then((r) => r.data),
 }
 
