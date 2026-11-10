@@ -179,36 +179,44 @@ export default function DashboardPage() {
     enabled: isVerified,
   })
 
-  // Mock Trend & Distribution Charts (Industrial taxonomy)
-  const sourcingVolumeData = [
-    { label: isAr ? 'يناير' : 'Jan', value: 1250 },
-    { label: isAr ? 'فبراير' : 'Feb', value: 1840 },
-    { label: isAr ? 'مارس' : 'Mar', value: 2100 },
-    { label: isAr ? 'أبريل' : 'Apr', value: 2650 },
-    { label: isAr ? 'مايو' : 'May', value: 3100 },
-    { label: isAr ? 'يونيو' : 'Jun', value: 3820 },
-  ]
-
-  const priceTrendData = [
-    { label: 'W1', value: 24200 },
-    { label: 'W2', value: 24800 },
-    { label: 'W3', value: 24500 },
-    { label: 'W4', value: 23900 },
-    { label: 'W5', value: 24100 },
-    { label: 'W6', value: 23750 },
-  ]
-
-  const categoryBreakdown = [
-    { label: isAr ? 'حديد وصلب ومعادن' : 'Steel & Metallurgy', value: 42, color: '#06245B' },
-    { label: isAr ? 'كيماويات صناعية وبتروكيماويات' : 'Industrial Chemicals', value: 28, color: '#1266D6' },
-    { label: isAr ? 'بوليمرات ولدائن وبلاستيك' : 'Polymers & Resins', value: 18, color: '#00D9F5' },
-    { label: isAr ? 'تعبئة وتغليف وألياف' : 'Packaging & Film', value: 12, color: '#10B981' },
-  ]
-
   const currentCompanyId = (user?.company?.id || '').toLowerCase()
   const myDeals = dealsData?.items || []
   const buyingDeals = myDeals.filter((d) => (d.buyerCompanyId || '').toLowerCase() === currentCompanyId)
   const sellingDeals = myDeals.filter((d) => (d.supplierCompanyId || '').toLowerCase() === currentCompanyId)
+  const hasDeals = myDeals.length > 0
+
+  // Calculate volume index dynamically from real persisted database deals
+  const sourcingVolumeData = useMemo(() => {
+    if (!hasDeals) return []
+    const monthsMap = {}
+    const monthNamesAr = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر']
+    const monthNamesEn = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+    myDeals.forEach((deal) => {
+      const dt = new Date(deal.createdAtUtc || Date.now())
+      const mIdx = dt.getMonth()
+      const label = isAr ? monthNamesAr[mIdx] : monthNamesEn[mIdx]
+      const val = Number(deal.agreedPrice ? deal.agreedPrice / 1000 : 50)
+      monthsMap[label] = (monthsMap[label] || 0) + Math.round(val)
+    })
+    return Object.entries(monthsMap).map(([label, value]) => ({ label, value }))
+  }, [myDeals, hasDeals, isAr])
+
+  // Calculate industrial category split dynamically from actual transactions
+  const categoryBreakdown = useMemo(() => {
+    if (!hasDeals) return []
+    const sectorMap = {}
+    const colors = ['#06245B', '#1266D6', '#00D9F5']
+    myDeals.forEach((deal) => {
+      const sector = deal.targetCategoryName || (isAr ? 'معادن وصلب' : 'Metals & Steel')
+      sectorMap[sector] = (sectorMap[sector] || 0) + 1
+    })
+    const total = Object.values(sectorMap).reduce((a, b) => a + b, 0) || 1
+    return Object.entries(sectorMap).map(([label, count], i) => ({
+      label,
+      value: Math.round((count / total) * 100),
+      color: colors[i % colors.length],
+    }))
+  }, [myDeals, hasDeals, isAr])
 
   return (
     <div className="space-y-8 animate-fade-in overflow-x-hidden">
@@ -439,22 +447,30 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {activeChartTab === 'volume' ? (
+          {hasDeals ? (
             <BarChart
               data={sourcingVolumeData}
               height={230}
-              valueFormatter={(v) => `${v.toLocaleString()} ${isAr ? 'طن' : 'Tons'}`}
+              valueFormatter={(v) => `${v.toLocaleString()} ${isAr ? 'طن / ألف ج.م' : 'Tons / kEGP'}`}
             />
           ) : (
-            <AreaTrendChart
-              data={priceTrendData}
-              height={230}
-              valueFormatter={(v) => `${v.toLocaleString()} ${isAr ? 'ج.م/طن' : 'EGP/Ton'}`}
-            />
+            <div className="py-12 px-4 text-center">
+              <div className="w-12 h-12 rounded-2xl bg-[#EAF4FF] text-[#1266D6] flex items-center justify-center mx-auto mb-3 shadow-xs">
+                <TrendingUp size={24} />
+              </div>
+              <p className="font-bold text-[#06245B] text-sm">
+                {isAr ? 'لا توجد بيانات صفقات منفذة حتى الآن' : 'No deal activity recorded yet'}
+              </p>
+              <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1">
+                {isAr
+                  ? 'يتم توليد مؤشرات حجم التوريد وحركة الصفقات تلقائياً بمجرد إبرام وتأكيد أول صفقة تجارية.'
+                  : 'Procurement volume trends will dynamically generate as soon as your first commercial deal is confirmed.'}
+              </p>
+            </div>
           )}
         </div>
 
-        {/* Right Col: Category Breakdown Donut (Stacked layout, zero clipping) */}
+        {/* Right Col: Category Breakdown Donut */}
         <div className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-200/80 shadow-xs flex flex-col justify-between">
           <div>
             <h2 className="text-lg font-extrabold text-[#06245B] mb-1">
@@ -467,14 +483,30 @@ export default function DashboardPage() {
             </p>
           </div>
 
-          <DonutChart
-            data={categoryBreakdown}
-            centerLabel={isAr ? 'الإجمالي' : 'Total'}
-            centerValue="100%"
-            size={150}
-            strokeWidth={20}
-            layout="vertical"
-          />
+          {hasDeals && categoryBreakdown.length > 0 ? (
+            <DonutChart
+              data={categoryBreakdown}
+              centerLabel={isAr ? 'الإجمالي' : 'Total'}
+              centerValue="100%"
+              size={150}
+              strokeWidth={20}
+              layout="vertical"
+            />
+          ) : (
+            <div className="py-12 px-4 text-center">
+              <div className="w-12 h-12 rounded-2xl bg-slate-50 text-slate-400 flex items-center justify-center mx-auto mb-3">
+                <Package size={24} />
+              </div>
+              <p className="font-bold text-slate-700 text-sm">
+                {isAr ? 'في انتظار إبرام أول صفقة' : 'Awaiting First Executed Deal'}
+              </p>
+              <p className="text-xs text-slate-400 max-w-xs mx-auto mt-1">
+                {isAr
+                  ? 'ستظهر نسب توزيع المشتريات والمبيعات بين القطاعات الصناعية هنا.'
+                  : 'Sector distribution will be calculated from your verified transactions.'}
+              </p>
+            </div>
+          )}
 
           <div className="mt-6 pt-4 border-t border-slate-100 text-center">
             <Link

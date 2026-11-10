@@ -16,10 +16,17 @@ const styles = {
     shadow-sm hover:shadow-md
   `,
   outline: `
-    bg-transparent text-[#06245B] font-semibold
-    border-2 border-[#06245B]
-    hover:bg-[#EAF4FF] active:scale-[0.98]
-    focus-visible:ring-2 focus-visible:ring-[#06245B] focus-visible:ring-offset-2
+    bg-white text-[#06245B] font-semibold
+    border border-[rgba(6,36,91,0.2)] shadow-xs
+    hover:bg-[#EAF4FF] hover:border-[#1266D6] hover:text-[#1266D6] active:scale-[0.98]
+    focus-visible:ring-2 focus-visible:ring-[#1266D6] focus-visible:ring-offset-2
+    disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100
+  `,
+  'outline-white': `
+    bg-white/10 backdrop-blur-xs text-white font-semibold
+    border border-white/40 shadow-sm
+    hover:bg-white/20 hover:border-white/70 hover:text-white active:scale-[0.98]
+    focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2
     disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100
   `,
   ghost: `
@@ -38,6 +45,7 @@ const styles = {
 }
 
 const sizes = {
+  xs: 'h-7 px-2.5 text-xs rounded-lg gap-1',
   sm: 'h-8 px-3 text-sm rounded-lg gap-1.5',
   md: 'h-10 px-5 text-sm rounded-xl gap-2',
   lg: 'h-12 px-7 text-base rounded-xl gap-2.5',

@@ -17,6 +17,7 @@ import {
 import Button from '../../components/ui/Button'
 import { useTranslation } from '../../hooks/useTranslation'
 import Logo from '../../components/common/Logo'
+import Footer from '../../components/layout/Footer'
 import BarChart from '../../components/charts/BarChart'
 
 export default function LandingPage() {
@@ -195,9 +196,9 @@ export default function LandingPage() {
             <Button
               as={Link}
               to="/about"
-              variant="outline"
+              variant="outline-white"
               size="lg"
-              className="w-full sm:w-auto text-base !border-white/80 !text-white hover:!bg-white/15"
+              className="w-full sm:w-auto text-base"
             >
               {isAr ? 'عن المنصة ورؤيتنا' : 'About DealZone'}
             </Button>
@@ -509,9 +510,9 @@ export default function LandingPage() {
             <Button
               as={Link}
               to="/login"
-              variant="outline"
+              variant="outline-white"
               size="lg"
-              className="w-full sm:w-auto text-base !border-white/80 !text-white hover:!bg-white/15"
+              className="w-full sm:w-auto text-base"
             >
               {isAr ? 'تسجيل الدخول' : 'Sign In to Your Account'}
             </Button>
@@ -519,30 +520,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ============================================================
-          FOOTER
-          ============================================================ */}
-      <footer className="bg-[#041638] text-slate-400 py-12 border-t border-white/10 text-sm">
-        <div className="container max-w-6xl mx-auto px-4 flex flex-col md:flex-row items-center justify-between gap-6">
-          <div className="flex items-center gap-4">
-            <Logo size="sm" variant="white" link={true} />
-            <span className="text-xs text-slate-500 border-s border-slate-700 ps-4">
-              {isAr ? 'منصة التوريد الصناعي الذكية' : 'B2B Industrial Marketplace'}
-            </span>
-          </div>
-
-          <div className="flex items-center gap-6 text-xs text-slate-400">
-            <Link to="/" className="hover:text-white transition-colors">{isAr ? 'الرئيسية' : 'Home'}</Link>
-            <Link to="/about" className="hover:text-white transition-colors">{isAr ? 'عن المنصة' : 'About'}</Link>
-            <Link to="/catalog" className="hover:text-white transition-colors">{isAr ? 'الكتالوج' : 'Catalog'}</Link>
-            <Link to="/login" className="hover:text-white transition-colors">{isAr ? 'تسجيل الدخول' : 'Sign In'}</Link>
-          </div>
-
-          <div className="text-xs text-slate-500 text-center md:text-end">
-            &copy; {new Date().getFullYear()} DealZone Egypt. All rights reserved.
-          </div>
-        </div>
-      </footer>
+      <Footer />
     </div>
   )
 }

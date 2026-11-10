@@ -21,6 +21,7 @@ import {
 import Button from '../../components/ui/Button'
 import { useTranslation } from '../../hooks/useTranslation'
 import Logo from '../../components/common/Logo'
+import Footer from '../../components/layout/Footer'
 import DonutChart from '../../components/charts/DonutChart'
 
 export default function AboutPage() {
@@ -169,9 +170,9 @@ export default function AboutPage() {
             <Button
               as={Link}
               to="/catalog"
-              variant="outline"
+              variant="outline-white"
               size="lg"
-              className="w-full sm:w-auto !border-white/80 !text-white hover:!bg-white/15"
+              className="w-full sm:w-auto text-base"
             >
               {isAr ? 'استعراض الكتالوج المعتمد' : 'Explore Raw Materials'}
             </Button>
@@ -565,15 +566,17 @@ export default function AboutPage() {
             <Button
               as={Link}
               to="/catalog"
-              variant="outline"
+              variant="outline-white"
               size="lg"
-              className="w-full sm:w-auto text-base !border-white/80 !text-white hover:!bg-white/15"
+              className="w-full sm:w-auto text-base"
             >
               {isAr ? 'تصفح الكتالوج' : 'Browse Materials Catalog'}
             </Button>
           </div>
         </div>
       </section>
+
+      <Footer />
     </div>
   )
 }

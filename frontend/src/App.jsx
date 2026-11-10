@@ -7,6 +7,8 @@ import { tokenStore } from './shared/api/axios'
 import { FullPageSpinner } from './components/ui/Spinner'
 import ToastContainer from './components/ui/Toast'
 import AppLayout, { PublicLayout } from './components/layout/AppLayout'
+import ErrorBoundary from './components/common/ErrorBoundary'
+import ScrollToTop from './components/common/ScrollToTop'
 
 // Lazy-loaded pages
 const LandingPage = lazy(() => import('./pages/public/LandingPage'))
@@ -114,95 +116,98 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        <Suspense fallback={<FullPageSpinner />}>
-          <Routes>
-            {/* Public routes */}
-            <Route element={<PublicLayout />}>
-              <Route path="/" element={<LandingPage />} />
-              <Route path="/about" element={<AboutPage />} />
-              <Route path="/suppliers" element={<SupplierDirectoryPage />} />
-              <Route path="/suppliers/:companyId" element={<CompanyProfilePage />} />
-              <Route path="/companies/:companyId" element={<CompanyProfilePage />} />
-              <Route path="/login" element={<LoginPage />} />
-              <Route path="/register" element={<RegisterPage />} />
-              <Route path="/confirm-email" element={<ConfirmEmailPage />} />
-              <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-              <Route path="/reset-password" element={<ResetPasswordPage />} />
-              {import.meta.env.DEV && <Route path="/button-test" element={<ButtonTestPage />} />}
-            </Route>
+        <ScrollToTop />
+        <ErrorBoundary>
+          <Suspense fallback={<FullPageSpinner />}>
+            <Routes>
+              {/* Public routes */}
+              <Route element={<PublicLayout />}>
+                <Route path="/" element={<LandingPage />} />
+                <Route path="/about" element={<AboutPage />} />
+                <Route path="/suppliers" element={<SupplierDirectoryPage />} />
+                <Route path="/suppliers/:companyId" element={<CompanyProfilePage />} />
+                <Route path="/companies/:companyId" element={<CompanyProfilePage />} />
+                <Route path="/login" element={<LoginPage />} />
+                <Route path="/register" element={<RegisterPage />} />
+                <Route path="/confirm-email" element={<ConfirmEmailPage />} />
+                <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+                <Route path="/reset-password" element={<ResetPasswordPage />} />
+                {import.meta.env.DEV && <Route path="/button-test" element={<ButtonTestPage />} />}
+              </Route>
 
-            {/* Protected routes */}
-            <Route
-              element={
-                isAuthenticated ? (
-                  <AppLayout />
-                ) : (
-                  <Navigate to="/login" replace />
-                )
-              }
-            >
-              <Route path="dashboard" element={<DashboardPage />} />
-              <Route path="catalog" element={<CatalogPage />} />
-              <Route path="suppliers" element={<SupplierDirectoryPage />} />
-              <Route path="suppliers/:companyId" element={<CompanyProfilePage />} />
-              <Route path="companies/:companyId" element={<CompanyProfilePage />} />
-              <Route path="onboarding/company" element={<CompanyOnboardingPage />} />
-              <Route path="onboarding/verification" element={<VerificationPage />} />
-
-              {/* RFQs */}
-              <Route path="rfqs" element={<RfqsPage />} />
-              <Route path="rfqs/create" element={<CreateRfqPage />} />
-              <Route path="rfqs/:rfqId" element={<RfqDetailPage />} />
-              <Route path="rfqs/:rfqId/submit-offer" element={<SubmitOfferPage />} />
-
-              {/* Tenders & Reverse Bidding */}
-              <Route path="tenders" element={<TendersListPage />} />
-              <Route path="tenders/create" element={<CreateTenderPage />} />
-              <Route path="tenders/:tenderId" element={<TenderDetailPage />} />
-              <Route path="tenders/bids/mine" element={<MyBidsPage />} />
-              <Route path="tenders/bids/:bidId" element={<BidDetailPage />} />
-
-              {/* Offers */}
-              <Route path="offers" element={<MyOffersPage />} />
-              <Route path="offers/:offerId/revisions" element={<OfferRevisionsPage />} />
-              <Route path="offers/:offerId/revise" element={<ReviseOfferPage />} />
-
-              {/* Deals */}
-              <Route path="deals" element={<DealsListPage />} />
-              <Route path="deals/:dealId" element={<DealDetailPage />} />
-
-              {/* Shipments */}
-              <Route path="shipments" element={<ShipmentsListPage />} />
-              <Route path="shipments/:shipmentId" element={<ShipmentDetailPage />} />
-
-              {/* Notifications */}
-              <Route path="notifications" element={<NotificationsPage />} />
-
-              {/* Profile & Company settings */}
-              <Route path="profile" element={<ProfilePage />} />
-              <Route path="company" element={<CompanySettingsPage />} />
-              <Route path="company/members" element={<Navigate to="/company?tab=members" replace />} />
-
-              {/* Admin — nested under AdminLayout */}
+              {/* Protected routes */}
               <Route
-                path="admin"
                 element={
-                  user?.isSystemAdmin ? <AdminLayout /> : <Navigate to="/dashboard" replace />
+                  isAuthenticated ? (
+                    <AppLayout />
+                  ) : (
+                    <Navigate to="/login" replace />
+                  )
                 }
               >
-                <Route index element={<Navigate to="/admin/analytics" replace />} />
-                <Route path="analytics" element={<AdminAnalyticsPage />} />
-                <Route path="verification" element={<AdminVerificationPage />} />
-                <Route path="verification/:companyId" element={<AdminVerificationDetailPage />} />
-                <Route path="catalog" element={<AdminCatalogPage />} />
-                <Route path="disputes" element={<AdminDisputesPage />} />
-                <Route path="shipping" element={<AdminShippingPage />} />
-              </Route>
-            </Route>
+                <Route path="dashboard" element={<DashboardPage />} />
+                <Route path="catalog" element={<CatalogPage />} />
+                <Route path="suppliers" element={<SupplierDirectoryPage />} />
+                <Route path="suppliers/:companyId" element={<CompanyProfilePage />} />
+                <Route path="companies/:companyId" element={<CompanyProfilePage />} />
+                <Route path="onboarding/company" element={<CompanyOnboardingPage />} />
+                <Route path="onboarding/verification" element={<VerificationPage />} />
 
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </Suspense>
+                {/* RFQs */}
+                <Route path="rfqs" element={<RfqsPage />} />
+                <Route path="rfqs/create" element={<CreateRfqPage />} />
+                <Route path="rfqs/:rfqId" element={<RfqDetailPage />} />
+                <Route path="rfqs/:rfqId/submit-offer" element={<SubmitOfferPage />} />
+
+                {/* Tenders & Reverse Bidding */}
+                <Route path="tenders" element={<TendersListPage />} />
+                <Route path="tenders/create" element={<CreateTenderPage />} />
+                <Route path="tenders/:tenderId" element={<TenderDetailPage />} />
+                <Route path="tenders/bids/mine" element={<MyBidsPage />} />
+                <Route path="tenders/bids/:bidId" element={<BidDetailPage />} />
+
+                {/* Offers */}
+                <Route path="offers" element={<MyOffersPage />} />
+                <Route path="offers/:offerId/revisions" element={<OfferRevisionsPage />} />
+                <Route path="offers/:offerId/revise" element={<ReviseOfferPage />} />
+
+                {/* Deals */}
+                <Route path="deals" element={<DealsListPage />} />
+                <Route path="deals/:dealId" element={<DealDetailPage />} />
+
+                {/* Shipments */}
+                <Route path="shipments" element={<ShipmentsListPage />} />
+                <Route path="shipments/:shipmentId" element={<ShipmentDetailPage />} />
+
+                {/* Notifications */}
+                <Route path="notifications" element={<NotificationsPage />} />
+
+                {/* Profile & Company settings */}
+                <Route path="profile" element={<ProfilePage />} />
+                <Route path="company" element={<CompanySettingsPage />} />
+                <Route path="company/members" element={<Navigate to="/company?tab=members" replace />} />
+
+                {/* Admin — nested under AdminLayout */}
+                <Route
+                  path="admin"
+                  element={
+                    user?.isSystemAdmin ? <AdminLayout /> : <Navigate to="/dashboard" replace />
+                  }
+                >
+                  <Route index element={<Navigate to="/admin/analytics" replace />} />
+                  <Route path="analytics" element={<AdminAnalyticsPage />} />
+                  <Route path="verification" element={<AdminVerificationPage />} />
+                  <Route path="verification/:companyId" element={<AdminVerificationDetailPage />} />
+                  <Route path="catalog" element={<AdminCatalogPage />} />
+                  <Route path="disputes" element={<AdminDisputesPage />} />
+                  <Route path="shipping" element={<AdminShippingPage />} />
+                </Route>
+              </Route>
+
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </Suspense>
+        </ErrorBoundary>
 
         <ToastContainer />
       </BrowserRouter>

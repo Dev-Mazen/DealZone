@@ -19,6 +19,10 @@ export const catalogService = {
   getUnit: (id) =>
     api.get(`/catalog/units/${id}`).then((r) => r.data),
 
+  // Direct Catalog Purchase Contract
+  directPurchase: (materialId, payload) =>
+    api.post(`/catalog/materials/${materialId}/purchase`, payload).then((r) => r.data),
+
   // Admin catalog
   createCategory: (data) =>
     api.post('/admin/catalog/categories', data).then((r) => r.data),

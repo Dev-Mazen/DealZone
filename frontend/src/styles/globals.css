@@ -227,11 +227,18 @@
     font-family: var(--font-en);
   }
 
-  /* Headings */
+  /* Headings — inherit text color by default so text-white, text-navy, etc. work seamlessly */
   h1, h2, h3, h4, h5, h6 {
     font-weight: 700;
     line-height: 1.25;
-    color: var(--color-navy);
+    color: inherit;
+  }
+  .text-white h1, .text-white h2, .text-white h3, .text-white h4, .text-white h5, .text-white h6,
+  [class*="text-white"] h1, [class*="text-white"] h2, [class*="text-white"] h3,
+  [class*="bg-[#06245B]"] h1, [class*="bg-[#06245B]"] h2, [class*="bg-[#06245B]"] h3,
+  [class*="from-[#06245B]"] h1, [class*="from-[#06245B]"] h2, [class*="from-[#06245B]"] h3,
+  [class*="from-[#0A3078]"] h1, [class*="from-[#0A3078]"] h2, [class*="from-[#0A3078]"] h3 {
+    color: #ffffff;
   }
   [dir="rtl"] h1, [dir="rtl"] h2, [dir="rtl"] h3,
   [dir="rtl"] h4, [dir="rtl"] h5, [dir="rtl"] h6 {
@@ -307,14 +314,50 @@
     color: var(--color-navy);
   }
 
-  /* Scrollbar */
-  ::-webkit-scrollbar { width: 6px; height: 6px; }
-  ::-webkit-scrollbar-track { background: var(--color-cloud-gray); }
-  ::-webkit-scrollbar-thumb {
-    background: #CBD5E1;
-    border-radius: var(--radius-full);
+  /* ============================================================
+     MODERN DEALZONE-THEMED SCROLLBAR
+     - Chromium, WebKit & Firefox standard support
+     - Elegant, unobtrusive floating pill styling
+     - Brand palette: Growth Blue (#1266D6) + Navy (#06245B) + Cyan (#00D9F5)
+     ============================================================ */
+  html, body {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(18, 102, 214, 0.45) rgba(234, 244, 255, 0.25);
   }
-  ::-webkit-scrollbar-thumb:hover { background: var(--color-slate); }
+
+  /* Universal scrollbar styling for webkit/chromium */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+    border-radius: 9999px;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background-color: rgba(18, 102, 214, 0.35);
+    background-image: linear-gradient(180deg, rgba(0, 217, 245, 0.2), rgba(18, 102, 214, 0.45));
+    border-radius: 9999px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+    transition: background-color 0.2s ease, border-color 0.2s ease;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(18, 102, 214, 0.7);
+    background-image: linear-gradient(180deg, rgba(0, 217, 245, 0.4), rgba(6, 36, 91, 0.7));
+  }
+
+  ::-webkit-scrollbar-thumb:active {
+    background-color: #06245B;
+    background-image: linear-gradient(180deg, #00D9F5, #06245B);
+  }
+
+  ::-webkit-scrollbar-corner {
+    background: transparent;
+  }
 }
 
 /* ============================================================
