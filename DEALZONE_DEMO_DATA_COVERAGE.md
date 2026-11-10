@@ -76,3 +76,4 @@ stateDiagram-v2
 - **Bid B (Competing):** 7,250,000 EGP (Alexandria Dual) — *Took lead*
 - **Bid A (Revision - R2):** 7,100,000 EGP (Al-Ahram Steel) — *Retook lead with 150k price reduction & 5-day delivery*
 - **Bid C (Withdrawn):** 7,500,000 EGP (Mahalla Textiles) — *Withdrawn with audit explanation*
+

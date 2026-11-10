@@ -102,3 +102,4 @@ Run the application for 10 seconds:
 dotnet run --project backend/src/DealZone.Api/DealZone.Api.csproj --no-build
 ```
 Then revert `"ResetDemoData": false`.
+

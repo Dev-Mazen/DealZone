@@ -1,15 +1,9 @@
-import { useState, useId } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   X,
   Package,
   MapPin,
-  Calendar,
-  AlertCircle,
-  CheckCircle2,
-  Building2,
-  FileText,
-  Sparkles,
   ArrowRight,
   ArrowLeft,
 } from 'lucide-react'
@@ -18,7 +12,6 @@ import { useTranslation } from '../../hooks/useTranslation'
 import { useToast } from '../../hooks/useToast'
 import { getLocalizedField } from '../../utils/format'
 import Button from '../ui/Button'
-import Input from '../ui/Input'
 import Alert from '../ui/Alert'
 import Spinner from '../ui/Spinner'
 
@@ -36,17 +29,49 @@ const EGYPTIAN_INDUSTRIAL_ZONES = [
   { id: 'suez-sczone', ar: 'المنطقة الاقتصادية لقناة السويس (SCZONE) — العين السخنة', en: 'Suez Canal Economic Zone (SCZONE) — Ain Sokhna' },
 ]
 
+// 7 days ahead as default delivery
+const getDefaultDeliveryDate = () => {
+  const d = new Date()
+  d.setDate(d.getDate() + 7)
+  return d.toISOString().split('T')[0]
+}
+
 export default function DirectPurchaseModal({
   isOpen,
   onClose,
   material,
   onSuccess,
 }) {
+  // ✅ All hooks live here, before any early return
   const { language } = useTranslation()
   const isAr = language === 'ar'
   const navigate = useNavigate()
   const toast = useToast()
 
+  const [quantity, setQuantity] = useState(material?.minOrderQty || 10)
+  const [industrialZone, setIndustrialZone] = useState(EGYPTIAN_INDUSTRIAL_ZONES[0].ar)
+  const [deliveryAddress, setDeliveryAddress] = useState('')
+  const [targetDeliveryDate, setTargetDeliveryDate] = useState(getDefaultDeliveryDate)
+  const [specialInstructions, setSpecialInstructions] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [errorMsg, setErrorMsg] = useState(null)
+  const [serverEndpointUnavailable, setServerEndpointUnavailable] = useState(false)
+
+  // Reset the form whenever the modal opens or the material changes
+  useEffect(() => {
+    if (isOpen && material) {
+      setQuantity(material.minOrderQty || 10)
+      setIndustrialZone(EGYPTIAN_INDUSTRIAL_ZONES[0].ar)
+      setDeliveryAddress('')
+      setTargetDeliveryDate(getDefaultDeliveryDate())
+      setSpecialInstructions('')
+      setErrorMsg(null)
+      setServerEndpointUnavailable(false)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, material?.id])
+
+  // ✅ Early return only after all hooks
   if (!isOpen || !material) return null
 
   const matName = getLocalizedField(material, 'name', language)
@@ -56,22 +81,6 @@ export default function DirectPurchaseModal({
 
   const minOrderQty = material.minOrderQty || 10
   const unitPrice = material.indicativePrice || 35000
-
-  // 7 days ahead as default delivery
-  const defaultDeliveryDate = () => {
-    const d = new Date()
-    d.setDate(d.getDate() + 7)
-    return d.toISOString().split('T')[0]
-  }
-
-  const [quantity, setQuantity] = useState(minOrderQty)
-  const [industrialZone, setIndustrialZone] = useState(EGYPTIAN_INDUSTRIAL_ZONES[0].ar)
-  const [deliveryAddress, setDeliveryAddress] = useState('')
-  const [targetDeliveryDate, setTargetDeliveryDate] = useState(defaultDeliveryDate)
-  const [specialInstructions, setSpecialInstructions] = useState('')
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [errorMsg, setErrorMsg] = useState(null)
-  const [serverEndpointUnavailable, setServerEndpointUnavailable] = useState(false)
 
   // Calculations
   const numericQty = Number(quantity) || 0
@@ -156,9 +165,9 @@ export default function DirectPurchaseModal({
       } else {
         setErrorMsg(
           detail ||
-            (isAr
-              ? 'حدث خطأ أثناء معالجة طلب الشراء. يرجى المحاولة مرة أخرى.'
-              : 'Failed to submit direct purchase. Please try again.')
+          (isAr
+            ? 'حدث خطأ أثناء معالجة طلب الشراء. يرجى المحاولة مرة أخرى.'
+            : 'Failed to submit direct purchase. Please try again.')
         )
       }
     } finally {
@@ -432,4 +441,3 @@ export default function DirectPurchaseModal({
     </div>
   )
 }
-

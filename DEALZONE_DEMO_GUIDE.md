@@ -100,3 +100,4 @@ All demo accounts are pre-configured with active business roles, enterprise affi
 | **Live Reverse Auction** | Tender 201 | Shows 3 competing bidders with reference price 7,500,000 EGP and active leader at 7,100,000 EGP. |
 | **Delivered Deal & Reviews** | Deal 0052 | Shows Completed deal with 5-star and 4-star mutual counterparty reviews and comments. |
 | **Dispute Under Review** | Dispute DSP-0001 | Deal status transitions to `Disputed`, blocking confirmation until admin adjudication. |
+
