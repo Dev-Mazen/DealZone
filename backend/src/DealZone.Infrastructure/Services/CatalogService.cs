@@ -345,6 +345,10 @@ public class CatalogService : ICatalogService
             .Include(m => m.DefaultUnit)
             .AsQueryable();
 
+        // Always restrict materials to the three official marketplace categories (Metals, Textiles, Food)
+        var supportedCategoryCodes = MarketplaceCategories.SupportedCodes;
+        query = query.Where(m => m.Category != null && m.Category.IsActive && !m.Category.IsArchived && supportedCategoryCodes.Contains(m.Category.Code.ToUpper()));
+
         if (filter.ActiveOnly == true)
         {
             query = query.Where(m => m.IsActive && !m.IsArchived);
