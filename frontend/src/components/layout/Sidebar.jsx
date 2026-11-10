@@ -122,7 +122,7 @@ export default function Sidebar() {
       {/* Sidebar */}
       <aside
         className={[
-          'fixed start-0 top-20 bottom-0 bg-white border-e border-[rgba(6,36,91,0.06)] z-[1025] transition-all duration-300',
+          'fixed start-0 top-16 bottom-0 bg-white border-e border-[rgba(6,36,91,0.06)] z-[1025] transition-all duration-300',
           collapsed ? 'w-20' : 'w-64',
           'max-md:shadow-xl',
           !collapsed ? 'translate-x-0' : 'max-md:-translate-x-full',

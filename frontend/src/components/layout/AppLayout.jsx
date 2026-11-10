@@ -9,7 +9,7 @@ export default function AppLayout({ children }) {
   const location = useLocation()
 
   return (
-    <div className="min-h-screen bg-[#F4F7FB] overflow-x-hidden">
+    <div className="min-h-screen bg-[#F4F7FB]">
       <Navbar />
       
       <div className="flex">
@@ -17,7 +17,7 @@ export default function AppLayout({ children }) {
         
         <main
           className={[
-            'flex-1 min-w-0 transition-all duration-300 pt-20',
+            'flex-1 min-w-0 transition-all duration-300 pt-16',
             sidebarCollapsed ? 'md:ms-20' : 'md:ms-64',
           ].join(' ')}
         >
@@ -39,7 +39,7 @@ export function PublicLayout({ children }) {
   return (
     <div className="min-h-screen bg-[#F4F7FB]">
       <Navbar />
-      <main className="pt-20">
+      <main className="pt-16">
         <PageTransition key={location.pathname}>
           {children || <Outlet />}
         </PageTransition>

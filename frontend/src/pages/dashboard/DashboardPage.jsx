@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import {
@@ -237,22 +237,20 @@ export default function DashboardPage() {
                 <div className="inline-flex rounded-full bg-black/20 backdrop-blur-md p-1 border border-white/15 text-xs font-bold">
                   <button
                     onClick={() => setDashboardMode('buyer')}
-                    className={`px-3 py-1 rounded-full transition-all flex items-center gap-1.5 ${
-                      dashboardMode === 'buyer'
+                    className={`px-3 py-1 rounded-full transition-all flex items-center gap-1.5 ${dashboardMode === 'buyer'
                         ? 'bg-white text-[#06245B] shadow-sm font-extrabold'
                         : 'text-slate-300 hover:text-white'
-                    }`}
+                      }`}
                   >
                     <span>🛒</span>
                     <span>{isAr ? 'لوحة المشتري' : 'Buyer View'}</span>
                   </button>
                   <button
                     onClick={() => setDashboardMode('supplier')}
-                    className={`px-3 py-1 rounded-full transition-all flex items-center gap-1.5 ${
-                      dashboardMode === 'supplier'
+                    className={`px-3 py-1 rounded-full transition-all flex items-center gap-1.5 ${dashboardMode === 'supplier'
                         ? 'bg-white text-[#06245B] shadow-sm font-extrabold'
                         : 'text-slate-300 hover:text-white'
-                    }`}
+                      }`}
                   >
                     <span>🏭</span>
                     <span>{isAr ? 'لوحة المورد' : 'Supplier View'}</span>
@@ -292,9 +290,8 @@ export default function DashboardPage() {
                 <Button
                   as={Link}
                   to="/catalog"
-                  variant="outline"
+                  variant="outline-white"
                   size="md"
-                  className="!border-white/70 !text-white hover:!bg-white/15"
                 >
                   {isAr ? 'تصفح الكتالوج' : 'Browse Materials'}
                 </Button>
@@ -314,9 +311,8 @@ export default function DashboardPage() {
                 <Button
                   as={Link}
                   to="/offers"
-                  variant="outline"
+                  variant="outline-white"
                   size="md"
-                  className="!border-white/70 !text-white hover:!bg-white/15"
                 >
                   {isAr ? 'إدارة عروضي' : 'My Submitted Offers'}
                 </Button>
@@ -426,21 +422,19 @@ export default function DashboardPage() {
             <div className="inline-flex rounded-xl bg-slate-100 p-1 text-xs font-semibold">
               <button
                 onClick={() => setActiveChartTab('volume')}
-                className={`px-3 py-1.5 rounded-lg transition-all ${
-                  activeChartTab === 'volume'
+                className={`px-3 py-1.5 rounded-lg transition-all ${activeChartTab === 'volume'
                     ? 'bg-white text-[#06245B] shadow-xs font-bold'
                     : 'text-slate-600 hover:text-[#06245B]'
-                }`}
+                  }`}
               >
                 {isAr ? 'حجم التوريد (طن)' : 'Volume (Tons)'}
               </button>
               <button
                 onClick={() => setActiveChartTab('price')}
-                className={`px-3 py-1.5 rounded-lg transition-all ${
-                  activeChartTab === 'price'
+                className={`px-3 py-1.5 rounded-lg transition-all ${activeChartTab === 'price'
                     ? 'bg-white text-[#06245B] shadow-xs font-bold'
                     : 'text-slate-600 hover:text-[#06245B]'
-                }`}
+                  }`}
               >
                 {isAr ? 'مؤشر الأسعار' : 'Price Index'}
               </button>

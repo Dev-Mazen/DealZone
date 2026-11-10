@@ -168,29 +168,29 @@ export default function Navbar() {
   return (
     <>
       <nav
-        className={`fixed top-0 inset-x-0 z-[1030] h-20 transition-all duration-300 ${
+        className={`fixed top-0 inset-x-0 z-[1030] h-16 transition-all duration-300 ${
           isScrolled
             ? 'bg-white/95 backdrop-blur-md shadow-md border-b border-slate-200/80'
             : 'bg-white border-b border-[rgba(6,36,91,0.06)] shadow-xs'
         }`}
       >
-        <div className="h-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-4">
+        <div className="h-full max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-3">
           {/* Left: Brand Logo + Mobile Hamburger Button */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 shrink-0">
             <button
               onClick={() => setMobileMenuOpen(true)}
               className="lg:hidden p-2 rounded-xl text-[#06245B] hover:bg-[#EAF4FF] transition-colors focus:outline-none"
               aria-label="Open mobile navigation menu"
             >
-              <Menu size={24} />
+              <Menu size={22} />
             </button>
 
             {/* Official DealZone Logo */}
             <Logo size="md" link={true} />
           </div>
 
-          {/* Center: Desktop Navigation Links */}
-          <div className="hidden lg:flex items-center gap-1.5">
+          {/* Center: Desktop Navigation Links (Single-line, no wrapping, spacious) */}
+          <div className="hidden lg:flex items-center gap-1 xl:gap-1.5 flex-1 justify-center mx-2">
             {activeLinks.map((item) => {
               const isActive =
                 item.path === '/'
@@ -201,32 +201,29 @@ export default function Navbar() {
                 <Link
                   key={item.path}
                   to={item.path}
-                  className={`px-3.5 py-2 rounded-xl text-sm font-semibold transition-all duration-200 relative flex items-center gap-1.5 ${
+                  className={`px-3 py-1.5 rounded-lg text-xs xl:text-sm font-semibold transition-all duration-150 whitespace-nowrap shrink-0 flex items-center gap-1.5 ${
                     isActive
                       ? 'text-[#06245B] bg-[#EAF4FF] shadow-xs'
                       : 'text-slate-600 hover:text-[#06245B] hover:bg-slate-100/70'
                   }`}
                 >
-                  {item.icon && <item.icon size={16} className={isActive ? 'text-[#1266D6]' : 'text-slate-400'} />}
-                  <span>{item.label}</span>
-                  {isActive && (
-                    <span className="absolute bottom-1 inset-x-3.5 h-0.5 bg-[#00D9F5] rounded-full" />
-                  )}
+                  {item.icon && <item.icon size={15} className={isActive ? 'text-[#1266D6]' : 'text-slate-400'} />}
+                  <span className="whitespace-nowrap">{item.label}</span>
                 </Link>
               )
             })}
           </div>
 
           {/* Right: Actions (Language, Notifications, User Profile / Auth) */}
-          <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             {/* Language Switcher Pill */}
             <button
               onClick={toggleLanguage}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 hover:border-[#1266D6] bg-slate-50 hover:bg-[#EAF4FF] text-xs font-bold text-[#06245B] transition-all duration-200"
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl border border-slate-200 hover:border-[#1266D6] bg-slate-50 hover:bg-[#EAF4FF] text-xs font-bold text-[#06245B] transition-all duration-200"
               aria-label={isAr ? 'Switch to English' : 'التحويل إلى العربية'}
               title={isAr ? 'English' : 'العربية'}
             >
-              <Globe size={15} className="text-[#1266D6]" />
+              <Globe size={14} className="text-[#1266D6]" />
               <span>{isAr ? 'EN' : 'عربي'}</span>
             </button>
 

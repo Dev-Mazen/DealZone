@@ -321,6 +321,8 @@
      - Brand palette: Growth Blue (#1266D6) + Navy (#06245B) + Cyan (#00D9F5)
      ============================================================ */
   html, body {
+    overflow-x: hidden;
+    max-width: 100vw;
     scrollbar-width: thin;
     scrollbar-color: rgba(18, 102, 214, 0.45) rgba(234, 244, 255, 0.25);
   }

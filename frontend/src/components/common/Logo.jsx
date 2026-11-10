@@ -45,14 +45,18 @@ export default function Logo({
 
   const content = (
     <div className={`inline-flex items-center gap-3 select-none group ${className}`}>
-      {/* Official DealZone Logo Mark — Pure transparency, no artificial white square */}
+      {/* Official DealZone Logo Mark — Styled with subtle inner & outer shadows for depth */}
       <div
-        className={`${currentSize.img} shrink-0 flex items-center justify-center transition-transform duration-200 group-hover:scale-105`}
+        className={`${currentSize.img} shrink-0 flex items-center justify-center p-1 rounded-xl transition-all duration-200 group-hover:scale-105 ${
+          isWhite
+            ? 'bg-white/10 shadow-[inset_0_1px_1px_rgba(255,255,255,0.4),0_2px_6px_rgba(0,0,0,0.25)] border border-white/20'
+            : 'bg-gradient-to-b from-white to-[#F4F7FB] shadow-[inset_0_1px_2px_rgba(255,255,255,0.9),0_2px_6px_rgba(6,36,91,0.12)] border border-[#06245B]/10'
+        }`}
       >
         <img
           src={logoTransparent}
           alt="DealZone Official Logo"
-          className="h-full w-auto object-contain block"
+          className="h-full w-auto object-contain block drop-shadow-sm"
           loading="eager"
         />
       </div>
@@ -60,7 +64,7 @@ export default function Logo({
       {showText && (
         <div className="flex flex-col text-start">
           {isAr ? (
-            /* Arabic Brand Rendering: ديل زون (DealZone) */
+            /* Arabic Brand Rendering: ديل زون (Only Arabic text, no English duplicate) */
             <>
               <div
                 dir="rtl"
@@ -71,12 +75,6 @@ export default function Logo({
                 </span>
                 <span className="text-[#00D9F5]">
                   زون
-                </span>
-                <span
-                  dir="ltr"
-                  className={`font-bold tracking-tight opacity-80 ${isWhite ? 'text-slate-200' : 'text-slate-500'} ${currentSize.tag}`}
-                >
-                  DealZone
                 </span>
               </div>
               <span
