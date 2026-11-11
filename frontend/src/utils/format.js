@@ -10,16 +10,19 @@
 // Currency
 // ============================================================
 
-export function formatCurrency(amount, lang = 'en') {
+export function formatCurrency(amount, lang = 'en', decimals) {
   if (amount == null || amount === '') return '—'
   const num = typeof amount === 'string' ? parseFloat(amount) : amount
   if (isNaN(num)) return '—'
 
+  const minDec = decimals !== undefined ? decimals : (num % 1 === 0 ? 0 : 2)
+  const maxDec = decimals !== undefined ? decimals : 2
+
   return new Intl.NumberFormat(lang === 'ar' ? 'ar-EG' : 'en-US', {
     style: 'currency',
     currency: 'EGP',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
+    minimumFractionDigits: minDec,
+    maximumFractionDigits: maxDec,
   }).format(num)
 }
 

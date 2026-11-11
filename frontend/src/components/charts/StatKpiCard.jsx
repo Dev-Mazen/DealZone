@@ -3,6 +3,7 @@ import { TrendingUp, TrendingDown } from 'lucide-react'
 /**
  * Enhanced Stat KPI Card with Trend Badge and Micro-Sparkline
  * Fully resilient to large numbers, currency strings, and narrow responsive columns.
+ * Never truncates values with ellipses; adapts layout dynamically for long numbers.
  */
 export default function StatKpiCard({
   title,
@@ -56,6 +57,7 @@ export default function StatKpiCard({
 
   const valStr = value != null ? String(value) : ''
   const valLen = valStr.length
+  const isLongValue = valLen > 11
 
   return (
     <div
@@ -63,7 +65,7 @@ export default function StatKpiCard({
     >
       <div>
         {/* Top: Title & Icon */}
-        <div className="flex items-start justify-between mb-3 gap-2">
+        <div className="flex items-start justify-between mb-2.5 gap-2">
           <span
             className="text-xs font-bold text-slate-500 uppercase tracking-wider truncate"
             title={title}
@@ -78,39 +80,63 @@ export default function StatKpiCard({
         </div>
 
         {/* Middle: Value & Micro Sparkline */}
-        <div className="flex items-baseline justify-between gap-2 min-w-0">
-          <div
-            className={`font-extrabold text-[#06245B] tracking-tight truncate min-w-0 ${
-              valLen > 15
-                ? 'text-base sm:text-lg'
-                : valLen > 11
-                ? 'text-lg sm:text-xl'
-                : valLen > 7
-                ? 'text-xl sm:text-2xl'
-                : 'text-2xl sm:text-3xl'
-            }`}
-            title={valStr}
-          >
-            {value}
+        <div className="my-1">
+          <div className="flex items-center justify-between gap-2 min-w-0">
+            {/* The full value is ALWAYS displayed in full without truncation */}
+            <div
+              className={`font-extrabold text-[#06245B] tracking-tight whitespace-nowrap min-w-0 ${
+                valLen > 16
+                  ? 'text-base sm:text-lg'
+                  : valLen > 12
+                  ? 'text-lg sm:text-xl'
+                  : valLen > 8
+                  ? 'text-xl sm:text-2xl'
+                  : 'text-2xl sm:text-3xl'
+              }`}
+            >
+              {value}
+            </div>
+
+            {/* Sparkline alongside value when number is short */}
+            {!isLongValue && (
+              <div className="shrink-0 overflow-hidden flex items-center ms-auto">
+                <svg
+                  viewBox={`0 0 ${w} ${h}`}
+                  className="w-12 h-5 overflow-hidden opacity-75 shrink-0 block"
+                  preserveAspectRatio="none"
+                >
+                  <polyline
+                    fill="none"
+                    stroke={isPositive ? '#10B981' : '#EF4444'}
+                    strokeWidth="2.2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    points={points}
+                  />
+                </svg>
+              </div>
+            )}
           </div>
 
-          {/* Micro sparkline with strict boundary */}
-          <div className="shrink-0 overflow-hidden flex items-center ms-auto">
-            <svg
-              viewBox={`0 0 ${w} ${h}`}
-              className="w-12 h-5 overflow-hidden opacity-75 shrink-0 block"
-              preserveAspectRatio="none"
-            >
-              <polyline
-                fill="none"
-                stroke={isPositive ? '#10B981' : '#EF4444'}
-                strokeWidth="2.2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                points={points}
-              />
-            </svg>
-          </div>
+          {/* Sparkline placed neatly below value when number is long, so it never squeezes or truncates the number */}
+          {isLongValue && (
+            <div className="mt-1 flex items-center justify-end">
+              <svg
+                viewBox={`0 0 ${w} ${h}`}
+                className="w-16 h-3.5 overflow-hidden opacity-75 block"
+                preserveAspectRatio="none"
+              >
+                <polyline
+                  fill="none"
+                  stroke={isPositive ? '#10B981' : '#EF4444'}
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  points={points}
+                />
+              </svg>
+            </div>
+          )}
         </div>
       </div>
 
