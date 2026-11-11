@@ -130,9 +130,8 @@ public class AdminService : IAdminService
         var adminId = RequireAdminId();
         var company = await GetCompanyWithDocumentsAsync(companyId, cancellationToken);
 
-        if (company.VerificationStatus != CompanyVerificationStatus.UnderReview)
-            throw new ConflictException(
-                $"Company must be in UnderReview status to approve. Current: {company.VerificationStatus}.");
+        if (company.VerificationStatus == CompanyVerificationStatus.Approved)
+            throw new ConflictException("Company is already verified and approved.");
 
         // Require both mandatory documents
         var hasCommercialRegister = company.VerificationDocuments
@@ -182,9 +181,8 @@ public class AdminService : IAdminService
         var adminId = RequireAdminId();
         var company = await GetCompanyWithDocumentsAsync(companyId, cancellationToken);
 
-        if (company.VerificationStatus != CompanyVerificationStatus.UnderReview)
-            throw new ConflictException(
-                $"Company must be in UnderReview status to reject. Current: {company.VerificationStatus}.");
+        if (company.VerificationStatus == CompanyVerificationStatus.Rejected)
+            throw new ConflictException("Company is already rejected.");
 
         var now = _dateTimeProvider.UtcNow;
         company.VerificationStatus = CompanyVerificationStatus.Rejected;
@@ -222,9 +220,8 @@ public class AdminService : IAdminService
         var adminId = RequireAdminId();
         var company = await GetCompanyWithDocumentsAsync(companyId, cancellationToken);
 
-        if (company.VerificationStatus != CompanyVerificationStatus.UnderReview)
-            throw new ConflictException(
-                $"Company must be in UnderReview status. Current: {company.VerificationStatus}.");
+        if (company.VerificationStatus == CompanyVerificationStatus.Approved)
+            throw new ConflictException("Company is already approved. Cannot request changes.");
 
         var now = _dateTimeProvider.UtcNow;
         company.VerificationStatus = CompanyVerificationStatus.ChangesRequired;

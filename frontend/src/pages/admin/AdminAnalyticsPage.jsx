@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
   TrendingUp,
@@ -35,20 +35,29 @@ export default function AdminAnalyticsPage() {
   const [downloadingCompanies, setDownloadingCompanies] = useState(false)
   const [downloadingDeals, setDownloadingDeals] = useState(false)
 
-  // Compute fromDate based on selection
-  let fromDate = null
-  if (dateRange === '30d') {
-    fromDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
-  } else if (dateRange === '90d') {
-    fromDate = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString()
-  } else if (dateRange === 'year') {
-    fromDate = new Date(new Date().getFullYear(), 0, 1).toISOString()
-  }
+  // Compute fromDate based on selection (stabilized with useMemo)
+  const fromDate = useMemo(() => {
+    if (dateRange === 'all') return undefined
+    const now = new Date()
+    if (dateRange === '30d') {
+      const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 30, 0, 0, 0)
+      return d.toISOString()
+    }
+    if (dateRange === '90d') {
+      const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 90, 0, 0, 0)
+      return d.toISOString()
+    }
+    if (dateRange === 'year') {
+      return new Date(now.getFullYear(), 0, 1, 0, 0, 0).toISOString()
+    }
+    return undefined
+  }, [dateRange])
 
   const { data, isLoading, error, refetch, isFetching } = useQuery({
-    queryKey: ['admin', 'analytics', { fromDate }],
-    queryFn: () => adminService.getAnalytics({ fromDate: fromDate || undefined }),
+    queryKey: ['admin', 'analytics', dateRange],
+    queryFn: () => adminService.getAnalytics({ fromDate }),
     staleTime: 60_000,
+    placeholderData: (previousData) => previousData,
   })
 
   // Export Companies CSV
@@ -91,7 +100,7 @@ export default function AdminAnalyticsPage() {
     }
   }
 
-  if (isLoading) return <PageSpinner />
+  if (isLoading && !data) return <PageSpinner />
 
   const kpis = data?.kpis
   const sectors = data?.sectors || []

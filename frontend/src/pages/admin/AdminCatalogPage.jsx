@@ -2,19 +2,23 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Plus, Trash2, Package, Layers, Scale } from 'lucide-react'
 import { catalogService } from '../../shared/api/services/catalogService'
+import { useTranslation } from '../../hooks/useTranslation'
 import Card from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
 import Input from '../../components/ui/Input'
-import Modal from '../../components/ui/Modal'
+import Modal, { ConfirmModal } from '../../components/ui/Modal'
 import { PageSpinner } from '../../components/ui/Spinner'
 import { useToast } from '../../hooks/useToast'
 
 export default function AdminCatalogPage() {
+  const { language } = useTranslation()
+  const isAr = language === 'ar'
   const toast = useToast()
   const queryClient = useQueryClient()
   const [activeTab, setActiveTab] = useState('categories') // 'categories' | 'materials' | 'units'
 
   // Modals state
+  const [deleteTarget, setDeleteTarget] = useState(null)
   const [showAddCategory, setShowAddCategory] = useState(false)
   const [newCat, setNewCat] = useState({ nameEn: '', nameAr: '', code: '' })
 
@@ -168,11 +172,7 @@ export default function AdminCatalogPage() {
                   <span className="text-xs font-mono text-[#64748B]">Code: {cat.code}</span>
                 </div>
                 <button
-                  onClick={() => {
-                    if (confirm(`Delete category "${cat.nameEn}"?`)) {
-                      deleteCategoryMutation.mutate(cat.id)
-                    }
-                  }}
+                  onClick={() => setDeleteTarget({ type: 'category', id: cat.id, name: isAr ? cat.nameAr || cat.nameEn : cat.nameEn || cat.nameAr })}
                   className="p-1.5 rounded-lg text-[#EF4444] hover:bg-red-50 transition-colors"
                 >
                   <Trash2 size={16} />
@@ -207,11 +207,7 @@ export default function AdminCatalogPage() {
                   </p>
                 </div>
                 <button
-                  onClick={() => {
-                    if (confirm(`Delete material "${mat.nameEn}"?`)) {
-                      deleteMaterialMutation.mutate(mat.id)
-                    }
-                  }}
+                  onClick={() => setDeleteTarget({ type: 'material', id: mat.id, name: isAr ? mat.nameAr || mat.nameEn : mat.nameEn || mat.nameAr })}
                   className="p-1.5 rounded-lg text-[#EF4444] hover:bg-red-50 transition-colors"
                 >
                   <Trash2 size={16} />
@@ -244,11 +240,7 @@ export default function AdminCatalogPage() {
                   <span className="text-xs font-mono text-[#64748B]">Code: {u.code}</span>
                 </div>
                 <button
-                  onClick={() => {
-                    if (confirm(`Delete unit "${u.nameEn}"?`)) {
-                      deleteUnitMutation.mutate(u.id)
-                    }
-                  }}
+                  onClick={() => setDeleteTarget({ type: 'unit', id: u.id, name: isAr ? u.nameAr || u.nameEn : u.nameEn || u.nameAr })}
                   className="p-1.5 rounded-lg text-[#EF4444] hover:bg-red-50 transition-colors"
                 >
                   <Trash2 size={16} />
@@ -258,6 +250,35 @@ export default function AdminCatalogPage() {
           </div>
         </Card>
       )}
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={() => {
+          if (!deleteTarget) return
+          if (deleteTarget.type === 'category') deleteCategoryMutation.mutate(deleteTarget.id)
+          else if (deleteTarget.type === 'material') deleteMaterialMutation.mutate(deleteTarget.id)
+          else if (deleteTarget.type === 'unit') deleteUnitMutation.mutate(deleteTarget.id)
+          setDeleteTarget(null)
+        }}
+        title={
+          deleteTarget?.type === 'category'
+            ? (isAr ? 'تأكيد حذف القطاع الصناعي' : 'Confirm Category Deletion')
+            : deleteTarget?.type === 'material'
+            ? (isAr ? 'تأكيد حذف المادة الخام' : 'Confirm Material Deletion')
+            : (isAr ? 'تأكيد حذف وحدة القياس' : 'Confirm Unit Deletion')
+        }
+        message={
+          isAr
+            ? `هل أنت متأكد من رغبتك في حذف "${deleteTarget?.name}" نهائياً من الكتالوج؟ لا يمكن التراجع عن هذا الإجراء.`
+            : `Are you sure you want to permanently delete "${deleteTarget?.name}"? It will no longer appear in the industrial catalog.`
+        }
+        confirmLabel={isAr ? 'تأكيد الحذف' : 'Delete'}
+        cancelLabel={isAr ? 'إلغاء' : 'Cancel'}
+        variant="danger"
+        loading={deleteCategoryMutation.isPending || deleteMaterialMutation.isPending || deleteUnitMutation.isPending}
+      />
 
       {/* Add Category Modal */}
       <Modal open={showAddCategory} onClose={() => setShowAddCategory(false)} title="Add Category">

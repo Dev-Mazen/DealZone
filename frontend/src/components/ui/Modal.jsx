@@ -111,6 +111,7 @@ export default function Modal({
 // Confirm dialog shorthand
 export function ConfirmModal({
   open,
+  isOpen,
   onClose,
   onConfirm,
   title,
@@ -120,24 +121,31 @@ export function ConfirmModal({
   variant = 'danger',
   loading = false,
 }) {
+  const isModalOpen = open ?? isOpen ?? false
+
   return (
     <Modal
-      open={open}
+      open={isModalOpen}
       onClose={onClose}
       title={title}
       size="sm"
       footer={
         <>
-          <Button variant="ghost" onClick={onClose} disabled={loading}>
+          <Button variant="outline" size="sm" onClick={onClose} disabled={loading}>
             {cancelLabel}
           </Button>
-          <Button variant={variant} onClick={onConfirm} loading={loading}>
+          <Button variant={variant} size="sm" onClick={onConfirm} loading={loading}>
             {confirmLabel}
           </Button>
         </>
       }
     >
-      <p className="text-[#475569] text-sm leading-relaxed">{message}</p>
+      <div className="flex items-start gap-3.5 py-1">
+        <div className="w-10 h-10 rounded-2xl bg-rose-50 text-rose-600 border border-rose-100 flex items-center justify-center shrink-0">
+          <X size={20} className="text-rose-600" />
+        </div>
+        <p className="text-slate-600 text-sm leading-relaxed mt-1">{message}</p>
+      </div>
     </Modal>
   )
 }

@@ -2,18 +2,22 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Plus, Truck, Phone, Mail, Trash2 } from 'lucide-react'
 import { adminService } from '../../shared/api/services/adminService'
+import { useTranslation } from '../../hooks/useTranslation'
 import Card from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
 import Input from '../../components/ui/Input'
-import Modal from '../../components/ui/Modal'
+import Modal, { ConfirmModal } from '../../components/ui/Modal'
 import Badge from '../../components/ui/Badge'
 import { PageSpinner } from '../../components/ui/Spinner'
 import EmptyState from '../../components/ui/EmptyState'
 import { useToast } from '../../hooks/useToast'
 
 export default function AdminShippingPage() {
+  const { language } = useTranslation()
+  const isAr = language === 'ar'
   const toast = useToast()
   const queryClient = useQueryClient()
+  const [providerToDelete, setProviderToDelete] = useState(null)
   const [showAddModal, setShowAddModal] = useState(false)
   const [newProvider, setNewProvider] = useState({
     name: '',
@@ -153,11 +157,7 @@ export default function AdminShippingPage() {
                   </Button>
                 )}
                 <button
-                  onClick={() => {
-                    if (confirm(`Remove provider "${p.name}"?`)) {
-                      deleteMutation.mutate(p.id)
-                    }
-                  }}
+                  onClick={() => setProviderToDelete(p)}
                   className="p-2 text-[#EF4444] hover:bg-red-50 rounded-lg transition-colors"
                 >
                   <Trash2 size={16} />
@@ -167,6 +167,26 @@ export default function AdminShippingPage() {
           ))}
         </div>
       )}
+
+      {/* Remove Provider Confirmation Modal */}
+      <ConfirmModal
+        open={!!providerToDelete}
+        onClose={() => setProviderToDelete(null)}
+        onConfirm={() => {
+          if (providerToDelete) deleteMutation.mutate(providerToDelete.id)
+          setProviderToDelete(null)
+        }}
+        title={isAr ? 'تأكيد إزالة مزود الشحن' : 'Confirm Provider Removal'}
+        message={
+          isAr
+            ? `هل أنت متأكد من رغبتك في إزالة شركة الشحن "${providerToDelete?.name}" من المنصة؟ لن تتمكن المصانع من تعيينها للشحنات الجديدة.`
+            : `Are you sure you want to remove shipping provider "${providerToDelete?.name}"? Factories will no longer be able to assign them to new consignments.`
+        }
+        confirmLabel={isAr ? 'تأكيد الإزالة' : 'Remove Provider'}
+        cancelLabel={isAr ? 'إلغاء' : 'Cancel'}
+        variant="danger"
+        loading={deleteMutation.isPending}
+      />
 
       {/* Add Provider Modal */}
       <Modal open={showAddModal} onClose={() => setShowAddModal(false)} title="Add Shipping Provider">
