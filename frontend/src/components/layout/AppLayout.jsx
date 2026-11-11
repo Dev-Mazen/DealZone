@@ -37,14 +37,23 @@ export default function AppLayout({ children }) {
 // Public layout (بدون Sidebar)
 export function PublicLayout({ children }) {
   const location = useLocation()
+  const isFullBleed = location.pathname === '/' || location.pathname === '/about'
 
   return (
     <div className="min-h-screen bg-[#F4F7FB]">
       <Navbar />
       <main className="pt-16">
-        <PageTransition key={location.pathname}>
-          {children || <Outlet />}
-        </PageTransition>
+        {isFullBleed ? (
+          <PageTransition key={location.pathname}>
+            {children || <Outlet />}
+          </PageTransition>
+        ) : (
+          <div className="container py-6">
+            <PageTransition key={location.pathname}>
+              {children || <Outlet />}
+            </PageTransition>
+          </div>
+        )}
       </main>
     </div>
   )

@@ -6,6 +6,21 @@ public record CreateDirectPurchaseRequest(
     string? DeliveryAddress = null,
     string? Notes = null);
 
+public record MaterialPurchaseRequest(
+    Guid? MaterialId = null,
+    string? MaterialCode = null,
+    decimal Quantity = 0,
+    string? UnitCode = null,
+    decimal? UnitPrice = null,
+    decimal? Subtotal = null,
+    decimal? Vat = null,
+    decimal? Total = null,
+    string? Currency = null,
+    string? DeliveryIndustrialZone = null,
+    string? DeliveryAddress = null,
+    string? TargetDeliveryDate = null,
+    string? SpecialInstructions = null);
+
 public record DirectPurchaseResponse(
     Guid Id,
     string PurchaseNumber,

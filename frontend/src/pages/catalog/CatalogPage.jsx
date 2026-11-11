@@ -57,7 +57,7 @@ export default function CatalogPage() {
     staleTime: 60_000,
   })
 
-  // 2. Fetch real materials from database API
+  // 2. Fetch materials for selected category/search
   const { data: apiMaterialsPage, isLoading: materialsLoading, error: materialsError } = useQuery({
     queryKey: ['catalog', 'materials', { categoryId: selectedCategoryId, searchTerm }],
     queryFn: () =>
@@ -66,6 +66,17 @@ export default function CatalogPage() {
         searchTerm: searchTerm.trim() || undefined,
         pageNumber: 1,
         pageSize: 50,
+      }),
+    staleTime: 60_000,
+  })
+
+  // 3. Unfiltered materials count to keep sidebar badges persistent & accurate
+  const { data: allMaterialsData, isLoading: allMaterialsLoading } = useQuery({
+    queryKey: ['catalog', 'materials', 'all-counts'],
+    queryFn: () =>
+      catalogService.getMaterials({
+        pageNumber: 1,
+        pageSize: 100,
       }),
     staleTime: 60_000,
   })
@@ -81,6 +92,10 @@ export default function CatalogPage() {
   const materials = useMemo(() => {
     return apiMaterialsPage?.items || []
   }, [apiMaterialsPage])
+
+  const allMaterials = useMemo(() => {
+    return allMaterialsData?.items || []
+  }, [allMaterialsData])
 
   // Supplier action: Toggle supply capability
   const toggleSupplierCapability = (materialId, materialName) => {
@@ -107,15 +122,34 @@ export default function CatalogPage() {
     }
   }
 
-  // Buyer action: Pre-fill RFQ creation
+  // Buyer action: Pre-fill RFQ creation with rich material context
   const handleBuyerRequestQuote = (material) => {
     const matName = getLocalizedField(material, 'name', language)
     const unitName = getLocalizedField(material, 'defaultUnitName', language)
-    navigate(
-      `/rfqs/create?materialCode=${encodeURIComponent(material.code)}&materialName=${encodeURIComponent(
-        matName
-      )}&unit=${encodeURIComponent(unitName || 'ton')}&catId=${encodeURIComponent(material.categoryId || '')}`
-    )
+    const query = new URLSearchParams({
+      materialId: material.id || '',
+      materialCode: material.code || '',
+      materialName: matName || '',
+      unit: material.defaultUnitCode || unitName || 'ton',
+      catId: material.categoryId || '',
+    }).toString()
+
+    navigate(`/rfqs/create?${query}`, {
+      state: {
+        prefilledMaterial: {
+          materialId: material.id,
+          materialName: matName,
+          materialCode: material.code,
+          categoryId: material.categoryId,
+          unit: material.defaultUnitCode || 'ton',
+          unitOfMeasureId: material.defaultUnitId,
+          quantity: material.minOrderQty || 10,
+          specifications: isAr
+            ? (material.descriptionAr || `توريد مادة قياسية ${matName} مطابقة للمواصفات القياسية.`)
+            : (material.descriptionEn || `Supply of standard ${matName} complying with industrial specifications.`),
+        },
+      },
+    })
   }
 
   return (
@@ -212,17 +246,17 @@ export default function CatalogPage() {
                   >
                     <span>{isAr ? 'جميع القطاعات' : 'All Categories'}</span>
                     <span className="text-xs font-mono opacity-70">
-                      {materialsLoading ? (
+                      {allMaterialsLoading && allMaterials.length === 0 ? (
                         <span className="inline-block w-4 h-3 bg-slate-200 animate-pulse rounded" />
                       ) : (
-                        materials.length
+                        allMaterials.length || materials.length
                       )}
                     </span>
                   </button>
                 </li>
 
                 {categories.map((cat) => {
-                  const count = materials.filter((m) => m.categoryId === cat.id).length
+                  const count = (allMaterials.length > 0 ? allMaterials : materials).filter((m) => m.categoryId === cat.id).length
                   const isSelected = selectedCategoryId === cat.id
                   return (
                     <li key={cat.id}>
@@ -236,7 +270,7 @@ export default function CatalogPage() {
                         }`}
                       >
                         <span className="truncate">{getLocalizedField(cat, 'name', language)}</span>
-                        {materialsLoading ? (
+                        {allMaterialsLoading && allMaterials.length === 0 ? (
                           <span className="inline-block w-4 h-3 bg-slate-200 animate-pulse rounded ms-2" />
                         ) : count > 0 ? (
                           <span className="text-xs font-mono opacity-70 ms-2">

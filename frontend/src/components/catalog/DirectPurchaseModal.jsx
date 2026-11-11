@@ -160,15 +160,15 @@ export default function DirectPurchaseModal({
         setServerEndpointUnavailable(true)
         setErrorMsg(
           isAr
-            ? `خدمة الشراء المباشر التلقائي من الكتالوج قيد الربط البرمجي على خادم المنصة (HTTP ${status}: ${err?.config?.url || '/catalog/materials/{id}/purchase'}). يمكنك تحويل الطلب فوراً إلى طلب عرض سعر (RFQ) معتمد بنفس البيانات.`
-            : `Direct catalog purchase backend API endpoint is currently being finalized (HTTP ${status}: ${err?.config?.url || '/catalog/materials/{id}/purchase'}). You can instantly convert this order into an official RFQ with the exact same parameters.`
+            ? `لم يتم العثور على مورد متاح حالياً لهذه المادة للشراء الفوري. يمكنك تحويل الطلب فوراً إلى طلب عرض سعر (RFQ) معتمد بنفس البيانات.`
+            : `No active supplier listing was found for immediate purchase. You can instantly convert this order into an official RFQ with the exact same parameters.`
         )
       } else {
         setErrorMsg(
           detail ||
           (isAr
-            ? 'حدث خطأ أثناء معالجة طلب الشراء. يرجى المحاولة مرة أخرى.'
-            : 'Failed to submit direct purchase. Please try again.')
+            ? 'حدث خطأ أثناء معالجة طلب الشراء. يرجى مراجعة البيانات والمحاولة مرة أخرى.'
+            : 'Failed to submit direct purchase. Please check details and try again.')
         )
       }
     } finally {
@@ -196,14 +196,14 @@ export default function DirectPurchaseModal({
 
   const modalContent = (
     <div
-      className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-[#06245B]/65 backdrop-blur-md overflow-y-auto"
+      className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-6 bg-[#06245B]/65 backdrop-blur-md overflow-hidden"
       dir={isAr ? 'rtl' : 'ltr'}
       role="dialog"
       aria-modal="true"
     >
-      <div className="relative w-full max-w-2xl bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden my-8">
-        {/* Header */}
-        <div className="px-6 py-5 bg-gradient-to-r from-[#06245B] via-[#0A3078] to-[#1266D6] text-white flex items-center justify-between">
+      <div className="relative w-full max-w-2xl max-h-[92vh] flex flex-col bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden animate-scale-in">
+        {/* Header - Fixed top */}
+        <div className="px-6 py-4.5 bg-gradient-to-r from-[#06245B] via-[#0A3078] to-[#1266D6] text-white flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl bg-white/10 backdrop-blur-sm border border-white/20 flex items-center justify-center">
               <Package size={20} className="text-[#00D9F5]" />
@@ -228,8 +228,9 @@ export default function DirectPurchaseModal({
           </button>
         </div>
 
-        {/* Form Body */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-5">
+        {/* Scrollable Form Body */}
+        <form onSubmit={handleSubmit} className="flex-1 flex flex-col min-h-0 overflow-hidden">
+          <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-4">
           {/* Material Identity Card */}
           <div className="p-4 rounded-2xl bg-[#EAF4FF]/70 border border-[#1266D6]/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
             <div>
@@ -413,33 +414,34 @@ export default function DirectPurchaseModal({
                 : 'Note: Prevailing benchmark pricing. Does not require online credit processing.'}
             </p>
           </div>
+        </div>
 
-          {/* Modal Actions */}
-          <div className="pt-2 flex items-center justify-end gap-3">
-            <Button
-              type="button"
-              variant="outline"
-              size="md"
-              onClick={onClose}
-              disabled={isSubmitting}
-            >
-              {isAr ? 'إلغاء' : 'Cancel'}
-            </Button>
-            <Button
-              type="submit"
-              variant="primary"
-              size="md"
-              disabled={isSubmitting}
-              icon={isSubmitting ? <Spinner size="sm" /> : <Package size={16} />}
-            >
-              {isSubmitting
-                ? (isAr ? 'جاري إرسال أمر الشراء...' : 'Submitting Order...')
-                : (isAr ? 'تأكيد أمر الشراء المباشر' : 'Confirm Direct Purchase')}
-            </Button>
-          </div>
-        </form>
-      </div>
+        {/* Modal Actions - Pinned Bottom Footer */}
+        <div className="p-4 sm:p-5 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-3 shrink-0">
+          <Button
+            type="button"
+            variant="outline"
+            size="md"
+            onClick={onClose}
+            disabled={isSubmitting}
+          >
+            {isAr ? 'إلغاء' : 'Cancel'}
+          </Button>
+          <Button
+            type="submit"
+            variant="primary"
+            size="md"
+            disabled={isSubmitting}
+            icon={isSubmitting ? <Spinner size="sm" /> : <Package size={16} />}
+          >
+            {isSubmitting
+              ? (isAr ? 'جاري إرسال أمر الشراء...' : 'Submitting Order...')
+              : (isAr ? 'تأكيد أمر الشراء المباشر' : 'Confirm Direct Purchase')}
+          </Button>
+        </div>
+      </form>
     </div>
+  </div>
   )
 
   if (typeof document === 'undefined') return modalContent

@@ -1,7 +1,12 @@
 using DealZone.Application.Catalog.DTOs;
+using DealZone.Application.Common.Exceptions;
 using DealZone.Application.Common.Interfaces;
+using DealZone.Application.Purchasing.DTOs;
+using DealZone.Domain.Exceptions;
+using DealZone.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace DealZone.Api.Controllers;
 
@@ -179,6 +184,58 @@ public class CatalogController : ApiControllerBase
         var normalizedRequest = request with { CatalogProductId = id };
         await DealZone.Application.Common.Validation.ValidationExtensions.ValidateAndThrowDomainAsync(validator, normalizedRequest, cancellationToken);
         var result = await purchasingService.CreateDirectPurchaseAsync(normalizedRequest, cancellationToken);
+        return CreatedAtAction("GetPurchaseById", "Purchases", new { id = result.Id }, result);
+    }
+
+    /// <summary>
+    /// Direct purchase of an industrial raw material from the catalog.
+    /// Finds the active supplier catalog product offering this material and issues an atomic direct purchase deal.
+    /// Route: POST /api/v1/catalog/materials/{id}/purchase
+    /// </summary>
+    [Authorize]
+    [HttpPost("materials/{id:guid}/purchase")]
+    public async Task<IActionResult> DirectPurchaseMaterial(
+        Guid id,
+        [FromBody] MaterialPurchaseRequest request,
+        [FromServices] IPurchasingService purchasingService,
+        [FromServices] DealZoneDbContext dbContext,
+        CancellationToken cancellationToken)
+    {
+        var product = await dbContext.CatalogProducts
+            .Include(p => p.SupplierCompany)
+            .Include(p => p.Material)
+            .Where(p => p.MaterialId == id && p.IsActive && !p.IsArchived)
+            .OrderByDescending(p => p.AvailableQuantity >= request.Quantity)
+            .ThenBy(p => p.UnitPrice)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (product == null && !string.IsNullOrWhiteSpace(request.MaterialCode))
+        {
+            product = await dbContext.CatalogProducts
+                .Include(p => p.SupplierCompany)
+                .Include(p => p.Material)
+                .Where(p => p.Material.Code == request.MaterialCode && p.IsActive && !p.IsArchived)
+                .OrderByDescending(p => p.AvailableQuantity >= request.Quantity)
+                .ThenBy(p => p.UnitPrice)
+                .FirstOrDefaultAsync(cancellationToken);
+        }
+
+        if (product == null)
+        {
+            throw new NotFoundException($"No active supplier catalog offering was found for material {id}.");
+        }
+
+        var fullDeliveryAddress = string.IsNullOrWhiteSpace(request.DeliveryIndustrialZone)
+            ? request.DeliveryAddress ?? "Factory Gate"
+            : $"{request.DeliveryIndustrialZone} - {request.DeliveryAddress ?? ""}".Trim(' ', '-');
+
+        var directPurchaseRequest = new CreateDirectPurchaseRequest(
+            CatalogProductId: product.Id,
+            Quantity: request.Quantity,
+            DeliveryAddress: fullDeliveryAddress,
+            Notes: request.SpecialInstructions);
+
+        var result = await purchasingService.CreateDirectPurchaseAsync(directPurchaseRequest, cancellationToken);
         return CreatedAtAction("GetPurchaseById", "Purchases", new { id = result.Id }, result);
     }
 }

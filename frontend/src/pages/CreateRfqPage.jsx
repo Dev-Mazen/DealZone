@@ -1,10 +1,10 @@
-import { useCallback } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useCallback, useEffect, useMemo } from 'react'
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom'
 import { useForm, useFieldArray } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { ArrowLeft, Plus, Trash2, AlertCircle } from 'lucide-react'
+import { ArrowLeft, Plus, Trash2, AlertCircle, Package, CheckCircle2 } from 'lucide-react'
 import { rfqService } from '../shared/api/services/rfqService'
 import { catalogService } from '../shared/api/services/catalogService'
 import { useTranslation } from '../hooks/useTranslation'
@@ -223,10 +223,37 @@ function LineItemRow({
 export default function CreateRfqPage() {
   const { language } = useTranslation()
   const navigate = useNavigate()
+  const location = useLocation()
+  const [searchParams] = useSearchParams()
   const toast = useToast()
   const isAr = language === 'ar'
 
   const { canManageRfqs, isSupplierOnly } = usePermissions()
+
+  // Extract pre-filled material from navigation state or URL query
+  const prefilled = useMemo(() => {
+    const stateObj = location.state?.prefilledMaterial
+    if (stateObj) return stateObj
+    const matId = searchParams.get('materialId')
+    const matCode = searchParams.get('materialCode')
+    const matName = searchParams.get('materialName')
+    const catId = searchParams.get('catId')
+    const unit = searchParams.get('unit')
+    const qty = searchParams.get('qty')
+    if (matId || matCode || matName) {
+      return {
+        materialId: matId || undefined,
+        materialCode: matCode || undefined,
+        materialName: matName || undefined,
+        categoryId: catId || undefined,
+        unit: unit || undefined,
+        quantity: qty ? Number(qty) : undefined,
+      }
+    }
+    return null
+  }, [location.state, searchParams])
+
+  const isPrefilled = Boolean(prefilled?.materialName || prefilled?.materialCode)
 
   const {
     register,
@@ -243,10 +270,11 @@ export default function CreateRfqPage() {
       currency: 'EGP',
       items: [
         {
-          categoryId: '',
-          materialName: '',
-          specifications: '',
-          quantity: undefined,
+          categoryId: prefilled?.categoryId || '',
+          materialId: prefilled?.materialId || '',
+          materialName: prefilled?.materialName || '',
+          specifications: prefilled?.specifications || '',
+          quantity: prefilled?.quantity || undefined,
         },
       ],
     },
@@ -264,6 +292,66 @@ export default function CreateRfqPage() {
     queryKey: ['catalog', 'units'],
     queryFn: () => catalogService.getUnits(),
   })
+
+  // Automatically pre-fill the form whenever prefilled context or reference data is ready
+  useEffect(() => {
+    if (!prefilled) return
+
+    const matDisplay = prefilled.materialName || prefilled.materialCode || ''
+    if (matDisplay) {
+      setValue('title', isAr ? `طلب توريد: ${matDisplay}` : `RFQ: Supply of ${matDisplay}`)
+    }
+
+    if (prefilled.categoryId) {
+      setValue('targetCategoryId', prefilled.categoryId)
+      setValue('items.0.categoryId', prefilled.categoryId)
+    }
+
+    if (prefilled.materialId) {
+      setValue('items.0.materialId', prefilled.materialId)
+    }
+
+    if (prefilled.materialName) {
+      setValue('items.0.materialName', prefilled.materialName)
+    }
+
+    if (prefilled.quantity) {
+      setValue('items.0.quantity', prefilled.quantity)
+    }
+
+    if (prefilled.specifications) {
+      setValue('items.0.specifications', prefilled.specifications)
+    } else if (matDisplay) {
+      setValue(
+        'items.0.specifications',
+        isAr
+          ? `توريد مادة ${matDisplay} مطابقة للمعايير الصناعية والمواصفات القياسية المصرية (EOS) ومرفق معها شهادة الجودة.`
+          : `Supply of ${matDisplay} conforming to certified EOS / ASTM industrial standards with Mill Test Certificate.`
+      )
+    }
+
+    if (units && units.length > 0 && prefilled.unit) {
+      const uTarget = prefilled.unit.toLowerCase()
+      const found = units.find(
+        (u) =>
+          u.id === prefilled.unitOfMeasureId ||
+          u.code?.toLowerCase() === uTarget ||
+          u.nameEn?.toLowerCase() === uTarget ||
+          u.nameAr?.includes(prefilled.unit)
+      )
+      if (found) {
+        setValue('items.0.unitOfMeasureId', found.id)
+      }
+    }
+
+    if (prefilled.deliveryAddress) {
+      setValue('deliveryAddress', prefilled.deliveryAddress)
+    }
+    if (prefilled.industrialZone) {
+      setValue('deliveryCity', prefilled.industrialZone)
+      setValue('deliveryGovernorate', 'Sharqia')
+    }
+  }, [prefilled, units, setValue, isAr])
 
   // Flatten categories for dropdown (all levels)
   const flatCategories = useCallback(() => {
@@ -364,6 +452,41 @@ export default function CreateRfqPage() {
           </p>
         </div>
       </div>
+
+      {/* Contextual Pre-filled Material Banner */}
+      {isPrefilled && (
+        <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-[#EAF4FF] to-blue-50 border border-blue-200/80 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-[#1266D6] text-white flex items-center justify-center shrink-0">
+              <Package size={20} />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-[#1266D6] uppercase tracking-wide">
+                  {isAr ? 'طلب مخصص لخامة محددة' : 'Specific Material Request'}
+                </span>
+                <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded-md">
+                  <CheckCircle2 size={12} />
+                  {isAr ? 'بيانات معبأة تلقائياً' : 'Pre-filled'}
+                </span>
+              </div>
+              <h3 className="font-extrabold text-[#06245B] text-base mt-0.5">
+                {prefilled.materialName || prefilled.materialCode}
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                {isAr
+                  ? 'تم ملء المواصفات القياسية ووحدة القياس والفئة تلقائياً. يمكنك مراجعة وتعديل أي حقل بحرية.'
+                  : 'Standard specifications, unit of measure, and category were auto-filled. You can review and adjust any field freely.'}
+              </p>
+            </div>
+          </div>
+          {prefilled.materialCode && (
+            <span className="font-mono text-xs font-bold bg-white px-3 py-1.5 rounded-xl border border-blue-200 text-[#06245B] shrink-0">
+              {prefilled.materialCode}
+            </span>
+          )}
+        </div>
+      )}
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
 

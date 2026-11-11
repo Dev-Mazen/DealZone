@@ -124,11 +124,15 @@ function App() {
               <Route element={<PublicLayout />}>
                 <Route path="/" element={<LandingPage />} />
                 <Route path="/about" element={<AboutPage />} />
-                <Route path="/suppliers" element={<SupplierDirectoryPage />} />
-                <Route path="/suppliers/:companyId" element={<CompanyProfilePage />} />
-                <Route path="/companies/:companyId" element={<CompanyProfilePage />} />
-                <Route path="/login" element={<LoginPage />} />
-                <Route path="/register" element={<RegisterPage />} />
+                {!isAuthenticated && (
+                  <>
+                    <Route path="/suppliers" element={<SupplierDirectoryPage />} />
+                    <Route path="/suppliers/:companyId" element={<CompanyProfilePage />} />
+                    <Route path="/companies/:companyId" element={<CompanyProfilePage />} />
+                  </>
+                )}
+                <Route path="/login" element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <LoginPage />} />
+                <Route path="/register" element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <RegisterPage />} />
                 <Route path="/confirm-email" element={<ConfirmEmailPage />} />
                 <Route path="/forgot-password" element={<ForgotPasswordPage />} />
                 <Route path="/reset-password" element={<ResetPasswordPage />} />

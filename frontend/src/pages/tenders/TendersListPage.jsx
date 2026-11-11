@@ -5,6 +5,7 @@ import {
   Plus,
   Search,
   Gavel,
+  FileText,
   MapPin,
   Clock,
   Building2,
@@ -179,17 +180,46 @@ export default function TendersListPage() {
           </div>
 
           {canManageRfqs && !isSupplierView && (
-            <Button
-              as={Link}
-              to="/tenders/create"
-              variant="primary"
-              size="md"
-              icon={<Plus size={18} />}
-              className="shrink-0"
-            >
-              {isAr ? 'إنشاء مناقصة جديدة' : 'Create New Tender'}
-            </Button>
+            <div className="flex items-center gap-2.5 flex-wrap shrink-0">
+              <Button
+                as={Link}
+                to="/rfqs/create"
+                variant="outline"
+                size="md"
+                icon={<Plus size={16} />}
+                className="border-[#06245B] text-[#06245B] hover:bg-[#EAF4FF]"
+              >
+                {isAr ? 'طلب سعر مباشر (RFQ)' : 'New Quote Request'}
+              </Button>
+              <Button
+                as={Link}
+                to="/tenders/create"
+                variant="primary"
+                size="md"
+                icon={<Gavel size={16} />}
+              >
+                {isAr ? 'طرح مناقصة كبرى (Tender)' : 'Publish Tender'}
+              </Button>
+            </div>
           )}
+        </div>
+
+        {/* Section Navigation Tabs between Direct RFQs and Public Tenders */}
+        <div className="flex items-center gap-2 mt-6 pt-5 border-t border-slate-100 flex-wrap">
+          <Link
+            to="/rfqs"
+            className="px-4 py-2 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-all flex items-center gap-2"
+          >
+            <FileText size={15} className="text-[#1266D6]" />
+            <span>{isAr ? 'طلبات الأسعار المباشرة (RFQs)' : 'Direct Quotations (RFQs)'}</span>
+          </Link>
+          <Link
+            to="/tenders"
+            className="px-4 py-2 rounded-2xl bg-[#06245B] text-white text-xs font-bold shadow-xs flex items-center gap-2"
+          >
+            <Gavel size={15} />
+            <span>{isAr ? 'المناقصات الكبرى والمزايدات (Tenders)' : 'Industrial Tenders'}</span>
+          </Link>
         </div>
 
         {/* Search & Filter */}

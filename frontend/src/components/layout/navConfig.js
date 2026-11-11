@@ -13,6 +13,7 @@ import {
     BarChart3,
     Home,
     Info,
+    Gavel,
 } from 'lucide-react'
 
 export const getPublicLinks = (isAr) => [
@@ -93,8 +94,9 @@ export function getNavSections(roleKey, isAr) {
                     title: isAr ? 'السوق' : 'Market',
                     items: [
                         { key: 'catalog', label: isAr ? 'الكتالوج' : 'Catalog', icon: Package, path: '/catalog' },
-                        { key: 'rfqs', label: isAr ? 'مناقصات السوق المفتوحة' : 'Open Market Tenders', icon: FileText, path: '/rfqs', match: ['/tenders'] },
-                        { key: 'offers', label: isAr ? 'عروضي ومزايداتي' : 'My Bids', icon: Send, path: '/offers', match: ['/bids'] },
+                        { key: 'rfqs', label: isAr ? 'طلبات الأسعار المفتوحة' : 'Open Market RFQs', icon: FileText, path: '/rfqs' },
+                        { key: 'tenders', label: isAr ? 'المناقصات والمزايدات' : 'Open Tenders & Bidding', icon: Gavel, path: '/tenders' },
+                        { key: 'offers', label: isAr ? 'عروضي ومزايداتي' : 'My Bids', icon: Send, path: '/offers', match: ['/tenders/bids/mine'] },
                     ],
                 },
                 {
@@ -116,8 +118,9 @@ export function getNavSections(roleKey, isAr) {
                     items: [
                         { key: 'catalog', label: isAr ? 'كتالوج الخامات' : 'Materials Catalog', icon: Package, path: '/catalog' },
                         { key: 'suppliers', label: isAr ? 'دليل الموردين' : 'Supplier Directory', icon: Building2, path: '/suppliers' },
-                        { key: 'rfqs', label: isAr ? 'طلبات الأسعار والمناقصات' : 'RFQs & Tenders', icon: FileText, path: '/rfqs', match: ['/tenders'] },
-                        { key: 'offers', label: isAr ? 'العروض المستلمة' : 'Received Quotes', icon: Inbox, path: '/offers', match: ['/bids'] },
+                        { key: 'rfqs', label: isAr ? 'طلبات الأسعار (RFQs)' : 'Direct Quotes (RFQs)', icon: FileText, path: '/rfqs' },
+                        { key: 'tenders', label: isAr ? 'المناقصات الكبرى' : 'Industrial Tenders', icon: Gavel, path: '/tenders' },
+                        { key: 'offers', label: isAr ? 'العروض المستلمة' : 'Received Quotes', icon: Inbox, path: '/offers', match: ['/tenders/bids/mine'] },
                     ],
                 },
                 {
@@ -139,8 +142,9 @@ export function getNavSections(roleKey, isAr) {
                     items: [
                         { key: 'catalog', label: isAr ? 'الكتالوج الصناعي' : 'Industrial Catalog', icon: Package, path: '/catalog' },
                         { key: 'suppliers', label: isAr ? 'دليل الموردين' : 'Supplier Directory', icon: Building2, path: '/suppliers' },
-                        { key: 'rfqs', label: isAr ? 'طلبات الأسعار والمناقصات' : 'RFQs & Tenders', icon: FileText, path: '/rfqs', match: ['/tenders'] },
-                        { key: 'offers', label: isAr ? 'العروض والمزايدات' : 'Offers & Bids', icon: DollarSign, path: '/offers', match: ['/bids'] },
+                        { key: 'rfqs', label: isAr ? 'طلبات الأسعار (RFQs)' : 'Direct Quotes (RFQs)', icon: FileText, path: '/rfqs' },
+                        { key: 'tenders', label: isAr ? 'المناقصات الكبرى' : 'Industrial Tenders', icon: Gavel, path: '/tenders' },
+                        { key: 'offers', label: isAr ? 'العروض والمزايدات' : 'Offers & Bids', icon: DollarSign, path: '/offers', match: ['/tenders/bids/mine'] },
                     ],
                 },
                 {
