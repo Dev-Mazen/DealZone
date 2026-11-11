@@ -36,7 +36,7 @@ export default function ForgotPasswordPage() {
       <div className="w-full max-w-md">
         <div className="bg-white rounded-2xl shadow-xl p-8 border border-[rgba(6,36,91,0.06)]">
           <div className="flex justify-center mb-6">
-            <Logo size="md" link={true} />
+            <Logo size="lg" link={true} />
           </div>
 
           {sent ? (

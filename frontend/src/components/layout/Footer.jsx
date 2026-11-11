@@ -41,7 +41,7 @@ export default function Footer({ className = '' }) {
         <div className="flex flex-col md:flex-row items-center justify-between gap-6">
           {/* Logo & Tagline */}
           <div className="flex items-center gap-4">
-            <Logo size="sm" variant="white" link={true} />
+            <Logo size="md" variant="white" link={true} />
             <span className="text-xs text-slate-500 border-s border-slate-700 ps-4">
               {isAr ? 'منصة التوريد الصناعي B2B في مصر' : "Egypt's Premier Industrial B2B Marketplace"}
             </span>

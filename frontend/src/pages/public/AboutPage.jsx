@@ -543,7 +543,7 @@ export default function AboutPage() {
           }}
         />
         <div className="max-w-4xl mx-auto text-center px-4 relative z-10">
-          <Logo size="lg" variant="white" link={false} className="justify-center mb-6" />
+          <Logo size="xl" variant="white" link={false} className="justify-center mb-6" />
           <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-white mb-6 tracking-tight">
             {isAr ? 'جاهز لتطوير تجارة وتوريد مصنعك؟' : 'Ready to Elevate Your Industrial Sourcing?'}
           </h2>

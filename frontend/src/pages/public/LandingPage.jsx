@@ -152,7 +152,7 @@ export default function LandingPage() {
         <div className="container relative z-10 max-w-6xl mx-auto text-center pt-24 pb-28 px-4 sm:px-6 lg:px-8">
           {/* Official Logo Banner */}
           <div className="flex justify-center mb-6">
-            <Logo size="lg" variant="white" link={false} />
+            <Logo size="xl" variant="white" link={false} />
           </div>
 
           

@@ -20,12 +20,12 @@ export default function Logo({
   const { language } = useTranslation()
   const isAr = language === 'ar'
 
-  // Slightly increased display sizes for prominent brand visibility while preserving 4:3 aspect ratio
+  // Enlarged display sizes across all variants for prominent brand visibility and legibility
   const sizeMap = {
-    sm: { img: 'h-8 w-auto max-w-[42px]', text: 'text-base', sub: 'text-[9px]', tag: 'text-[10px]' },
-    md: { img: 'h-10 w-auto max-w-[52px]', text: 'text-lg', sub: 'text-[10px]', tag: 'text-xs' },
-    lg: { img: 'h-14 w-auto max-w-[72px]', text: 'text-2xl', sub: 'text-xs', tag: 'text-sm' },
-    xl: { img: 'h-20 w-auto max-w-[105px]', text: 'text-3xl', sub: 'text-sm', tag: 'text-base' },
+    sm: { img: 'h-10 w-auto max-w-[56px]', text: 'text-lg', sub: 'text-[10px]', tag: 'text-xs' },
+    md: { img: 'h-12 w-auto max-w-[68px]', text: 'text-xl sm:text-2xl', sub: 'text-xs', tag: 'text-xs' },
+    lg: { img: 'h-16 sm:h-20 w-auto max-w-[100px]', text: 'text-2xl sm:text-3xl', sub: 'text-xs sm:text-sm', tag: 'text-sm' },
+    xl: { img: 'h-24 sm:h-28 w-auto max-w-[140px]', text: 'text-3xl sm:text-4xl', sub: 'text-sm sm:text-base', tag: 'text-base' },
   }
 
   const currentSize = sizeMap[size] || sizeMap.md
@@ -45,21 +45,31 @@ export default function Logo({
 
   const content = (
     <div className={`inline-flex items-center gap-3 select-none group ${className}`}>
-      {/* Official DealZone Logo Mark — Styled with subtle inner & outer shadows for depth */}
-      <div
-        className={`${currentSize.img} shrink-0 flex items-center justify-center p-1 rounded-xl transition-all duration-200 group-hover:scale-105 ${
-          isWhite
-            ? 'bg-white/10 shadow-[inset_0_1px_1px_rgba(255,255,255,0.4),0_2px_6px_rgba(0,0,0,0.25)] border border-white/20'
-            : 'bg-gradient-to-b from-white to-[#F4F7FB] shadow-[inset_0_1px_2px_rgba(255,255,255,0.9),0_2px_6px_rgba(6,36,91,0.12)] border border-[#06245B]/10'
-        }`}
-      >
-        <img
-          src={logoTransparent}
-          alt="DealZone Official Logo"
-          className="h-full w-auto object-contain block drop-shadow-sm"
-          loading="eager"
-        />
-      </div>
+      {/* Official DealZone Logo Mark:
+          - On dark backgrounds (isWhite / footer / dark heroes): Rendered cleanly with NO box or border.
+          - On light backgrounds: Rendered inside a dark navy executive box so the white emblem elements pop with high contrast.
+      */}
+      {isWhite ? (
+        <div className={`${currentSize.img} shrink-0 flex items-center justify-center transition-all duration-200 group-hover:scale-105`}>
+          <img
+            src={logoTransparent}
+            alt="DealZone Official Logo"
+            className="h-full w-auto object-contain block drop-shadow-md"
+            loading="eager"
+          />
+        </div>
+      ) : (
+        <div
+          className={`${currentSize.img} shrink-0 flex items-center justify-center p-2 rounded-2xl bg-gradient-to-b from-[#06245B] to-[#041638] shadow-[0_4px_12px_rgba(6,36,91,0.25)] border border-[#06245B] transition-all duration-200 group-hover:scale-105 group-hover:shadow-[0_6px_16px_rgba(6,36,91,0.35)]`}
+        >
+          <img
+            src={logoTransparent}
+            alt="DealZone Official Logo"
+            className="h-full w-auto object-contain block drop-shadow-sm"
+            loading="eager"
+          />
+        </div>
+      )}
 
       {showText && (
         <div className="flex flex-col text-start">
