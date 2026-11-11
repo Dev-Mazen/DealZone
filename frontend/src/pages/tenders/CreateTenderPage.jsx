@@ -19,18 +19,13 @@ import Select from '../../components/ui/Select'
 import { useToast } from '../../hooks/useToast'
 
 const MATERIAL_UNITS = [
-  { value: 'Kilogram', label: 'Kilogram (kg)', labelAr: 'كيلوجرام' },
   { value: 'MetricTon', label: 'Metric Ton', labelAr: 'طن متري' },
-  { value: 'Liter', label: 'Liter', labelAr: 'لتر' },
-  { value: 'CubicMeter', label: 'Cubic Meter', labelAr: 'متر مكعب' },
-  { value: 'SquareMeter', label: 'Square Meter', labelAr: 'متر مربع' },
-  { value: 'LinearMeter', label: 'Linear Meter', labelAr: 'متر طولي' },
-  { value: 'Piece', label: 'Piece', labelAr: 'قطعة' },
-  { value: 'Roll', label: 'Roll', labelAr: 'لفة' },
-  { value: 'Sheet', label: 'Sheet', labelAr: 'ورقة / لوح' },
-  { value: 'Bag', label: 'Bag', labelAr: 'شيكارة' },
-  { value: 'Drum', label: 'Drum', labelAr: 'برميل' },
-  { value: 'Pallet', label: 'Pallet', labelAr: 'باليت' },
+  { value: 'Kilogram', label: 'Kilogram (kg)', labelAr: 'كيلوجرام' },
+  { value: 'Gram', label: 'Gram (g)', labelAr: 'جرام' },
+  { value: 'Liter', label: 'Liter (L)', labelAr: 'لتر' },
+  { value: 'CubicMeter', label: 'Cubic Meter (m³)', labelAr: 'متر مكعب' },
+  { value: 'Piece', label: 'Piece (pcs)', labelAr: 'قطعة' },
+  { value: 'Barrel', label: 'Barrel (bbl)', labelAr: 'برميل' },
 ]
 
 const emptyItem = () => ({
@@ -39,7 +34,7 @@ const emptyItem = () => ({
   materialName: '',
   specifications: '',
   quantity: '',
-  unit: 'Kilogram',
+  unit: 'MetricTon',
   targetPricePerUnit: '',
   notes: '',
 })
@@ -110,10 +105,15 @@ export default function CreateTenderPage() {
   const validate = () => {
     const e = {}
     if (!form.title.trim()) e.title = isAr ? 'العنوان مطلوب' : 'Title is required'
+    if (!form.targetCategoryId) e.targetCategoryId = isAr ? 'القطاع الصناعي مطلوب' : 'Industry Category is required'
     if (!form.deliveryGovernorate.trim()) e.deliveryGovernorate = isAr ? 'المحافظة مطلوبة' : 'Governorate is required'
     if (!form.deliveryCity.trim()) e.deliveryCity = isAr ? 'المدينة مطلوبة' : 'City is required'
     if (!form.deliveryAddress.trim()) e.deliveryAddress = isAr ? 'العنوان مطلوب' : 'Address is required'
-    if (!form.closingDateUtc) e.closingDateUtc = isAr ? 'تاريخ الإغلاق مطلوب' : 'Closing date is required'
+    if (!form.closingDateUtc) {
+      e.closingDateUtc = isAr ? 'تاريخ الإغلاق مطلوب' : 'Closing date is required'
+    } else if (new Date(form.closingDateUtc) <= new Date()) {
+      e.closingDateUtc = isAr ? 'يجب أن يكون تاريخ الإغلاق في موعد مستقبلي' : 'Closing date must be in the future'
+    }
     
     items.forEach((item, i) => {
       if (!item.materialName.trim()) e[`items[${i}].materialName`] = isAr ? 'اسم المادة مطلوب' : 'Material name is required'
@@ -136,12 +136,14 @@ export default function CreateTenderPage() {
       deliveryGovernorate: form.deliveryGovernorate.trim(),
       deliveryCity: form.deliveryCity.trim(),
       deliveryAddress: form.deliveryAddress.trim(),
-      requiredDeliveryDateUtc: form.requiredDeliveryDateUtc || null,
-      closingDateUtc: form.closingDateUtc,
+      requiredDeliveryDateUtc: form.requiredDeliveryDateUtc
+        ? new Date(form.requiredDeliveryDateUtc).toISOString()
+        : null,
+      closingDateUtc: new Date(form.closingDateUtc).toISOString(),
       referencePrice: form.referencePrice ? Number(form.referencePrice) : null,
       notes: form.notes.trim() || null,
       items: items.map((item) => ({
-        categoryId: item.categoryId || (form.targetCategoryId || null),
+        categoryId: item.categoryId || form.targetCategoryId,
         materialName: item.materialName.trim(),
         specifications: item.specifications.trim(),
         quantity: Number(item.quantity),
@@ -208,20 +210,25 @@ export default function CreateTenderPage() {
               </div>
               <div>
                 <label className="block text-sm font-semibold text-[#06245B] mb-1.5">
-                  {isAr ? 'التصنيف (اختياري)' : 'Category (optional)'}
+                  {isAr ? 'القطاع / التصنيف الصناعي *' : 'Industry Category *'}
                 </label>
                 <select
                   value={form.targetCategoryId}
                   onChange={(e) => handleFieldChange('targetCategoryId', e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-2xl border border-slate-200 text-sm focus:outline-none focus:border-[#1266D6] bg-white text-slate-800"
+                  className={`w-full px-4 py-2.5 rounded-2xl border ${
+                    errors.targetCategoryId ? 'border-red-500' : 'border-slate-200'
+                  } text-sm focus:outline-none focus:border-[#1266D6] bg-white text-slate-800`}
                 >
-                  <option value="">{isAr ? 'اختر التصنيف...' : 'Select category...'}</option>
+                  <option value="">{isAr ? 'اختر القطاع الصناعي...' : 'Select industry category...'}</option>
                   {categories.map?.((cat) => (
                     <option key={cat.id} value={cat.id}>
                       {isAr ? (cat.nameAr || cat.nameEn || cat.name) : (cat.nameEn || cat.nameAr || cat.name)}
                     </option>
                   ))}
                 </select>
+                {errors.targetCategoryId && (
+                  <p className="text-xs text-red-500 mt-1">{errors.targetCategoryId}</p>
+                )}
               </div>
               <div>
                 <Input
@@ -272,6 +279,7 @@ export default function CreateTenderPage() {
               <Input
                 label={isAr ? 'تاريخ إغلاق المناقصة *' : 'Closing Date *'}
                 type="datetime-local"
+                min={new Date(Date.now() + 3600000).toISOString().slice(0, 16)}
                 value={form.closingDateUtc}
                 onChange={(e) => handleFieldChange('closingDateUtc', e.target.value)}
                 error={errors.closingDateUtc}

@@ -106,31 +106,31 @@ export default function TenderDetailPage() {
   const publishMutation = useMutation({
     mutationFn: () => tenderService.publish(tenderId),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['tenders'] }); setShowPublish(false); toast.success(isAr ? 'تم نشر المناقصة' : 'Tender published') },
-    onError: (e) => toast.error(e.response?.data?.detail || 'Error'),
+    onError: (e) => toast.error(e.response?.data?.detail || e.response?.data?.title || (isAr ? 'فشل نشر المناقصة' : 'Failed to publish tender')),
   })
 
   const closeMutation = useMutation({
     mutationFn: () => tenderService.close(tenderId),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['tenders'] }); setShowClose(false); toast.success(isAr ? 'تم إغلاق المناقصة' : 'Tender closed') },
-    onError: (e) => toast.error(e.response?.data?.detail || 'Error'),
+    onError: (e) => toast.error(e.response?.data?.detail || e.response?.data?.title || (isAr ? 'فشل إغلاق المناقصة' : 'Failed to close tender')),
   })
 
   const cancelMutation = useMutation({
     mutationFn: () => tenderService.cancel(tenderId, cancelReason),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['tenders'] }); setShowCancel(false); toast.success(isAr ? 'تم إلغاء المناقصة' : 'Tender cancelled') },
-    onError: (e) => toast.error(e.response?.data?.detail || 'Error'),
+    onError: (e) => toast.error(e.response?.data?.detail || e.response?.data?.title || (isAr ? 'فشل إلغاء المناقصة' : 'Failed to cancel tender')),
   })
 
   const noAwardMutation = useMutation({
     mutationFn: () => tenderService.noAward(tenderId, noAwardReason),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['tenders'] }); setShowNoAward(false); toast.success(isAr ? 'تم رفض جميع العروض' : 'All bids rejected — no award') },
-    onError: (e) => toast.error(e.response?.data?.detail || 'Error'),
+    onError: (e) => toast.error(e.response?.data?.detail || e.response?.data?.title || (isAr ? 'فشل إنهاء المناقصة' : 'Failed to conclude tender')),
   })
 
   const reopenMutation = useMutation({
-    mutationFn: () => tenderService.reopen(tenderId, { newClosingDateUtc: reopenDate }),
+    mutationFn: () => tenderService.reopen(tenderId, { newClosingDateUtc: new Date(reopenDate).toISOString() }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['tenders'] }); setShowReopen(false); toast.success(isAr ? 'تم إعادة فتح المناقصة' : 'Tender reopened') },
-    onError: (e) => toast.error(e.response?.data?.detail || 'Error'),
+    onError: (e) => toast.error(e.response?.data?.detail || e.response?.data?.title || (isAr ? 'فشل إعادة فتح المناقصة' : 'Failed to reopen tender')),
   })
 
   const awardMutation = useMutation({
@@ -142,7 +142,7 @@ export default function TenderDetailPage() {
       toast.success(isAr ? 'تم ترسية المناقصة وإنشاء الصفقة' : 'Tender awarded — Deal created')
       if (deal?.id) navigate(`/deals/${deal.id}`)
     },
-    onError: (e) => toast.error(e.response?.data?.detail || 'Error'),
+    onError: (e) => toast.error(e.response?.data?.detail || e.response?.data?.title || (isAr ? 'فشل ترسية المناقصة' : 'Failed to award tender')),
   })
 
   const submitBidMutation = useMutation({
@@ -153,7 +153,7 @@ export default function TenderDetailPage() {
       setShowBidForm(false)
       toast.success(isAr ? 'تم تقديم العرض بنجاح' : 'Bid submitted successfully')
     },
-    onError: (e) => toast.error(e.response?.data?.detail || 'Error'),
+    onError: (e) => toast.error(e.response?.data?.detail || e.response?.data?.title || (isAr ? 'فشل تقديم العرض' : 'Failed to submit bid')),
   })
 
   const withdrawBidMutation = useMutation({
@@ -163,7 +163,7 @@ export default function TenderDetailPage() {
       setShowWithdrawBid(false)
       toast.success(isAr ? 'تم سحب العرض' : 'Bid withdrawn')
     },
-    onError: (e) => toast.error(e.response?.data?.detail || 'Error'),
+    onError: (e) => toast.error(e.response?.data?.detail || e.response?.data?.title || (isAr ? 'فشل سحب العرض' : 'Failed to withdraw bid')),
   })
 
   const initBidForm = () => {
@@ -187,16 +187,20 @@ export default function TenderDetailPage() {
   }
 
   const handleBidSubmit = () => {
+    if (!bidForm.validityDateUtc) {
+      toast.error(isAr ? 'تاريخ سريان العرض مطلوب' : 'Validity date is required')
+      return
+    }
     const payload = {
-      validityDateUtc: bidForm.validityDateUtc,
+      validityDateUtc: new Date(bidForm.validityDateUtc).toISOString(),
       deliveryLeadTimeDays: Number(bidForm.deliveryLeadTimeDays),
-      shippingIncluded: bidForm.shippingIncluded,
-      paymentTerms: bidForm.paymentTerms,
-      notes: bidForm.notes || null,
+      shippingIncluded: Boolean(bidForm.shippingIncluded),
+      paymentTerms: bidForm.paymentTerms.trim(),
+      notes: bidForm.notes?.trim() || null,
       items: bidForm.items.map((i) => ({
         tenderItemId: i.tenderItemId,
         unitPrice: Number(i.unitPrice),
-        notes: i.notes || null,
+        notes: i.notes?.trim() || null,
       })),
     }
     submitBidMutation.mutate(payload)

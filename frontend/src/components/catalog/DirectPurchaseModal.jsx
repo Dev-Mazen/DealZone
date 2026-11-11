@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
+import { useQueryClient } from '@tanstack/react-query'
 import {
   X,
   Package,
   MapPin,
   ArrowRight,
   ArrowLeft,
+  Building2,
 } from 'lucide-react'
 import { catalogService } from '../../shared/api/services/catalogService'
 import { useTranslation } from '../../hooks/useTranslation'
@@ -14,7 +16,6 @@ import { useToast } from '../../hooks/useToast'
 import { getLocalizedField } from '../../utils/format'
 import Button from '../ui/Button'
 import Alert from '../ui/Alert'
-import Spinner from '../ui/Spinner'
 
 const EGYPTIAN_INDUSTRIAL_ZONES = [
   { id: '10th-ramadan', ar: 'العاشر من رمضان — المنطقة الصناعية B1-B4', en: '10th of Ramadan — Industrial Zone B1-B4' },
@@ -48,6 +49,7 @@ export default function DirectPurchaseModal({
   const isAr = language === 'ar'
   const navigate = useNavigate()
   const toast = useToast()
+  const queryClient = useQueryClient()
 
   const [quantity, setQuantity] = useState(material?.minOrderQty || 10)
   const [industrialZone, setIndustrialZone] = useState(EGYPTIAN_INDUSTRIAL_ZONES[0].ar)
@@ -136,6 +138,11 @@ export default function DirectPurchaseModal({
 
     try {
       const response = await catalogService.directPurchase(material.id, payload)
+      const targetDealId = response?.dealId || response?.deal?.id || response?.id
+
+      // Invalidate queries so Deals list updates immediately
+      queryClient.invalidateQueries({ queryKey: ['deals'] })
+
       toast.success(
         isAr
           ? 'تم تسجيل طلب الشراء المباشر بنجاح! جاري تحويلك للصفقات.'
@@ -143,9 +150,9 @@ export default function DirectPurchaseModal({
       )
       onClose()
       if (onSuccess) {
-        onSuccess(response?.id || response?.dealId)
+        onSuccess(targetDealId)
       } else {
-        navigate(response?.dealId ? `/deals/${response.dealId}` : '/deals')
+        navigate(targetDealId ? `/deals/${targetDealId}` : '/deals')
       }
     } catch (err) {
       console.warn('Direct purchase API call result:', err)
@@ -201,7 +208,7 @@ export default function DirectPurchaseModal({
       role="dialog"
       aria-modal="true"
     >
-      <div className="relative w-full max-w-2xl max-h-[92vh] flex flex-col bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden animate-scale-in">
+      <div className="relative w-full max-w-2xl max-h-[92vh] flex flex-col bg-white rounded-3xl shadow-2xl overflow-hidden animate-scale-in">
         {/* Header - Fixed top */}
         <div className="px-6 py-4.5 bg-gradient-to-r from-[#06245B] via-[#0A3078] to-[#1266D6] text-white flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
@@ -234,9 +241,17 @@ export default function DirectPurchaseModal({
           {/* Material Identity Card */}
           <div className="p-4 rounded-2xl bg-[#EAF4FF]/70 border border-[#1266D6]/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
             <div>
-              <span className="text-[11px] font-bold text-[#1266D6] bg-white px-2.5 py-0.5 rounded-full border border-blue-200">
-                {catName || 'Industrial'}
-              </span>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-[11px] font-bold text-[#1266D6] bg-white px-2.5 py-0.5 rounded-full border border-blue-200">
+                  {catName || 'Industrial'}
+                </span>
+                {(material.supplierCompanyName || material.supplierName) && (
+                  <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                    <Building2 size={12} className="text-emerald-600" />
+                    <span>{isAr ? 'المورد:' : 'Supplier:'} {material.supplierCompanyName || material.supplierName}</span>
+                  </span>
+                )}
+              </div>
               <h3 className="font-extrabold text-[#06245B] text-base mt-1.5">{matName}</h3>
               <p className="text-xs text-slate-500 font-mono mt-0.5">
                 {material.code} {material.standard ? `• ${material.standard}` : ''}
@@ -431,8 +446,8 @@ export default function DirectPurchaseModal({
             type="submit"
             variant="primary"
             size="md"
-            disabled={isSubmitting}
-            icon={isSubmitting ? <Spinner size="sm" /> : <Package size={16} />}
+            loading={isSubmitting}
+            icon={<Package size={16} />}
           >
             {isSubmitting
               ? (isAr ? 'جاري إرسال أمر الشراء...' : 'Submitting Order...')

@@ -20,6 +20,12 @@ export const catalogService = {
     api.get(`/catalog/units/${id}`).then((r) => r.data),
 
   // Direct Catalog Purchase Contract
+  getProducts: (params) =>
+    api.get('/catalog/products', { params }).then((r) => r.data),
+
+  getProduct: (id) =>
+    api.get(`/catalog/products/${id}`).then((r) => r.data),
+
   directPurchase: (materialId, payload) =>
     api.post(`/catalog/materials/${materialId}/purchase`, payload).then((r) => r.data),
 

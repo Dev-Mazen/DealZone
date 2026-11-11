@@ -82,7 +82,7 @@ export default function BidDetailPage() {
         navigate(`/tenders/bids/${newBid.id}`)
       }
     },
-    onError: (e) => toast.error(e.response?.data?.detail || isAr ? 'خطأ أثناء تعديل العرض' : 'Error revising bid'),
+    onError: (e) => toast.error(e.response?.data?.detail || e.response?.data?.title || (isAr ? 'خطأ أثناء تعديل العرض' : 'Error revising bid')),
   })
 
   const withdrawMutation = useMutation({
@@ -93,7 +93,7 @@ export default function BidDetailPage() {
       setShowWithdrawModal(false)
       toast.success(isAr ? 'تم سحب العرض' : 'Bid withdrawn')
     },
-    onError: (e) => toast.error(e.response?.data?.detail || isAr ? 'خطأ أثناء سحب العرض' : 'Error withdrawing bid'),
+    onError: (e) => toast.error(e.response?.data?.detail || e.response?.data?.title || (isAr ? 'خطأ أثناء سحب العرض' : 'Error withdrawing bid')),
   })
 
   const initReviseModal = () => {
@@ -118,17 +118,21 @@ export default function BidDetailPage() {
   }
 
   const handleReviseSubmit = () => {
+    if (!reviseForm.validityDateUtc) {
+      toast.error(isAr ? 'تاريخ سريان العرض مطلوب' : 'Validity date is required')
+      return
+    }
     const payload = {
-      validityDateUtc: reviseForm.validityDateUtc,
+      validityDateUtc: new Date(reviseForm.validityDateUtc).toISOString(),
       deliveryLeadTimeDays: Number(reviseForm.deliveryLeadTimeDays),
-      shippingIncluded: reviseForm.shippingIncluded,
-      paymentTerms: reviseForm.paymentTerms,
-      notes: reviseForm.notes || null,
-      changeSummary: reviseForm.changeSummary || null,
+      shippingIncluded: Boolean(reviseForm.shippingIncluded),
+      paymentTerms: reviseForm.paymentTerms.trim(),
+      notes: reviseForm.notes?.trim() || null,
+      changeSummary: reviseForm.changeSummary?.trim() || null,
       items: reviseForm.items.map((i) => ({
         tenderItemId: i.tenderItemId,
         unitPrice: Number(i.unitPrice),
-        notes: i.notes || null,
+        notes: i.notes?.trim() || null,
       })),
     }
     reviseMutation.mutate(payload)
@@ -378,6 +382,14 @@ export default function BidDetailPage() {
             onChange={(e) => setReviseForm((f) => ({ ...f, changeSummary: e.target.value }))}
             rows={2}
           />
+
+          {/* Reverse Bidding Guideline Callout */}
+          <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs leading-relaxed">
+            <strong>{isAr ? 'قاعدة المزايدة العكسية: ' : 'Reverse Bidding Rule: '}</strong>
+            {isAr
+              ? 'يجب أن يكون إجمالي العرض المعدل أقل من عرضك السابق ومن أدنى عرض منافس نشط في المناقصة.'
+              : 'Your revised bid total must be strictly lower than your previous bid and lower than the lowest competing bid.'}
+          </div>
 
           {/* Item Prices */}
           <h3 className="text-sm font-bold text-[#06245B] pt-2 border-t border-slate-100">

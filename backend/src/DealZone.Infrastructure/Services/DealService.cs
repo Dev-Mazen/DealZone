@@ -116,7 +116,7 @@ public class DealService : IDealService
             .Include(d => d.SupplierCompany)
             .Include(d => d.Disputes)
                 .ThenInclude(dp => dp.OpenedByCompany)
-            .FirstOrDefaultAsync(d => d.Id == dealId, cancellationToken)
+            .FirstOrDefaultAsync(d => d.Id == dealId || d.DirectPurchaseId == dealId, cancellationToken)
             ?? throw new NotFoundException($"Deal with ID '{dealId}' was not found.");
 
         Guid? callerCompanyId = null;
@@ -157,7 +157,7 @@ public class DealService : IDealService
                 .ThenInclude(c => c!.PrimaryContactUser)
             .Include(d => d.Disputes)
                 .ThenInclude(dp => dp.OpenedByCompany)
-            .FirstOrDefaultAsync(d => d.Id == dealId, cancellationToken)
+            .FirstOrDefaultAsync(d => d.Id == dealId || d.DirectPurchaseId == dealId, cancellationToken)
             ?? throw new NotFoundException($"Deal with ID '{dealId}' was not found.");
 
         if (deal.BuyerCompanyId != company.Id && deal.SupplierCompanyId != company.Id)
@@ -298,7 +298,7 @@ public class DealService : IDealService
                 .ThenInclude(c => c!.PrimaryContactUser)
             .Include(d => d.Disputes)
                 .ThenInclude(dp => dp.OpenedByCompany)
-            .FirstOrDefaultAsync(d => d.Id == dealId, cancellationToken)
+            .FirstOrDefaultAsync(d => d.Id == dealId || d.DirectPurchaseId == dealId, cancellationToken)
             ?? throw new NotFoundException($"Deal with ID '{dealId}' was not found.");
 
         if (deal.SupplierCompanyId != company.Id)
@@ -365,7 +365,7 @@ public class DealService : IDealService
                 .ThenInclude(c => c!.PrimaryContactUser)
             .Include(d => d.Disputes)
                 .ThenInclude(dp => dp.OpenedByCompany)
-            .FirstOrDefaultAsync(d => d.Id == dealId, cancellationToken)
+            .FirstOrDefaultAsync(d => d.Id == dealId || d.DirectPurchaseId == dealId, cancellationToken)
             ?? throw new NotFoundException($"Deal with ID '{dealId}' was not found.");
 
         if (deal.BuyerCompanyId != company.Id && deal.SupplierCompanyId != company.Id)
@@ -463,7 +463,7 @@ public class DealService : IDealService
                 .ThenInclude(c => c!.PrimaryContactUser)
             .Include(d => d.Disputes)
                 .ThenInclude(dp => dp.OpenedByCompany)
-            .FirstOrDefaultAsync(d => d.Id == dealId, cancellationToken)
+            .FirstOrDefaultAsync(d => d.Id == dealId || d.DirectPurchaseId == dealId, cancellationToken)
             ?? throw new NotFoundException($"Deal with ID '{dealId}' was not found.");
 
         if (deal.BuyerCompanyId != company.Id && deal.SupplierCompanyId != company.Id)

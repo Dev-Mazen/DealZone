@@ -4,7 +4,7 @@ import { useForm, useFieldArray } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { ArrowLeft, Plus, Trash2, AlertCircle, Package, CheckCircle2 } from 'lucide-react'
+import { ArrowLeft, Plus, Trash2, AlertCircle, Package, CheckCircle2, Building2 } from 'lucide-react'
 import { rfqService } from '../shared/api/services/rfqService'
 import { catalogService } from '../shared/api/services/catalogService'
 import { useTranslation } from '../hooks/useTranslation'
@@ -240,6 +240,8 @@ export default function CreateRfqPage() {
     const catId = searchParams.get('catId')
     const unit = searchParams.get('unit')
     const qty = searchParams.get('qty')
+    const supplierId = searchParams.get('supplierId')
+    const supplierName = searchParams.get('supplierName')
     if (matId || matCode || matName) {
       return {
         materialId: matId || undefined,
@@ -248,6 +250,8 @@ export default function CreateRfqPage() {
         categoryId: catId || undefined,
         unit: unit || undefined,
         quantity: qty ? Number(qty) : undefined,
+        targetSupplierId: supplierId || undefined,
+        targetSupplierName: supplierName || undefined,
       }
     }
     return null
@@ -299,7 +303,12 @@ export default function CreateRfqPage() {
 
     const matDisplay = prefilled.materialName || prefilled.materialCode || ''
     if (matDisplay) {
-      setValue('title', isAr ? `طلب توريد: ${matDisplay}` : `RFQ: Supply of ${matDisplay}`)
+      if (prefilled.targetSupplierName) {
+        setValue('title', isAr ? `طلب عرض سعر موجه إلى ${prefilled.targetSupplierName}: ${matDisplay}` : `RFQ to ${prefilled.targetSupplierName}: ${matDisplay}`)
+        setValue('notes', isAr ? `طلب عرض سعر موجه خصيصاً إلى مورد الكتالوج: ${prefilled.targetSupplierName}` : `Targeted RFQ for supplier: ${prefilled.targetSupplierName}`)
+      } else {
+        setValue('title', isAr ? `طلب توريد: ${matDisplay}` : `RFQ: Supply of ${matDisplay}`)
+      }
     }
 
     if (prefilled.categoryId) {
@@ -461,7 +470,7 @@ export default function CreateRfqPage() {
               <Package size={20} />
             </div>
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <span className="text-xs font-bold text-[#1266D6] uppercase tracking-wide">
                   {isAr ? 'طلب مخصص لخامة محددة' : 'Specific Material Request'}
                 </span>
@@ -469,6 +478,12 @@ export default function CreateRfqPage() {
                   <CheckCircle2 size={12} />
                   {isAr ? 'بيانات معبأة تلقائياً' : 'Pre-filled'}
                 </span>
+                {prefilled.targetSupplierName && (
+                  <span className="inline-flex items-center gap-1 text-[11px] font-bold text-[#06245B] bg-white px-2 py-0.5 rounded-md border border-blue-200">
+                    <Building2 size={12} className="text-[#1266D6]" />
+                    {isAr ? 'المورد المستهدف: ' : 'Targeted Supplier: '}{prefilled.targetSupplierName}
+                  </span>
+                )}
               </div>
               <h3 className="font-extrabold text-[#06245B] text-base mt-0.5">
                 {prefilled.materialName || prefilled.materialCode}
