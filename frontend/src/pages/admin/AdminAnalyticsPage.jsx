@@ -203,38 +203,42 @@ export default function AdminAnalyticsPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
         <StatKpiCard
           title={isAr ? 'إجمالي حجم الصفقات (EGP)' : 'Traded Volume (EGP)'}
-          value={formatCurrency(kpis?.totalTradedVolumeEgp || 0)}
-          change={`${kpis?.completedDeals || 0} completed`}
+          value={formatCurrency(kpis?.totalTradedVolumeEgp || 0, isAr ? 'ar' : 'en')}
+          change={`${kpis?.completedDeals || 0} ${isAr ? 'مكتملة' : 'completed'}`}
           isPositive={true}
           period={isAr ? 'الصفقات المكتملة والجارية' : 'confirmed contracts'}
           icon={TrendingUp}
+          loading={isLoading}
         />
 
         <StatKpiCard
           title={isAr ? 'إجمالي الشركات المسجلة' : 'Registered Enterprises'}
           value={kpis?.totalCompanies || 0}
-          change={`${kpis?.verifiedCompanies || 0} verified`}
+          change={`${kpis?.verifiedCompanies || 0} ${isAr ? 'موثقة' : 'verified'}`}
           isPositive={true}
           period={isAr ? `${kpis?.pendingCompanies || 0} بانتظار التوثيق` : `${kpis?.pendingCompanies || 0} pending review`}
           icon={Building2}
+          loading={isLoading}
         />
 
         <StatKpiCard
           title={isAr ? 'طلبات الأسعار (RFQs)' : 'Total RFQs Published'}
           value={kpis?.totalRfqs || 0}
-          change={`${kpis?.openRfqs || 0} open`}
+          change={`${kpis?.openRfqs || 0} ${isAr ? 'مفتوحة' : 'open'}`}
           isPositive={true}
           period={isAr ? 'متاحة لتلقي عروض الموردين' : 'currently active for bidding'}
           icon={FileText}
+          loading={isLoading}
         />
 
         <StatKpiCard
           title={isAr ? 'الصفقات التجارية الملزمة' : 'Binding Deals'}
           value={kpis?.totalDeals || 0}
-          change={`${kpis?.inProgressDeals || 0} in progress`}
+          change={`${kpis?.inProgressDeals || 0} ${isAr ? 'قيد التنفيذ' : 'in progress'}`}
           isPositive={true}
           period={isAr ? `${kpis?.disputedDeals || 0} نزاعات مفتوحة` : `${kpis?.disputedDeals || 0} open disputes`}
           icon={Handshake}
+          loading={isLoading}
         />
       </div>
 
