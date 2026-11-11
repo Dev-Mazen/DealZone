@@ -1,4 +1,5 @@
 import { useRef, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
 import Button from './Button'
 
@@ -7,6 +8,8 @@ const sizeClasses = {
   md: 'max-w-md',
   lg: 'max-w-lg',
   xl: 'max-w-2xl',
+  '2xl': 'max-w-3xl',
+  full: 'max-w-5xl',
 }
 
 export default function Modal({
@@ -33,23 +36,27 @@ export default function Modal({
 
   // Lock scroll
   useEffect(() => {
-    if (isModalOpen) document.body.style.overflow = 'hidden'
-    else document.body.style.overflow = ''
-    return () => { document.body.style.overflow = '' }
+    if (isModalOpen) {
+      const originalOverflow = document.body.style.overflow
+      document.body.style.overflow = 'hidden'
+      return () => {
+        document.body.style.overflow = originalOverflow
+      }
+    }
   }, [isModalOpen])
 
   if (!isModalOpen) return null
 
-  return (
+  const modalContent = (
     <div
-      className="fixed inset-0 z-[1050] flex items-center justify-center p-4"
+      className="fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-6 overflow-y-auto"
       role="dialog"
       aria-modal="true"
       aria-labelledby={title ? 'modal-title' : undefined}
     >
-      {/* Backdrop */}
+      {/* Full Viewport Backdrop - Covers 100% of the screen across sidebar, navbar and content */}
       <div
-        className="absolute inset-0 bg-[rgba(6,36,91,0.45)] backdrop-blur-sm animate-fade-in"
+        className="fixed inset-0 bg-[#06245B]/65 backdrop-blur-md transition-opacity animate-fade-in"
         onClick={onClose}
         aria-hidden="true"
       />
@@ -58,25 +65,25 @@ export default function Modal({
       <div
         ref={dialogRef}
         className={[
-          'relative w-full bg-white rounded-2xl shadow-[0_20px_60px_-10px_rgba(6,36,91,0.25)] animate-fade-in',
-          'max-h-[90vh] flex flex-col',
-          sizeClasses[size],
+          'relative w-full bg-white rounded-3xl shadow-[0_25px_60px_-15px_rgba(6,36,91,0.35)] border border-slate-100',
+          'max-h-[90vh] flex flex-col overflow-hidden my-auto animate-fade-in z-10',
+          sizeClasses[size] || sizeClasses.md,
         ].join(' ')}
       >
         {/* Header */}
         {title && (
-          <div className="flex items-start justify-between gap-4 p-6 border-b border-[rgba(6,36,91,0.06)]">
+          <div className="flex items-start justify-between gap-4 p-6 border-b border-slate-100 bg-slate-50/60">
             <div>
-              <h2 id="modal-title" className="text-lg font-semibold text-[#06245B]">
+              <h2 id="modal-title" className="text-lg font-bold text-[#06245B]">
                 {title}
               </h2>
               {description && (
-                <p className="text-sm text-[#64748B] mt-1">{description}</p>
+                <p className="text-xs text-slate-500 mt-1 leading-relaxed">{description}</p>
               )}
             </div>
             <button
               onClick={onClose}
-              className="shrink-0 p-1.5 rounded-lg text-[#64748B] hover:text-[#06245B] hover:bg-[#EAF4FF] transition-colors"
+              className="shrink-0 w-8 h-8 rounded-xl text-slate-400 hover:text-[#06245B] hover:bg-slate-200/60 flex items-center justify-center transition-colors"
               aria-label="Close"
             >
               <X size={18} />
@@ -89,13 +96,16 @@ export default function Modal({
 
         {/* Footer */}
         {footer && (
-          <div className="p-6 pt-0 border-t border-[rgba(6,36,91,0.06)] flex justify-end gap-3">
+          <div className="p-6 pt-4 border-t border-slate-100 bg-slate-50/40 flex justify-end gap-3 rounded-b-3xl">
             {footer}
           </div>
         )}
       </div>
     </div>
   )
+
+  if (typeof document === 'undefined') return modalContent
+  return createPortal(modalContent, document.body)
 }
 
 // Confirm dialog shorthand
@@ -131,4 +141,3 @@ export function ConfirmModal({
     </Modal>
   )
 }
-

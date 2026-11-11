@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import {
   X,
@@ -193,9 +194,9 @@ export default function DirectPurchaseModal({
     })
   }
 
-  return (
+  const modalContent = (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto"
+      className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-[#06245B]/65 backdrop-blur-md overflow-y-auto"
       dir={isAr ? 'rtl' : 'ltr'}
       role="dialog"
       aria-modal="true"
@@ -440,4 +441,7 @@ export default function DirectPurchaseModal({
       </div>
     </div>
   )
+
+  if (typeof document === 'undefined') return modalContent
+  return createPortal(modalContent, document.body)
 }
