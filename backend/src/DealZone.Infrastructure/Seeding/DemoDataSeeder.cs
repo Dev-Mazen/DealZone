@@ -85,14 +85,14 @@ public static class DemoDataSeeder
 
         logger.LogInformation("DemoDataSeeder: Populating comprehensive DealZone Egyptian marketplace demo dataset...");
 
-        // 1. Seed Users
-        await SeedUsersAsync(context, passwordHasher, logger);
+        // 1. Seed Users and resolve Admin User ID
+        var adminUserId = await SeedUsersAsync(context, passwordHasher, logger);
 
         // 2. Seed Companies, Members, Contact Details
-        await SeedCompaniesAsync(context, logger);
+        await SeedCompaniesAsync(context, adminUserId, logger);
 
         // 3. Seed Verification Documents and Administrative Audit Decisions
-        await SeedVerificationAsync(context, logger);
+        await SeedVerificationAsync(context, adminUserId, logger);
 
         // 4. Seed Catalog Products for Direct Purchasing (Textiles, Food, Metals)
         await SeedCatalogProductsAsync(context, logger);
@@ -110,10 +110,10 @@ public static class DemoDataSeeder
         await SeedShippingAsync(context, logger);
 
         // 9. Seed Disputes and Deal Reviews
-        await SeedDisputesAndReviewsAsync(context, logger);
+        await SeedDisputesAndReviewsAsync(context, adminUserId, logger);
 
         // 10. Seed Notifications
-        await SeedNotificationsAsync(context, logger);
+        await SeedNotificationsAsync(context, adminUserId, logger);
 
         await context.SaveChangesAsync();
         logger.LogInformation("DemoDataSeeder: Comprehensive DealZone demo dataset successfully persisted to SQL Server.");
@@ -153,7 +153,7 @@ public static class DemoDataSeeder
         // 1. Purge Notifications
         await context.Notifications
             .IgnoreQueryFilters()
-            .Where(n => demoUserIds.Contains(n.UserId))
+            .Where(n => demoUserIds.Contains(n.UserId) || (n.IdempotencyKey != null && n.IdempotencyKey.StartsWith("notif-adm-")))
             .ExecuteDeleteAsync();
 
         // 2. Purge Reviews
@@ -306,7 +306,7 @@ public static class DemoDataSeeder
         logger.LogInformation("DemoDataSeeder: Purge completed cleanly via atomic ExecuteDeleteAsync.");
     }
 
-    private static async Task SeedUsersAsync(DealZoneDbContext context, IPasswordHasher hasher, ILogger logger)
+    private static async Task<Guid> SeedUsersAsync(DealZoneDbContext context, IPasswordHasher hasher, ILogger logger)
     {
         var users = new List<User>
         {
@@ -326,17 +326,31 @@ public static class DemoDataSeeder
 
         foreach (var u in users)
         {
-            if (!await context.Users.AnyAsync(x => x.Id == u.Id || x.Email == u.Email))
+            var existing = await context.Users.FirstOrDefaultAsync(x => x.Id == u.Id || x.Email == u.Email);
+            if (existing is null)
             {
                 u.PasswordHash = hasher.HashPassword(u, "DealZone@2026");
                 context.Users.Add(u);
             }
+            else
+            {
+                // Ensure existing demo/admin account has proper admin and activation flags
+                if (u.IsSystemAdmin && !existing.IsSystemAdmin) existing.IsSystemAdmin = true;
+                if (!existing.IsActive) existing.IsActive = true;
+                if (!existing.IsEmailConfirmed) existing.IsEmailConfirmed = true;
+            }
         }
         await context.SaveChangesAsync();
         logger.LogDebug("DemoDataSeeder: Users seeded.");
+
+        // Dynamically resolve the authoritative Admin User ID from the database
+        var adminUser = await context.Users
+            .FirstOrDefaultAsync(u => u.Email == "admin@dealzone.eg" || u.Id == AdminUserId || u.IsSystemAdmin);
+
+        return adminUser?.Id ?? AdminUserId;
     }
 
-    private static async Task SeedCompaniesAsync(DealZoneDbContext context, ILogger logger)
+    private static async Task SeedCompaniesAsync(DealZoneDbContext context, Guid adminUserId, ILogger logger)
     {
         var companies = new List<Company>
         {
@@ -354,7 +368,7 @@ public static class DemoDataSeeder
                 Website = "https://demo-engineering.eg",
                 VerificationStatus = CompanyVerificationStatus.Approved,
                 VerifiedAtUtc = DateTimeOffset.UtcNow.AddDays(-60),
-                VerifiedByUserId = AdminUserId,
+                VerifiedByUserId = adminUserId,
                 PrimaryContactUserId = Buyer1UserId,
                 IsActive = true
             },
@@ -372,7 +386,7 @@ public static class DemoDataSeeder
                 Website = "https://demo-misr-food.eg",
                 VerificationStatus = CompanyVerificationStatus.Approved,
                 VerifiedAtUtc = DateTimeOffset.UtcNow.AddDays(-45),
-                VerifiedByUserId = AdminUserId,
+                VerifiedByUserId = adminUserId,
                 PrimaryContactUserId = Buyer2UserId,
                 IsActive = true
             },
@@ -390,7 +404,7 @@ public static class DemoDataSeeder
                 Website = "https://demo-ahram-steel.eg",
                 VerificationStatus = CompanyVerificationStatus.Approved,
                 VerifiedAtUtc = DateTimeOffset.UtcNow.AddDays(-50),
-                VerifiedByUserId = AdminUserId,
+                VerifiedByUserId = adminUserId,
                 PrimaryContactUserId = Supplier1UserId,
                 IsActive = true
             },
@@ -408,7 +422,7 @@ public static class DemoDataSeeder
                 Website = "https://demo-mahalla-yarn.eg",
                 VerificationStatus = CompanyVerificationStatus.Approved,
                 VerifiedAtUtc = DateTimeOffset.UtcNow.AddDays(-40),
-                VerifiedByUserId = AdminUserId,
+                VerifiedByUserId = adminUserId,
                 PrimaryContactUserId = Supplier2UserId,
                 IsActive = true
             },
@@ -426,7 +440,7 @@ public static class DemoDataSeeder
                 Website = "https://demo-delta-sugar.eg",
                 VerificationStatus = CompanyVerificationStatus.Approved,
                 VerifiedAtUtc = DateTimeOffset.UtcNow.AddDays(-35),
-                VerifiedByUserId = AdminUserId,
+                VerifiedByUserId = adminUserId,
                 PrimaryContactUserId = Supplier3UserId,
                 IsActive = true
             },
@@ -444,7 +458,7 @@ public static class DemoDataSeeder
                 Website = "https://demo-alex-trade.eg",
                 VerificationStatus = CompanyVerificationStatus.Approved,
                 VerifiedAtUtc = DateTimeOffset.UtcNow.AddDays(-30),
-                VerifiedByUserId = AdminUserId,
+                VerifiedByUserId = adminUserId,
                 PrimaryContactUserId = DualUserId,
                 IsActive = true
             },
@@ -462,7 +476,7 @@ public static class DemoDataSeeder
                 Website = "https://demo-fateh-metals.eg",
                 VerificationStatus = CompanyVerificationStatus.Approved,
                 VerifiedAtUtc = DateTimeOffset.UtcNow.AddDays(-2),
-                VerifiedByUserId = AdminUserId,
+                VerifiedByUserId = adminUserId,
                 PrimaryContactUserId = NewBuyerUserId,
                 IsActive = true
             },
@@ -574,7 +588,7 @@ public static class DemoDataSeeder
         logger.LogDebug("DemoDataSeeder: Companies and contacts seeded.");
     }
 
-    private static async Task SeedVerificationAsync(DealZoneDbContext context, ILogger logger)
+    private static async Task SeedVerificationAsync(DealZoneDbContext context, Guid adminUserId, ILogger logger)
     {
         // 1. Pending Verification Company Documents (UnderReview in Admin Queue)
         if (!await context.VerificationDocuments.AnyAsync(d => d.CompanyId == PendingCompanyId))
@@ -625,7 +639,7 @@ public static class DemoDataSeeder
             context.VerificationDecisions.Add(new VerificationDecision
             {
                 CompanyId = RejectedCompanyId,
-                ReviewedByUserId = AdminUserId,
+                ReviewedByUserId = adminUserId,
                 Decision = CompanyVerificationStatus.Rejected,
                 Reason = "السجل التجاري المقدم منتهي الصلاحية منذ 6 أشهر، والبطاقة الضريبية لا تتطابق مع النشاط الصناعي.",
                 DecidedAtUtc = DateTimeOffset.UtcNow.AddDays(-10)
@@ -641,7 +655,7 @@ public static class DemoDataSeeder
                 context.VerificationDecisions.Add(new VerificationDecision
                 {
                     CompanyId = cid,
-                    ReviewedByUserId = AdminUserId,
+                    ReviewedByUserId = adminUserId,
                     Decision = CompanyVerificationStatus.Approved,
                     Reason = "تم التحقق الكامل من السجل التجاري والبطاقة الضريبية والسجل الصناعي الصادر عن الهيئة العامة للتنمية الصناعية.",
                     DecidedAtUtc = DateTimeOffset.UtcNow.AddDays(-30)
@@ -1954,7 +1968,7 @@ public static class DemoDataSeeder
         logger.LogDebug("DemoDataSeeder: Shipping providers and shipments seeded.");
     }
 
-    private static async Task SeedDisputesAndReviewsAsync(DealZoneDbContext context, ILogger logger)
+    private static async Task SeedDisputesAndReviewsAsync(DealZoneDbContext context, Guid adminUserId, ILogger logger)
     {
         var dealDisputed = await context.Deals.FirstOrDefaultAsync(d => d.DealNumber == "DZ-DEAL-2026-0035");
         var dealCompleted = await context.Deals.FirstOrDefaultAsync(d => d.DealNumber == "DZ-DEAL-2026-0030");
@@ -1990,7 +2004,7 @@ public static class DemoDataSeeder
                 Status = DisputeStatus.Resolved,
                 ResolutionAction = DisputeResolutionAction.ResumeDeal,
                 ResolutionNotes = "تم التراضي الودي بين المشتري والمورد، وخصم تكلفة إيجار الونش الإضافي بقيمة 15,000 ج.م واستكمال الصفقة وتسليم البضاعة.",
-                ResolvedByUserId = AdminUserId,
+                ResolvedByUserId = adminUserId,
                 OpenedAtUtc = DateTimeOffset.UtcNow.AddDays(-14),
                 ResolvedAtUtc = DateTimeOffset.UtcNow.AddDays(-12)
             };
@@ -2025,9 +2039,9 @@ public static class DemoDataSeeder
         logger.LogDebug("DemoDataSeeder: Disputes and reviews seeded.");
     }
 
-    private static async Task SeedNotificationsAsync(DealZoneDbContext context, ILogger logger)
+    private static async Task SeedNotificationsAsync(DealZoneDbContext context, Guid adminUserId, ILogger logger)
     {
-        if (await context.Notifications.AnyAsync(n => n.UserId == Buyer1UserId || n.UserId == Supplier1UserId))
+        if (await context.Notifications.AnyAsync(n => n.UserId == Buyer1UserId || n.UserId == Supplier1UserId || n.UserId == adminUserId))
         {
             return;
         }
@@ -2052,8 +2066,8 @@ public static class DemoDataSeeder
             Notification.Create(DualUserId, NotificationType.OfferRevisionSubmitted, "تعديل عرض سعر رسمي", "قدمت شركة المحلة للغزول تعديلاً مخفضاً على عرض السعر OFF-2026-00103 شامل تكاليف الشحن.", "Offer", Guid.Empty, "notif-d1-2", DateTimeOffset.UtcNow.AddDays(-1)),
 
             // Admin Notifications
-            Notification.Create(AdminUserId, NotificationType.CompanyVerificationSubmitted, "طلب توثيق شركة جديد في قائمة الانتظار", "قدمت شركة 'مصانع النيل لصباغة وتجهيز المنسوجات' طلب توثيق رسمي مع 3 مستندات معتمدة.", "Verification", PendingCompanyId, "notif-adm-1", DateTimeOffset.UtcNow.AddDays(-1)),
-            Notification.Create(AdminUserId, NotificationType.DealDisputeOpened, "طلب تدخل وفض نزاع تجاري", "تم فتح نزاع تجاري على الصفقة DZ-DEAL-2026-0035 بسبب تلف جزئي ونقص أوزان في شحنة العاشر.", "Dispute", Guid.Empty, "notif-adm-2", DateTimeOffset.UtcNow.AddDays(-3))
+            Notification.Create(adminUserId, NotificationType.CompanyVerificationSubmitted, "طلب توثيق شركة جديد في قائمة الانتظار", "قدمت شركة 'مصانع النيل لصباغة وتجهيز المنسوجات' طلب توثيق رسمي مع 3 مستندات معتمدة.", "Verification", PendingCompanyId, "notif-adm-1", DateTimeOffset.UtcNow.AddDays(-1)),
+            Notification.Create(adminUserId, NotificationType.DealDisputeOpened, "طلب تدخل وفض نزاع تجاري", "تم فتح نزاع تجاري على الصفقة DZ-DEAL-2026-0035 بسبب تلف جزئي ونقص أوزان في شحنة العاشر.", "Dispute", Guid.Empty, "notif-adm-2", DateTimeOffset.UtcNow.AddDays(-3))
         };
 
         // Mark some as read
