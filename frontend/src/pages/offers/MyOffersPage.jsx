@@ -305,7 +305,7 @@ export default function MyOffersPage() {
           </div>
 
           <span className="text-xs text-slate-400 font-mono">
-            {offerList.length} {isAr ? 'عروض مسجلة' : 'offers listed'}
+            {currentQuery.isLoading ? '...' : `${offerList.length} ${isAr ? 'عروض مسجلة' : 'offers listed'}`}
           </span>
         </div>
       </div>

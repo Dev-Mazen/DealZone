@@ -12,7 +12,32 @@ export default function StatKpiCard({
   icon: Icon,
   sparkline = [20, 25, 22, 30, 28, 35, 42],
   className = '',
+  loading = false,
 }) {
+  if (loading) {
+    return (
+      <div className={`bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs ${className}`}>
+        <div className="flex items-start justify-between mb-3">
+          <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+            {title}
+          </span>
+          {Icon && (
+            <div className="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center shrink-0">
+              <Icon size={18} className="text-slate-300" />
+            </div>
+          )}
+        </div>
+
+        <div className="flex items-baseline justify-between gap-2">
+          <div className="h-8 w-24 bg-slate-200/80 rounded-xl animate-pulse" />
+          <div className="h-5 w-16 bg-slate-100 rounded-lg animate-pulse" />
+        </div>
+
+        <div className="mt-3 h-4 w-36 bg-slate-100 rounded animate-pulse" />
+      </div>
+    )
+  }
+
   const min = Math.min(...sparkline)
   const max = Math.max(...sparkline)
   const range = max - min || 1

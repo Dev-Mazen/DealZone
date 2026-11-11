@@ -201,7 +201,7 @@ export default function DealsListPage() {
                 : 'Commercial Deals & Contracts'}
             </h1>
             <Badge variant="cyan">
-              {filteredItems.length} {isAr ? 'صفقة' : 'deals'}
+              {isLoading ? '...' : `${filteredItems.length} ${isAr ? 'صفقة' : 'deals'}`}
             </Badge>
           </div>
           <p className="text-sm text-[#64748B] mt-1">
@@ -313,7 +313,7 @@ export default function DealsListPage() {
           </div>
 
           <span className="text-xs text-slate-400 font-mono">
-            {filteredItems.length} {isAr ? 'صفقة' : 'deals'}
+            {isLoading ? '...' : `${filteredItems.length} ${isAr ? 'صفقة' : 'deals'}`}
           </span>
         </div>
       </div>

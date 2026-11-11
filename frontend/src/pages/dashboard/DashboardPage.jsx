@@ -145,38 +145,43 @@ export default function DashboardPage() {
 
   // Live Data Queries
   // Buyer: My RFQs
-  const { data: myRfqsData } = useQuery({
+  const { data: myRfqsData, isLoading: myRfqsLoading } = useQuery({
     queryKey: ['rfqs', 'mine', { pageSize: 5 }],
     queryFn: () => rfqService.getMine({ pageNumber: 1, pageSize: 5 }),
     enabled: isVerified && dashboardMode === 'buyer',
+    staleTime: 60_000,
   })
 
   // Buyer: Received offers on RFQs
-  const { data: receivedOffersData } = useQuery({
+  const { data: receivedOffersData, isLoading: receivedOffersLoading } = useQuery({
     queryKey: ['offers', 'received', { pageSize: 5 }],
     queryFn: () => offerService.getReceived({ pageNumber: 1, pageSize: 5 }),
     enabled: isVerified && dashboardMode === 'buyer',
+    staleTime: 60_000,
   })
 
   // Supplier: Open Market RFQs to Bid On
-  const { data: openRfqsData } = useQuery({
+  const { data: openRfqsData, isLoading: openRfqsLoading } = useQuery({
     queryKey: ['rfqs', 'discover', { status: 'Published', pageSize: 5 }],
     queryFn: () => rfqService.discover({ pageNumber: 1, pageSize: 5 }),
     enabled: isVerified && dashboardMode === 'supplier',
+    staleTime: 60_000,
   })
 
   // Supplier: My Submitted Offers
-  const { data: myOffersData } = useQuery({
+  const { data: myOffersData, isLoading: myOffersLoading } = useQuery({
     queryKey: ['offers', 'mine', { pageSize: 5 }],
     queryFn: () => offerService.getMine({ pageNumber: 1, pageSize: 5 }),
     enabled: isVerified && dashboardMode === 'supplier',
+    staleTime: 60_000,
   })
 
   // Deals
-  const { data: dealsData } = useQuery({
+  const { data: dealsData, isLoading: dealsLoading } = useQuery({
     queryKey: ['deals', 'mine', { pageSize: 5 }],
     queryFn: () => dealService.getMine({ pageNumber: 1, pageSize: 5 }),
     enabled: isVerified,
+    staleTime: 60_000,
   })
 
   const currentCompanyId = (user?.company?.id || '').toLowerCase()
@@ -335,6 +340,7 @@ export default function DashboardPage() {
             isPositive={true}
             period={isAr ? 'قيد استقبال عروض الموردين' : 'accepting bids'}
             icon={FileText}
+            loading={myRfqsLoading}
           />
           <StatKpiCard
             title={isAr ? 'عروض أسعار بانتظار قرارك' : 'Pending Incoming Bids'}
@@ -343,6 +349,7 @@ export default function DashboardPage() {
             isPositive={true}
             period={isAr ? 'جاهزة للمقارنة والقبول' : 'ready for evaluation'}
             icon={Inbox}
+            loading={receivedOffersLoading}
           />
           <StatKpiCard
             title={isAr ? 'صفقات شراء قيد التنفيذ' : 'Active Purchasing Deals'}
@@ -351,6 +358,7 @@ export default function DashboardPage() {
             isPositive={true}
             period={isAr ? 'مواعيد توريد مؤكدة' : 'on-schedule dispatch'}
             icon={Handshake}
+            loading={dealsLoading}
           />
           <StatKpiCard
             title={isAr ? 'موثوقية التوريد والامتثال' : 'Fulfillment Reliability'}
@@ -359,6 +367,7 @@ export default function DashboardPage() {
             isPositive={true}
             period={isAr ? 'تقييم الموردين المتعاقدين' : 'supplier SLA score'}
             icon={Truck}
+            loading={dealsLoading}
           />
         </div>
       ) : (
@@ -371,6 +380,7 @@ export default function DashboardPage() {
             isPositive={true}
             period={isAr ? 'في قطاعك الصناعي' : 'matching your sector'}
             icon={Layers}
+            loading={openRfqsLoading}
           />
           <StatKpiCard
             title={isAr ? 'عروضي المقدمة للمشترين' : 'Submitted Quotes'}
@@ -379,6 +389,7 @@ export default function DashboardPage() {
             isPositive={true}
             period={isAr ? 'بانتظار قرار المشتري' : 'under buyer review'}
             icon={Send}
+            loading={myOffersLoading}
           />
           <StatKpiCard
             title={isAr ? 'صفقات توريد قيد التنفيذ' : 'Active Sales Deals'}
@@ -387,6 +398,7 @@ export default function DashboardPage() {
             isPositive={true}
             period={isAr ? 'مجدولة للتسليم' : 'scheduled for dispatch'}
             icon={Handshake}
+            loading={dealsLoading}
           />
           <StatKpiCard
             title={isAr ? 'تقييم جودة التوريد' : 'Supplier Trust Score'}
@@ -395,6 +407,7 @@ export default function DashboardPage() {
             isPositive={true}
             period={isAr ? 'معدل التقييم' : 'verified counterparty score'}
             icon={TrendingUp}
+            loading={dealsLoading}
           />
         </div>
       )}
@@ -441,7 +454,16 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {hasDeals ? (
+          {dealsLoading ? (
+            <div className="h-[230px] flex items-end gap-3 px-4 pt-8 animate-pulse">
+              <div className="flex-1 bg-slate-100 rounded-t-xl h-[45%]" />
+              <div className="flex-1 bg-slate-200/80 rounded-t-xl h-[70%]" />
+              <div className="flex-1 bg-slate-100 rounded-t-xl h-[55%]" />
+              <div className="flex-1 bg-slate-200/80 rounded-t-xl h-[85%]" />
+              <div className="flex-1 bg-slate-100 rounded-t-xl h-[60%]" />
+              <div className="flex-1 bg-slate-200/80 rounded-t-xl h-[75%]" />
+            </div>
+          ) : hasDeals ? (
             <BarChart
               data={sourcingVolumeData}
               height={230}
@@ -477,7 +499,14 @@ export default function DashboardPage() {
             </p>
           </div>
 
-          {hasDeals && categoryBreakdown.length > 0 ? (
+          {dealsLoading ? (
+            <div className="py-8 flex flex-col items-center justify-center animate-pulse">
+              <div className="w-36 h-36 rounded-full border-8 border-slate-200/70 border-t-[#1266D6]/40 flex items-center justify-center">
+                <div className="w-20 h-20 rounded-full bg-slate-50" />
+              </div>
+              <div className="mt-4 h-4 w-32 bg-slate-100 rounded" />
+            </div>
+          ) : hasDeals && categoryBreakdown.length > 0 ? (
             <DonutChart
               data={categoryBreakdown}
               centerLabel={isAr ? 'الإجمالي' : 'Total'}
@@ -533,7 +562,20 @@ export default function DashboardPage() {
                 </div>
 
                 <div className="space-y-3">
-                  {myRfqsData?.items && myRfqsData.items.length > 0 ? (
+                  {myRfqsLoading ? (
+                    <div className="space-y-3">
+                      {[1, 2, 3].map((i) => (
+                        <div key={i} className="p-3.5 rounded-2xl bg-slate-50 border border-slate-100 animate-pulse flex items-center justify-between">
+                          <div className="space-y-2 flex-1">
+                            <div className="h-3 w-20 bg-slate-200 rounded" />
+                            <div className="h-4 w-48 bg-slate-200 rounded" />
+                            <div className="h-3 w-24 bg-slate-100 rounded" />
+                          </div>
+                          <div className="h-6 w-16 bg-slate-200 rounded-full" />
+                        </div>
+                      ))}
+                    </div>
+                  ) : myRfqsData?.items && myRfqsData.items.length > 0 ? (
                     myRfqsData.items.slice(0, 4).map((rfq) => (
                       <Link
                         key={rfq.id}
@@ -579,7 +621,23 @@ export default function DashboardPage() {
                 </div>
 
                 <div className="space-y-3">
-                  {receivedOffersData?.items && receivedOffersData.items.length > 0 ? (
+                  {receivedOffersLoading ? (
+                    <div className="space-y-3">
+                      {[1, 2, 3].map((i) => (
+                        <div key={i} className="p-3.5 rounded-2xl bg-slate-50 border border-slate-100 animate-pulse flex items-center justify-between">
+                          <div className="space-y-2 flex-1">
+                            <div className="h-3 w-20 bg-slate-200 rounded" />
+                            <div className="h-4 w-40 bg-slate-200 rounded" />
+                            <div className="h-3 w-28 bg-slate-100 rounded" />
+                          </div>
+                          <div className="space-y-1 text-end">
+                            <div className="h-4 w-20 bg-slate-200 rounded" />
+                            <div className="h-5 w-14 bg-slate-100 rounded-full ms-auto" />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : receivedOffersData?.items && receivedOffersData.items.length > 0 ? (
                     receivedOffersData.items.slice(0, 4).map((offer) => (
                       <Link
                         key={offer.id}
@@ -633,7 +691,23 @@ export default function DashboardPage() {
                 </div>
 
                 <div className="space-y-3">
-                  {openRfqsData?.items && openRfqsData.items.length > 0 ? (
+                  {openRfqsLoading ? (
+                    <div className="space-y-3">
+                      {[1, 2, 3].map((i) => (
+                        <div
+                          key={i}
+                          className="p-3.5 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-between gap-3 animate-pulse"
+                        >
+                          <div className="space-y-1.5">
+                            <div className="h-3 w-16 bg-slate-200 rounded" />
+                            <div className="h-4 w-44 bg-slate-200 rounded" />
+                            <div className="h-3 w-32 bg-slate-100 rounded" />
+                          </div>
+                          <div className="h-7 w-20 bg-slate-200 rounded-xl" />
+                        </div>
+                      ))}
+                    </div>
+                  ) : openRfqsData?.items && openRfqsData.items.length > 0 ? (
                     openRfqsData.items.slice(0, 4).map((rfq) => (
                       <Link
                         key={rfq.id}
@@ -680,7 +754,26 @@ export default function DashboardPage() {
                 </div>
 
                 <div className="space-y-3">
-                  {myOffersData?.items && myOffersData.items.length > 0 ? (
+                  {myOffersLoading ? (
+                    <div className="space-y-3">
+                      {[1, 2, 3].map((i) => (
+                        <div
+                          key={i}
+                          className="p-3.5 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-between gap-3 animate-pulse"
+                        >
+                          <div className="space-y-1.5">
+                            <div className="h-3 w-16 bg-slate-200 rounded" />
+                            <div className="h-4 w-40 bg-slate-200 rounded" />
+                            <div className="h-3 w-28 bg-slate-100 rounded" />
+                          </div>
+                          <div className="space-y-1 text-end">
+                            <div className="h-4 w-20 bg-slate-200 rounded" />
+                            <div className="h-5 w-14 bg-slate-100 rounded-full ms-auto" />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : myOffersData?.items && myOffersData.items.length > 0 ? (
                     myOffersData.items.slice(0, 4).map((offer) => (
                       <Link
                         key={offer.id}

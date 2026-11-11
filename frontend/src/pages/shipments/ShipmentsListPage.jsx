@@ -188,7 +188,7 @@ export default function ShipmentsListPage() {
                 : isAr ? 'الشحنات واللوجستيات الصناعية' : 'Industrial Shipments & Logistics'}
             </h1>
             <Badge variant="cyan">
-              {filteredShipments.length} {isAr ? 'شحنات' : 'shipments'}
+              {isLoading ? '...' : `${filteredShipments.length} ${isAr ? 'شحنات' : 'shipments'}`}
             </Badge>
           </div>
           <p className="text-sm text-[#64748B] mt-1">
@@ -284,7 +284,7 @@ export default function ShipmentsListPage() {
           </div>
 
           <span className="text-xs text-slate-400 font-mono">
-            {filteredShipments.length} {isAr ? 'شحنات' : 'shipments'}
+            {isLoading ? '...' : `${filteredShipments.length} ${isAr ? 'شحنات' : 'shipments'}`}
           </span>
         </div>
       </div>
