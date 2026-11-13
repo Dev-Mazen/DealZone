@@ -74,6 +74,8 @@ public class DealService : IDealService
             .Include(d => d.Bid)
             .Include(d => d.DirectPurchase)
                 .ThenInclude(dp => dp!.CatalogProduct)
+            .Include(d => d.ProductNegotiation)
+                .ThenInclude(pn => pn!.CatalogProduct)
             .Include(d => d.BuyerCompany)
             .Include(d => d.SupplierCompany)
             .Where(d => d.BuyerCompanyId == company.Id || d.SupplierCompanyId == company.Id);
@@ -112,6 +114,8 @@ public class DealService : IDealService
             .Include(d => d.Bid)
             .Include(d => d.DirectPurchase)
                 .ThenInclude(dp => dp!.CatalogProduct)
+            .Include(d => d.ProductNegotiation)
+                .ThenInclude(pn => pn!.CatalogProduct)
             .Include(d => d.BuyerCompany)
             .Include(d => d.SupplierCompany)
             .Include(d => d.Disputes)
@@ -988,6 +992,7 @@ public class DealService : IDealService
         {
             DealSource.Tender => deal.Tender?.Title ?? deal.Tender?.TenderNumber ?? string.Empty,
             DealSource.DirectPurchase => deal.DirectPurchase?.CatalogProduct?.NameEn ?? "Direct Purchase",
+            DealSource.ProductNegotiation => deal.ProductNegotiation?.CatalogProduct?.NameEn ?? "Negotiated Product Offer",
             _ => deal.Rfq?.Title ?? string.Empty
         };
 
@@ -995,6 +1000,7 @@ public class DealService : IDealService
         {
             DealSource.Tender => deal.Tender?.TenderNumber ?? string.Empty,
             DealSource.DirectPurchase => deal.DirectPurchase?.PurchaseNumber ?? string.Empty,
+            DealSource.ProductNegotiation => deal.ProductNegotiation?.NegotiationNumber ?? string.Empty,
             _ => deal.Rfq?.RfqNumber ?? string.Empty
         };
 
@@ -1002,6 +1008,7 @@ public class DealService : IDealService
         {
             DealSource.Tender => deal.Bid?.BidNumber ?? string.Empty,
             DealSource.DirectPurchase => deal.DirectPurchase?.CatalogProduct?.Sku ?? string.Empty,
+            DealSource.ProductNegotiation => deal.ProductNegotiation?.CatalogProduct?.Sku ?? string.Empty,
             _ => deal.Offer?.OfferNumber ?? string.Empty
         };
 
@@ -1047,6 +1054,7 @@ public class DealService : IDealService
         {
             DealSource.Tender => deal.Tender?.Title ?? deal.Tender?.TenderNumber ?? string.Empty,
             DealSource.DirectPurchase => deal.DirectPurchase?.CatalogProduct?.NameEn ?? "Direct Purchase",
+            DealSource.ProductNegotiation => deal.ProductNegotiation?.CatalogProduct?.NameEn ?? "Negotiated Product Offer",
             _ => deal.Rfq?.Title ?? string.Empty
         };
 
@@ -1054,6 +1062,7 @@ public class DealService : IDealService
         {
             DealSource.Tender => deal.Tender?.TenderNumber ?? string.Empty,
             DealSource.DirectPurchase => deal.DirectPurchase?.PurchaseNumber ?? string.Empty,
+            DealSource.ProductNegotiation => deal.ProductNegotiation?.NegotiationNumber ?? string.Empty,
             _ => deal.Rfq?.RfqNumber ?? string.Empty
         };
 
@@ -1061,6 +1070,7 @@ public class DealService : IDealService
         {
             DealSource.Tender => deal.Bid?.BidNumber ?? string.Empty,
             DealSource.DirectPurchase => deal.DirectPurchase?.CatalogProduct?.Sku ?? string.Empty,
+            DealSource.ProductNegotiation => deal.ProductNegotiation?.CatalogProduct?.Sku ?? string.Empty,
             _ => deal.Offer?.OfferNumber ?? string.Empty
         };
 

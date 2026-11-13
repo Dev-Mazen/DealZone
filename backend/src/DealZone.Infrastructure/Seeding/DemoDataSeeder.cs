@@ -786,14 +786,18 @@ public static class DemoDataSeeder
             new()
             {
                 MaterialId = steelRebar!.Id,
+                CategoryId = metalsCategory!.Id,
                 SupplierCompanyId = Supplier1CompanyId,
                 Sku = "SKU-MET-REBAR-B500D",
                 NameAr = "حديد تسليح عالي المقاومة B500D أطوال 12 متر",
                 NameEn = "High-Tensile Steel Rebar Grade B500D 12m Lengths",
                 DescriptionAr = "أسياخ صلب تسليح عالي المقاومة ES 262-2 مع إمكانية التوريد الفوري من مستودعات أكتوبر مع شهادات الجودة.",
                 DescriptionEn = "High-tensile deformed reinforcing bars conforming to ES 262-2 with mill test certificates.",
+                Specifications = "ES 262-2 / 2015, Grade B500D, 12m lengths, High yield strength",
+                PricingMode = ProductPricingMode.Fixed,
                 UnitPrice = 38500m,
                 Currency = "EGP",
+                Unit = "ton",
                 AvailableQuantity = 500m,
                 MinimumOrderQuantity = 10m,
                 DeliveryLeadTimeDays = 3,
@@ -802,14 +806,18 @@ public static class DemoDataSeeder
             new()
             {
                 MaterialId = steelBillet!.Id,
+                CategoryId = metalsCategory!.Id,
                 SupplierCompanyId = Supplier1CompanyId,
                 Sku = "SKU-MET-BILLET-150",
                 NameAr = "مربعات صلب بيليت 150×150 مم صب مستمر",
                 NameEn = "Prime Continuous Cast Steel Billets 150x150mm",
                 DescriptionAr = "خام بيليت مطابق للمواصفة 3SP/5SP لدرفلة حديد التسليح والقطاعات والأسلاك بمصانع الدرفلة.",
                 DescriptionEn = "Prime continuous casting carbon steel square billets suitable for rebar and wire rod rolling mills.",
+                Specifications = "Prime 3SP/5SP, 150x150mm section, 6m/12m length",
+                PricingMode = ProductPricingMode.Fixed,
                 UnitPrice = 32000m,
                 Currency = "EGP",
+                Unit = "ton",
                 AvailableQuantity = 250m,
                 MinimumOrderQuantity = 25m,
                 DeliveryLeadTimeDays = 5,
@@ -818,14 +826,18 @@ public static class DemoDataSeeder
             new()
             {
                 MaterialId = steelRebar!.Id,
+                CategoryId = metalsCategory!.Id,
                 SupplierCompanyId = Supplier1CompanyId,
                 Sku = "SKU-MET-WIRE-ROD",
                 NameAr = "لفائف أسلاك صلب منخفض الكربون SAE 1008 (مخزون محدود)",
                 NameEn = "Low Carbon Wire Rods in Coils Grade SAE 1008 (Low Stock)",
                 DescriptionAr = "لفائف أسلاك صلب قطر 5.5 مم لسحب الأسلاك وشبك التسليح - متبقي كمية محدودة للشحن الفوري.",
                 DescriptionEn = "Prime quality wire rods 5.5mm in compact coils for wire drawing and welded wire mesh.",
+                Specifications = "SAE 1008, 5.5mm diameter, in coils ~2 tons each",
+                PricingMode = ProductPricingMode.Negotiable,
                 UnitPrice = 39200m,
                 Currency = "EGP",
+                Unit = "ton",
                 AvailableQuantity = 8m,
                 MinimumOrderQuantity = 5m,
                 DeliveryLeadTimeDays = 2,
@@ -836,14 +848,18 @@ public static class DemoDataSeeder
             new()
             {
                 MaterialId = cottonYarn!.Id,
+                CategoryId = textilesCategory!.Id,
                 SupplierCompanyId = Supplier2CompanyId,
                 Sku = "SKU-TEX-YARN-30-1",
                 NameAr = "غزل قطن مصري 100% جيزة 94 مشط تمشيط Ne 30/1",
                 NameEn = "100% Egyptian Combed Cotton Yarn Giza 94 Ne 30/1",
                 DescriptionAr = "غزل حلقي ممشط فاخر تريكو ونسيج خالي من العقد ومنخفض الشوائب معيار Uster 5%.",
                 DescriptionEn = "Premium ring-spun combed cotton yarn for high-end circular knitting and fine weaving.",
+                Specifications = "Giza 94, Ne 30/1, Combed Ring Spun, Uster 5%",
+                PricingMode = ProductPricingMode.Fixed,
                 UnitPrice = 145000m,
                 Currency = "EGP",
+                Unit = "ton",
                 AvailableQuantity = 120m,
                 MinimumOrderQuantity = 2m,
                 DeliveryLeadTimeDays = 7,
@@ -852,14 +868,18 @@ public static class DemoDataSeeder
             new()
             {
                 MaterialId = cottonYarn!.Id,
+                CategoryId = textilesCategory!.Id,
                 SupplierCompanyId = Supplier2CompanyId,
                 Sku = "SKU-TEX-YARN-24-1",
                 NameAr = "غزل قطن مسرح طرف مفتوح Open-End Ne 24/1",
                 NameEn = "Carded Open-End Cotton Yarn Ne 24/1",
                 DescriptionAr = "غزل قطني عالي المتانة لأقمشة الجينز والملابس الثقيلة والمنسوجات المنزلية.",
                 DescriptionEn = "Rotor spun carded cotton yarn optimized for denim, heavy apparel, and industrial fabrics.",
+                Specifications = "100% Cotton, Open-End Carded, Ne 24/1",
+                PricingMode = ProductPricingMode.Negotiable,
                 UnitPrice = 110000m,
                 Currency = "EGP",
+                Unit = "ton",
                 AvailableQuantity = 80m,
                 MinimumOrderQuantity = 3m,
                 DeliveryLeadTimeDays = 5,
@@ -868,14 +888,18 @@ public static class DemoDataSeeder
             new()
             {
                 MaterialId = polyFiber!.Id,
+                CategoryId = textilesCategory!.Id,
                 SupplierCompanyId = Supplier2CompanyId,
                 Sku = "SKU-TEX-FIBER-PSF",
                 NameAr = "ألياف بوليستر قصيرة 1.4 دنيير × 38 مم نصف معتم (مخزون محدود)",
                 NameEn = "Polyester Staple Fiber PSF 1.4D x 38mm Semi-Dull (Low Stock)",
                 DescriptionAr = "ألياف بوليستر نقية 100% للغزل والخلط مع القطن أو تصنيع الأقمشة غير المنسوجة.",
                 DescriptionEn = "Virgin semi-dull polyester staple fiber for ring spinning and non-woven fabric production.",
+                Specifications = "1.4 Denier x 38mm, Semi-Dull, Virgin Polyester",
+                PricingMode = ProductPricingMode.Fixed,
                 UnitPrice = 68000m,
                 Currency = "EGP",
+                Unit = "ton",
                 AvailableQuantity = 4m,
                 MinimumOrderQuantity = 2m,
                 DeliveryLeadTimeDays = 4,
@@ -886,14 +910,18 @@ public static class DemoDataSeeder
             new()
             {
                 MaterialId = refinedSugar!.Id,
+                CategoryId = foodCategory!.Id,
                 SupplierCompanyId = Supplier3CompanyId,
                 Sku = "SKU-FOOD-SUGAR-45",
                 NameAr = "سكر أبيض مكرر درجة تصنيع غذائي ICUMSA 45 أكياس 50 كجم",
                 NameEn = "Refined White Granulated Cane Sugar ICUMSA 45 (50kg Bags)",
                 DescriptionAr = "سكر صناعي مكرر فائق النقاوة مطابق للمواصفة القياسية المصرية EOS 358 لمصانع الأغذية والمشروبات.",
                 DescriptionEn = "High-purity industrial grade white crystal cane sugar for beverage, confectionery, and dairy production.",
+                Specifications = "ICUMSA 45, Polarization 99.8% min, EOS 358, 50kg polypropylene bags",
+                PricingMode = ProductPricingMode.Fixed,
                 UnitPrice = 29500m,
                 Currency = "EGP",
+                Unit = "ton",
                 AvailableQuantity = 1000m,
                 MinimumOrderQuantity = 25m,
                 DeliveryLeadTimeDays = 4,
@@ -902,14 +930,18 @@ public static class DemoDataSeeder
             new()
             {
                 MaterialId = palmOlein!.Id,
+                CategoryId = foodCategory!.Id,
                 SupplierCompanyId = Supplier3CompanyId,
                 Sku = "SKU-FOOD-PALM-OLEIN-CP8",
                 NameAr = "زيت أولين النخيل الغذائي المكرر RBD CP8 صهاريج فلكسي تانك",
                 NameEn = "RBD Palm Olein Edible Oil CP8 Bulk / Flexitank",
                 DescriptionAr = "زيت طعام صناعي نقي مكرر ومبيض ومزال الرائحة مطابق لمواصفات الكودكس للصناعات الغذائية والقلي.",
                 DescriptionEn = "Refined bleached deodorized palm olein cloud point 8 deg C in bulk tankers and food flexitanks.",
+                Specifications = "RBD Palm Olein CP8, FFA 0.1% max, IV 56 min",
+                PricingMode = ProductPricingMode.Negotiable,
                 UnitPrice = 52000m,
                 Currency = "EGP",
+                Unit = "ton",
                 AvailableQuantity = 300m,
                 MinimumOrderQuantity = 10m,
                 DeliveryLeadTimeDays = 3,
@@ -918,14 +950,18 @@ public static class DemoDataSeeder
             new()
             {
                 MaterialId = refinedSugar!.Id,
+                CategoryId = foodCategory!.Id,
                 SupplierCompanyId = Supplier3CompanyId,
                 Sku = "SKU-FOOD-SUGAR-LIQUID",
                 NameAr = "شراب سكر مكرر سائل للمصانع الغذائية (غير متوفر حالياً)",
                 NameEn = "Industrial Liquid Invert Sugar Syrup (Currently Out of Stock)",
                 DescriptionAr = "محلول سكري عالي التركيز للمخابز والمشروبات الصناعية - غير متاح حالياً للتسليم الفوري.",
                 DescriptionEn = "Liquid sucrose syrup 67 Brix for beverage bottling plants, confectionery, and dairy manufacturing.",
+                Specifications = "67 Brix, Invert Sugar Liquid Syrup, Food Grade",
+                PricingMode = ProductPricingMode.Fixed,
                 UnitPrice = 34000m,
                 Currency = "EGP",
+                Unit = "ton",
                 AvailableQuantity = 0m,
                 MinimumOrderQuantity = 5m,
                 DeliveryLeadTimeDays = 14,
@@ -935,9 +971,22 @@ public static class DemoDataSeeder
 
         foreach (var p in catalogProducts)
         {
-            if (!await context.CatalogProducts.AnyAsync(x => x.Sku == p.Sku))
+            var existing = await context.CatalogProducts.FirstOrDefaultAsync(x => x.Sku == p.Sku);
+            if (existing == null)
             {
                 context.CatalogProducts.Add(p);
+            }
+            else
+            {
+                existing.CategoryId = p.CategoryId;
+                existing.PricingMode = p.PricingMode;
+                existing.Unit = p.Unit;
+                existing.Specifications = p.Specifications;
+                existing.UnitPrice = p.UnitPrice;
+                existing.AvailableQuantity = p.AvailableQuantity;
+                existing.MinimumOrderQuantity = p.MinimumOrderQuantity;
+                existing.DeliveryLeadTimeDays = p.DeliveryLeadTimeDays;
+                existing.IsActive = p.IsActive;
             }
         }
         await context.SaveChangesAsync();

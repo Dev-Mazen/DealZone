@@ -180,6 +180,12 @@ public class CatalogProductConfiguration : IEntityTypeConfiguration<CatalogProdu
         builder.Property(p => p.DescriptionEn)
             .HasMaxLength(1000);
 
+        builder.Property(p => p.Specifications)
+            .HasMaxLength(2000);
+
+        builder.Property(p => p.PricingMode)
+            .HasDefaultValue(ProductPricingMode.Fixed);
+
         builder.Property(p => p.UnitPrice)
             .HasPrecision(18, 2)
             .IsRequired();
@@ -187,6 +193,11 @@ public class CatalogProductConfiguration : IEntityTypeConfiguration<CatalogProdu
         builder.Property(p => p.Currency)
             .HasMaxLength(3)
             .HasDefaultValue("EGP")
+            .IsRequired();
+
+        builder.Property(p => p.Unit)
+            .HasMaxLength(50)
+            .HasDefaultValue("ton")
             .IsRequired();
 
         builder.Property(p => p.AvailableQuantity)
@@ -201,6 +212,9 @@ public class CatalogProductConfiguration : IEntityTypeConfiguration<CatalogProdu
         builder.Property(p => p.DeliveryLeadTimeDays)
             .HasDefaultValue(7)
             .IsRequired();
+
+        builder.Property(p => p.ImageUrlsJson)
+            .HasMaxLength(4000);
 
         builder.Property(p => p.IsActive)
             .HasDefaultValue(true);
@@ -218,12 +232,19 @@ public class CatalogProductConfiguration : IEntityTypeConfiguration<CatalogProdu
             .IsRowVersion();
 
         builder.HasIndex(p => p.MaterialId);
+        builder.HasIndex(p => p.CategoryId);
         builder.HasIndex(p => p.SupplierCompanyId);
         builder.HasIndex(p => new { p.IsActive, p.IsArchived });
 
         builder.HasOne(p => p.Material)
             .WithMany()
             .HasForeignKey(p => p.MaterialId)
+            .IsRequired(false)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne(p => p.Category)
+            .WithMany()
+            .HasForeignKey(p => p.CategoryId)
             .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasOne(p => p.SupplierCompany)

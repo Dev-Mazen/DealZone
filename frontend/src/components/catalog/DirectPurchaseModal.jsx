@@ -121,7 +121,7 @@ export default function DirectPurchaseModal({
     setServerEndpointUnavailable(false)
 
     const payload = {
-      materialId: material.id,
+      materialId: material.materialId || material.id,
       materialCode: material.code,
       quantity: numericQty,
       unitCode: unitCode,
@@ -137,7 +137,24 @@ export default function DirectPurchaseModal({
     }
 
     try {
-      const response = await catalogService.directPurchase(material.id, payload)
+      let response
+      if (material.catalogProductId || material.id) {
+        // Try direct purchase by catalog product first if it is a catalog product
+        const catalogProdId = material.catalogProductId || material.id
+        try {
+          response = await catalogService.directPurchaseProduct(catalogProdId, {
+            catalogProductId: catalogProdId,
+            quantity: numericQty,
+            deliveryAddress: `${industrialZone} - ${deliveryAddress.trim()}`,
+            notes: specialInstructions.trim() || undefined,
+          })
+        } catch (prodErr) {
+          // If not found as catalog product or 404, fallback to material route
+          response = await catalogService.directPurchase(material.materialId || material.id, payload)
+        }
+      } else {
+        response = await catalogService.directPurchase(material.id, payload)
+      }
       const targetDealId = response?.dealId || response?.deal?.id || response?.id
 
       // Invalidate queries so Deals list updates immediately

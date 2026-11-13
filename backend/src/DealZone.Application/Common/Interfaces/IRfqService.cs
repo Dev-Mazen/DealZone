@@ -13,5 +13,7 @@ public interface IRfqService
     Task<RfqDetailResponse> PublishRfqAsync(Guid id, CancellationToken cancellationToken = default);
     Task<RfqDetailResponse> CloseRfqAsync(Guid id, CancellationToken cancellationToken = default);
     Task<RfqDetailResponse> CancelRfqAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<RfqAwardResponse> AwardRfqAsync(Guid id, AwardRfqRequest request, CancellationToken cancellationToken = default);
+    Task<RfqDetailResponse> ReopenRfqAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<RfqDetailResponse> NoAwardRfqAsync(Guid id, string? reason, CancellationToken cancellationToken = default);
 }
-

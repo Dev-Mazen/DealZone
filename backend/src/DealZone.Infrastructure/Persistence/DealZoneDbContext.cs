@@ -47,6 +47,8 @@ public class DealZoneDbContext : DbContext
     public DbSet<Material> Materials => Set<Material>();
     public DbSet<CatalogProduct> CatalogProducts => Set<CatalogProduct>();
     public DbSet<DirectPurchase> DirectPurchases => Set<DirectPurchase>();
+    public DbSet<ProductNegotiation> ProductNegotiations => Set<ProductNegotiation>();
+    public DbSet<ProductNegotiationRevision> ProductNegotiationRevisions => Set<ProductNegotiationRevision>();
     public DbSet<Rfq> Rfqs => Set<Rfq>();
     public DbSet<RfqItem> RfqItems => Set<RfqItem>();
     public DbSet<Offer> Offers => Set<Offer>();

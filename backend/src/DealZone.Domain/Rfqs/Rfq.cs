@@ -32,6 +32,17 @@ public class Rfq : AuditableEntity, ISoftDelete, IConcurrencyToken
     public string Currency { get; set; } = "EGP";
     public string? Notes { get; set; }
 
+    // Awarding / Resolution
+    public Guid? AwardedOfferId { get; set; }
+    public Offer? AwardedOffer { get; set; }
+    public DateTimeOffset? AwardedAtUtc { get; set; }
+    public Guid? AwardedByUserId { get; set; }
+    public string? AwardRationale { get; set; }
+
+    public DateTimeOffset? ReopenedAtUtc { get; set; }
+    public int ReopenedCount { get; set; }
+    public string? CancellationReason { get; set; }
+
     // ISoftDelete
     public bool IsDeleted { get; set; }
     public DateTimeOffset? DeletedAtUtc { get; set; }

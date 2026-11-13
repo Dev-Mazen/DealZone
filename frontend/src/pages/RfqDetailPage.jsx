@@ -22,6 +22,8 @@ const statusVariant = {
   Published: 'success',
   Closed: 'warning',
   Cancelled: 'error',
+  Awarded: 'success',
+  NoAward: 'navy',
 }
 
 const offerStatusVariant = {
@@ -34,10 +36,32 @@ const offerStatusVariant = {
   Expired: 'error',
 }
 
+const RFQ_STATUS_AR = {
+  Draft: 'مسودة',
+  Published: 'منشور',
+  Closed: 'مغلق',
+  Cancelled: 'ملغي',
+  Awarded: 'تمت الترسية',
+  NoAward: 'دون ترسية',
+}
+
+const OFFER_STATUS_AR = {
+  Submitted: 'مقدَّم',
+  UnderReview: 'قيد المراجعة',
+  Accepted: 'مقبول',
+  Rejected: 'مرفوض',
+  Superseded: 'تم استبداله',
+  Withdrawn: 'مسحوب',
+  Expired: 'منتهي',
+}
+
+const ACTIONABLE_OFFER_STATUSES = ['Submitted', 'UnderReview']
+
 function OfferCard({ offer, onAccept, onReject, canAccept }) {
   const { language } = useTranslation()
   const isAr = language === 'ar'
   const [expanded, setExpanded] = useState(false)
+  const items = offer.items || []
 
   return (
     <div className="bg-white rounded-xl border border-[rgba(6,36,91,0.08)] p-5">
@@ -49,13 +73,13 @@ function OfferCard({ offer, onAccept, onReject, canAccept }) {
             {offer.supplierCity}, {offer.supplierGovernorate}
             {offer.revisionNumber > 1 && (
               <span className="ms-2 bg-[#EAF4FF] text-[#1266D6] px-1.5 py-0.5 rounded text-xs font-medium">
-                Rev. {offer.revisionNumber}
+                {isAr ? `مراجعة ${offer.revisionNumber}` : `Rev. ${offer.revisionNumber}`}
               </span>
             )}
           </p>
         </div>
         <Badge variant={offerStatusVariant[offer.status] || 'navy'}>
-          {offer.status}
+          {isAr ? (OFFER_STATUS_AR[offer.status] || offer.status) : offer.status}
         </Badge>
       </div>
 
@@ -95,27 +119,30 @@ function OfferCard({ offer, onAccept, onReject, canAccept }) {
       {/* Line items toggle */}
       <button
         onClick={() => setExpanded(!expanded)}
+        aria-expanded={expanded}
         className="flex items-center gap-1.5 text-sm text-[#1266D6] hover:text-[#06245B] transition-colors"
       >
         {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
         {expanded
           ? (isAr ? 'إخفاء البنود' : 'Hide Line Items')
-          : (isAr ? `${offer.items.length} بند — عرض` : `${offer.items.length} line item${offer.items.length !== 1 ? 's' : ''} — Show`)}
+          : (isAr
+            ? `${items.length} بند — عرض`
+            : `${items.length} line item${items.length !== 1 ? 's' : ''} — Show`)}
       </button>
 
       {expanded && (
-        <div className="mt-3 border-t border-[rgba(6,36,91,0.06)] pt-3">
+        <div className="mt-3 border-t border-[rgba(6,36,91,0.06)] pt-3 overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="text-[#64748B] text-xs">
-                <th className="text-start pb-2">{isAr ? 'المواد' : 'Material'}</th>
+                <th className="text-start pb-2">{isAr ? 'المادة' : 'Material'}</th>
                 <th className="text-end pb-2">{isAr ? 'الكمية' : 'Qty'}</th>
                 <th className="text-end pb-2">{isAr ? 'سعر الوحدة' : 'Unit Price'}</th>
                 <th className="text-end pb-2">{isAr ? 'الإجمالي' : 'Total'}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[rgba(6,36,91,0.04)]">
-              {offer.items.map((item) => (
+              {items.map((item) => (
                 <tr key={item.id} className="text-[#1E293B]">
                   <td className="py-2">{item.rfqItemMaterialName}</td>
                   <td className="py-2 text-end">{item.offeredQuantity}</td>
@@ -137,20 +164,12 @@ function OfferCard({ offer, onAccept, onReject, canAccept }) {
       )}
 
       {/* Actions for buyer */}
-      {canAccept && offer.status === 'Submitted' && (
-        <div className="flex gap-2 mt-4 pt-3 border-t border-[rgba(6,36,91,0.06)]">
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={onAccept}
-          >
+      {canAccept && ACTIONABLE_OFFER_STATUSES.includes(offer.status) && (
+        <div className="flex flex-wrap gap-2 mt-4 pt-3 border-t border-[rgba(6,36,91,0.06)]">
+          <Button variant="primary" size="sm" onClick={onAccept}>
             {isAr ? 'قبول العرض' : 'Accept Offer'}
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onReject}
-          >
+          <Button variant="outline" size="sm" onClick={onReject}>
             {isAr ? 'رفض' : 'Reject'}
           </Button>
           <Link to={`/offers/${offer.id}/revisions`}>
@@ -178,6 +197,9 @@ export default function RfqDetailPage() {
   const [rejectOfferId, setRejectOfferId] = useState(null)
   const [rejectReason, setRejectReason] = useState('')
 
+  const errorText = (err, fallbackAr, fallbackEn) =>
+    err?.problem?.detail || (isAr ? fallbackAr : fallbackEn)
+
   const { data: rfq, isLoading, error } = useQuery({
     queryKey: ['rfqs', rfqId],
     queryFn: () => rfqService.get(rfqId),
@@ -189,7 +211,7 @@ export default function RfqDetailPage() {
   const { data: offers, isLoading: offersLoading } = useQuery({
     queryKey: ['offers', 'by-rfq', rfqId],
     queryFn: () => offerService.getForRfq(rfqId),
-    enabled: !!rfqId && isOwnerBuyer,
+    enabled: !!rfqId && !!isOwnerBuyer,
   })
 
   // Supplier: load their own offer for this RFQ
@@ -199,62 +221,63 @@ export default function RfqDetailPage() {
     enabled: !!rfqId && canSubmitOffers && !canManageRfqs,
   })
 
+  const invalidateRfq = () => {
+    queryClient.invalidateQueries({ queryKey: ['rfqs', rfqId] })
+    queryClient.invalidateQueries({ queryKey: ['rfqs', 'mine'] })
+  }
+
   const publishMutation = useMutation({
     mutationFn: () => rfqService.publish(rfqId),
     onSuccess: () => {
       toast.success(isAr ? 'تم نشر طلب السعر' : 'RFQ published successfully')
-      queryClient.invalidateQueries({ queryKey: ['rfqs', rfqId] })
-      queryClient.invalidateQueries({ queryKey: ['rfqs', 'mine'] })
+      invalidateRfq()
       setConfirmAction(null)
     },
-    onError: (err) => toast.error(err?.problem?.detail || 'Failed to publish RFQ'),
+    onError: (err) => toast.error(errorText(err, 'تعذّر نشر طلب السعر', 'Failed to publish RFQ')),
   })
 
   const closeMutation = useMutation({
     mutationFn: () => rfqService.close(rfqId),
     onSuccess: () => {
       toast.success(isAr ? 'تم إغلاق طلب السعر' : 'RFQ closed')
-      queryClient.invalidateQueries({ queryKey: ['rfqs', rfqId] })
-      queryClient.invalidateQueries({ queryKey: ['rfqs', 'mine'] })
+      invalidateRfq()
       setConfirmAction(null)
     },
-    onError: (err) => toast.error(err?.problem?.detail || 'Failed to close RFQ'),
+    onError: (err) => toast.error(errorText(err, 'تعذّر إغلاق طلب السعر', 'Failed to close RFQ')),
   })
 
   const cancelMutation = useMutation({
     mutationFn: () => rfqService.cancel(rfqId),
     onSuccess: () => {
       toast.success(isAr ? 'تم إلغاء طلب السعر' : 'RFQ cancelled')
-      queryClient.invalidateQueries({ queryKey: ['rfqs', rfqId] })
-      queryClient.invalidateQueries({ queryKey: ['rfqs', 'mine'] })
+      invalidateRfq()
       setConfirmAction(null)
     },
-    onError: (err) => toast.error(err?.problem?.detail || 'Failed to cancel RFQ'),
+    onError: (err) => toast.error(errorText(err, 'تعذّر إلغاء طلب السعر', 'Failed to cancel RFQ')),
   })
 
   const acceptOfferMutation = useMutation({
     mutationFn: (offerId) => offerService.accept(offerId),
-    onSuccess: (deal) => {
-      toast.success(isAr ? 'تم قبول العرض! تم إنشاء الصفقة.' : 'Offer accepted! Deal created.')
-      queryClient.invalidateQueries({ queryKey: ['rfqs', rfqId] })
-      queryClient.invalidateQueries({ queryKey: ['offers', 'by-rfq', rfqId] })
+    onSuccess: (res) => {
+      toast.success(isAr ? 'تم قبول العرض وإنشاء الصفقة' : 'Offer accepted and deal created')
+      invalidateRfq()
+      queryClient.invalidateQueries({ queryKey: ['offers'] })
       queryClient.invalidateQueries({ queryKey: ['deals'] })
       setAcceptOfferId(null)
-      navigate(`/deals/${deal.dealId}`)
+      if (res?.dealId) navigate(`/deals/${res.dealId}`)
     },
-    onError: (err) => toast.error(err?.problem?.detail || 'Failed to accept offer'),
+    onError: (err) => toast.error(errorText(err, 'تعذّر قبول العرض', 'Failed to accept offer')),
   })
 
   const rejectOfferMutation = useMutation({
-    mutationFn: ({ offerId, reason }) =>
-      offerService.reject(offerId, reason),
+    mutationFn: ({ offerId, reason }) => offerService.reject(offerId, reason),
     onSuccess: () => {
       toast.success(isAr ? 'تم رفض العرض' : 'Offer rejected')
-      queryClient.invalidateQueries({ queryKey: ['offers', 'by-rfq', rfqId] })
+      queryClient.invalidateQueries({ queryKey: ['offers'] })
       setRejectOfferId(null)
       setRejectReason('')
     },
-    onError: (err) => toast.error(err?.problem?.detail || 'Failed to reject offer'),
+    onError: (err) => toast.error(errorText(err, 'تعذّر رفض العرض', 'Failed to reject offer')),
   })
 
   if (isLoading) return <PageSpinner />
@@ -274,7 +297,14 @@ export default function RfqDetailPage() {
   const canClose = rfq.isOwner && rfq.status === 'Published'
   const canCancel = rfq.isOwner && (rfq.status === 'Draft' || rfq.status === 'Published')
   const canEdit = rfq.isOwner && rfq.status === 'Draft'
-  const isMutating = publishMutation.isPending || closeMutation.isPending || cancelMutation.isPending
+  const isMutating =
+    publishMutation.isPending ||
+    closeMutation.isPending ||
+    cancelMutation.isPending ||
+    acceptOfferMutation.isPending ||
+    rejectOfferMutation.isPending
+
+  const rfqItems = rfq.items || []
 
   const categoryName = isAr
     ? (rfq.targetCategoryNameAr || rfq.targetCategoryNameEn)
@@ -288,15 +318,18 @@ export default function RfqDetailPage() {
           <button
             onClick={() => navigate('/rfqs')}
             className="mt-1 p-2 rounded-lg hover:bg-[#EAF4FF] text-[#64748B] hover:text-[#06245B] transition-colors"
+            aria-label={isAr ? 'رجوع' : 'Back'}
           >
-            <ArrowLeft size={20} />
+            <ArrowLeft size={20} className="rtl:rotate-180" />
           </button>
           <div>
             <div className="flex items-center gap-3 flex-wrap">
               <span className="text-xs font-mono text-[#64748B] bg-[#F4F7FB] px-2 py-1 rounded">
                 {rfq.rfqNumber}
               </span>
-              <Badge variant={statusVariant[rfq.status] || 'navy'}>{rfq.status}</Badge>
+              <Badge variant={statusVariant[rfq.status] || 'navy'}>
+                {isAr ? (RFQ_STATUS_AR[rfq.status] || rfq.status) : rfq.status}
+              </Badge>
             </div>
             <h1 className="text-xl font-bold text-[#06245B] mt-1">{rfq.title}</h1>
             <p className="text-sm text-[#64748B] mt-0.5">
@@ -367,9 +400,7 @@ export default function RfqDetailPage() {
       <div className="grid md:grid-cols-2 gap-5">
         {/* Details */}
         <Card>
-          <CardHeader
-            title={isAr ? 'تفاصيل الطلب' : 'Request Details'}
-          />
+          <CardHeader title={isAr ? 'تفاصيل الطلب' : 'Request Details'} />
           <dl className="space-y-3 text-sm">
             {categoryName && (
               <div className="flex items-start gap-2">
@@ -433,10 +464,10 @@ export default function RfqDetailPage() {
         {/* Line items */}
         <Card>
           <CardHeader
-            title={isAr ? `بنود الطلب (${rfq.items.length})` : `Line Items (${rfq.items.length})`}
+            title={isAr ? `بنود الطلب (${rfqItems.length})` : `Line Items (${rfqItems.length})`}
           />
           <div className="space-y-3">
-            {rfq.items.map((item) => (
+            {rfqItems.map((item) => (
               <div key={item.id} className="p-3 bg-[#F4F7FB] rounded-lg">
                 <div className="flex items-start justify-between gap-2 mb-1">
                   <p className="font-medium text-sm text-[#1E293B]">{item.materialName}</p>
@@ -474,7 +505,7 @@ export default function RfqDetailPage() {
           />
           <OfferCard offer={myOffer} />
           {myOffer.status === 'Submitted' && (
-            <div className="mt-4 flex gap-2">
+            <div className="mt-4 flex flex-wrap gap-2">
               <Button
                 variant="outline"
                 size="sm"
@@ -497,7 +528,7 @@ export default function RfqDetailPage() {
         <Card>
           <CardHeader
             title={isAr ? 'العروض الواردة' : 'Incoming Offers'}
-            subtitle={isAr ? 'عروض الموردين لهذا الطلب' : "Supplier offers for this RFQ"}
+            subtitle={isAr ? 'عروض الموردين لهذا الطلب' : 'Supplier offers for this RFQ'}
           />
           {offersLoading ? (
             <div className="text-center py-8 text-[#64748B] text-sm">
@@ -563,7 +594,7 @@ export default function RfqDetailPage() {
             {isAr ? 'إلغاء' : 'Cancel'}
           </Button>
           <Button variant="secondary" onClick={() => closeMutation.mutate()} loading={closeMutation.isPending}>
-            {isAr ? 'إغلاق' : 'Close RFQ'}
+            {isAr ? 'إغلاق الطلب' : 'Close RFQ'}
           </Button>
         </div>
       </Modal>
@@ -597,11 +628,15 @@ export default function RfqDetailPage() {
       >
         <p className="text-[#475569] mb-6">
           {isAr
-            ? 'قبول هذا العرض سينشئ صفقة ملزمة وسيتم رفض جميع العروض الأخرى تلقائياً.'
-            : 'Accepting this offer will create a binding deal and all other offers will be automatically rejected.'}
+            ? 'عند قبول هذا العرض سيتم إنشاء صفقة بانتظار تأكيد الطرفين (المشتري والمورد)، وسيتم رفض باقي العروض تلقائياً وإغلاق طلب السعر.'
+            : 'Accepting this offer will create a deal awaiting confirmation from both parties, automatically reject all other offers, and close the RFQ.'}
         </p>
         <div className="flex justify-end gap-3">
-          <Button variant="outline" onClick={() => setAcceptOfferId(null)} disabled={acceptOfferMutation.isPending}>
+          <Button
+            variant="outline"
+            onClick={() => setAcceptOfferId(null)}
+            disabled={acceptOfferMutation.isPending}
+          >
             {isAr ? 'إلغاء' : 'Cancel'}
           </Button>
           <Button
@@ -644,7 +679,10 @@ export default function RfqDetailPage() {
           </Button>
           <Button
             variant="danger"
-            onClick={() => rejectOfferId && rejectOfferMutation.mutate({ offerId: rejectOfferId, reason: rejectReason })}
+            onClick={() =>
+              rejectOfferId &&
+              rejectOfferMutation.mutate({ offerId: rejectOfferId, reason: rejectReason })
+            }
             loading={rejectOfferMutation.isPending}
           >
             {isAr ? 'رفض العرض' : 'Reject Offer'}

@@ -20,6 +20,10 @@ const ForgotPasswordPage = lazy(() => import('./pages/auth/ForgotPasswordPage'))
 const ResetPasswordPage = lazy(() => import('./pages/auth/ResetPasswordPage'))
 const DashboardPage = lazy(() => import('./pages/dashboard/DashboardPage'))
 const CatalogPage = lazy(() => import('./pages/catalog/CatalogPage'))
+const MarketplacePage = lazy(() => import('./pages/marketplace/MarketplacePage'))
+const SupplierProductsPage = lazy(() => import('./pages/catalog/SupplierProductsPage'))
+const NegotiationsPage = lazy(() => import('./pages/negotiations/NegotiationsPage'))
+const NegotiationDetailPage = lazy(() => import('./pages/negotiations/NegotiationDetailPage'))
 const CompanyOnboardingPage = lazy(() => import('./pages/company/CompanyOnboardingPage'))
 const VerificationPage = lazy(() => import('./pages/company/VerificationPage'))
 const RfqsPage = lazy(() => import('./pages/RfqsPage'))
@@ -124,6 +128,7 @@ function App() {
               <Route element={<PublicLayout />}>
                 <Route path="/" element={<LandingPage />} />
                 <Route path="/about" element={<AboutPage />} />
+                <Route path="/marketplace" element={<MarketplacePage />} />
                 {!isAuthenticated && (
                   <>
                     <Route path="/suppliers" element={<SupplierDirectoryPage />} />
@@ -150,7 +155,11 @@ function App() {
                 }
               >
                 <Route path="dashboard" element={<DashboardPage />} />
-                <Route path="catalog" element={<CatalogPage />} />
+                <Route path="marketplace" element={<MarketplacePage />} />
+                <Route path="catalog/my-products" element={<SupplierProductsPage />} />
+                <Route path="catalog" element={<Navigate to="/marketplace" replace />} />
+                <Route path="negotiations" element={<NegotiationsPage />} />
+                <Route path="negotiations/:negotiationId" element={<NegotiationDetailPage />} />
                 <Route path="suppliers" element={<SupplierDirectoryPage />} />
                 <Route path="suppliers/:companyId" element={<CompanyProfilePage />} />
                 <Route path="companies/:companyId" element={<CompanyProfilePage />} />

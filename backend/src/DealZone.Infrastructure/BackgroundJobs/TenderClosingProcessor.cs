@@ -114,6 +114,38 @@ public class TenderClosingProcessor : ITenderClosingProcessor
             }
         }
 
+        // Also process expired published RFQs in the unified procurement model
+        while (!cancellationToken.IsCancellationRequested)
+        {
+            var rfqBatch = await _context.Rfqs
+                .Where(r => r.Status == DealZone.Domain.Rfqs.RfqStatus.Published && r.ClosingDateUtc <= now)
+                .OrderBy(r => r.ClosingDateUtc)
+                .Take(batchSize)
+                .ToListAsync(cancellationToken);
+
+            if (rfqBatch.Count == 0)
+            {
+                break;
+            }
+
+            foreach (var rfq in rfqBatch)
+            {
+                rfq.Status = DealZone.Domain.Rfqs.RfqStatus.Closed;
+            }
+
+            try
+            {
+                await _context.SaveChangesAsync(cancellationToken);
+                totalClosed += rfqBatch.Count;
+                _logger.LogInformation("Batch closed {Count} expired RFQs at {NowUtc}", rfqBatch.Count, now);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to batch close expired RFQs");
+                break;
+            }
+        }
+
         return totalClosed;
     }
 }

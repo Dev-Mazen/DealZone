@@ -35,6 +35,10 @@ public class Deal : AuditableEntity, IConcurrencyToken
     public Guid? DirectPurchaseId { get; set; }
     public DirectPurchase? DirectPurchase { get; set; }
 
+    // Product Price Negotiation Source
+    public Guid? ProductNegotiationId { get; set; }
+    public ProductNegotiation? ProductNegotiation { get; set; }
+
     public Guid BuyerCompanyId { get; set; }
     public Company? BuyerCompany { get; set; }
 

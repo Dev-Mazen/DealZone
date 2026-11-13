@@ -26,8 +26,17 @@ export const catalogService = {
   getProduct: (id) =>
     api.get(`/catalog/products/${id}`).then((r) => r.data),
 
+  createProduct: (data) =>
+    api.post('/catalog/products', data).then((r) => r.data),
+
+  updateProduct: (id, data) =>
+    api.put(`/catalog/products/${id}`, data).then((r) => r.data),
+
   directPurchase: (materialId, payload) =>
     api.post(`/catalog/materials/${materialId}/purchase`, payload).then((r) => r.data),
+
+  directPurchaseProduct: (productId, payload) =>
+    api.post(`/purchases/direct`, payload).then((r) => r.data),
 
   // Admin catalog
   createCategory: (data) =>

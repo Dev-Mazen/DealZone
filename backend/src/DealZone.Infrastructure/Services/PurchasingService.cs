@@ -51,12 +51,13 @@ public class PurchasingService : IPurchasingService
             throw new ForbiddenException("Only company Owners, Admins, and Procurement Managers can place direct purchase orders.");
         }
 
-        // Fetch catalog product with material, category, unit, and supplier company
+        // Fetch catalog product with category, material, and supplier company
         var product = await _context.CatalogProducts
+            .Include(p => p.Category)
             .Include(p => p.Material)
-                .ThenInclude(m => m.Category)
+                .ThenInclude(m => m!.Category)
             .Include(p => p.Material)
-                .ThenInclude(m => m.DefaultUnit)
+                .ThenInclude(m => m!.DefaultUnit)
             .Include(p => p.SupplierCompany)
             .FirstOrDefaultAsync(p => p.Id == request.CatalogProductId, cancellationToken)
             ?? throw new NotFoundException($"Catalog product {request.CatalogProductId} was not found.");
@@ -66,10 +67,16 @@ public class PurchasingService : IPurchasingService
             throw new ConflictException("The selected catalog product is not currently available for direct purchase.");
         }
 
-        // Ensure category is one of the three supported marketplace categories
-        if (!MarketplaceCategories.IsSupported(product.Material.Category.Code))
+        if (product.PricingMode == ProductPricingMode.Negotiable)
         {
-            throw new ConflictException($"Direct purchasing is only supported for the official marketplace categories (Textiles, Food, Metals). The product category '{product.Material.Category.Code}' is not supported.");
+            throw new ConflictException("This product has negotiable pricing and cannot be purchased directly. Please make an offer to negotiate terms with the supplier.");
+        }
+
+        // Ensure category is one of the three supported marketplace categories
+        var categoryCode = product.Category?.Code ?? product.Material?.Category?.Code ?? string.Empty;
+        if (!MarketplaceCategories.IsSupported(categoryCode))
+        {
+            throw new ConflictException($"Direct purchasing is only supported for the official marketplace categories (Textiles, Food, Metals). The product category '{categoryCode}' is not supported.");
         }
 
         // Validate supplier company is active and approved for commercial activities
@@ -85,6 +92,8 @@ public class PurchasingService : IPurchasingService
             throw new ConflictException("A company cannot purchase its own catalog products.");
         }
 
+        var unitName = product.Unit ?? product.Material?.DefaultUnit?.SymbolEn ?? "units";
+
         // Quantity constraints validation
         if (request.Quantity <= 0)
         {
@@ -95,13 +104,13 @@ public class PurchasingService : IPurchasingService
         {
             throw new ValidationException(
                 nameof(request.Quantity),
-                $"Requested quantity ({request.Quantity:G29}) is less than the minimum order quantity ({product.MinimumOrderQuantity:G29} {product.Material.DefaultUnit.SymbolEn}).");
+                $"Requested quantity ({request.Quantity:G29}) is less than the minimum order quantity ({product.MinimumOrderQuantity:G29} {unitName}).");
         }
 
         if (request.Quantity > product.AvailableQuantity)
         {
             throw new ConflictException(
-                $"Requested quantity ({request.Quantity:G29}) exceeds available stock ({product.AvailableQuantity:G29} {product.Material.DefaultUnit.SymbolEn}).");
+                $"Requested quantity ({request.Quantity:G29}) exceeds available stock ({product.AvailableQuantity:G29} {unitName}).");
         }
 
         // Server-side calculation — NEVER trust client-submitted prices
@@ -122,14 +131,14 @@ public class PurchasingService : IPurchasingService
             product.Sku,
             product.NameAr,
             product.NameEn,
-            product.MaterialId,
-            product.Material.Code,
-            product.Material.NameAr,
-            product.Material.NameEn,
-            product.Material.DefaultUnit.Code,
-            product.Material.DefaultUnit.NameAr,
-            product.Material.DefaultUnit.NameEn,
-            product.Material.Category.Code,
+            product.MaterialId.GetValueOrDefault(),
+            product.Material?.Code ?? product.Sku,
+            product.Material?.NameAr ?? product.NameAr,
+            product.Material?.NameEn ?? product.NameEn,
+            product.Material?.DefaultUnit?.Code ?? product.Unit,
+            product.Material?.DefaultUnit?.NameAr ?? product.Unit,
+            product.Material?.DefaultUnit?.NameEn ?? product.Unit,
+            categoryCode,
             request.Quantity,
             unitPrice,
             totalPrice,
@@ -168,7 +177,7 @@ public class PurchasingService : IPurchasingService
             unitPrice,
             request.Quantity,
             totalPrice,
-            $"Material: {product.Material.NameEn} ({product.Material.Code})",
+            $"Material: {product.Material?.NameEn ?? product.NameEn} ({product.Material?.Code ?? product.Sku})",
             request.Notes?.Trim());
 
         var deliveryTermsSummary = $"Standard Delivery / Direct Purchase; Lead Time: {product.DeliveryLeadTimeDays} days";
@@ -233,7 +242,7 @@ public class PurchasingService : IPurchasingService
             [CompanyRole.Owner, CompanyRole.Admin, CompanyRole.SalesManager],
             NotificationType.DealCreated,
             "New Direct Purchase Order",
-            $"A new direct purchase order ({directPurchase.PurchaseNumber}) for {request.Quantity:G29} {product.Material.DefaultUnit.SymbolEn} of '{product.NameEn}' was placed. Deal {deal.DealNumber} awaits confirmation.",
+            $"A new direct purchase order ({directPurchase.PurchaseNumber}) for {request.Quantity:G29} {unitName} of '{product.NameEn}' was placed. Deal {deal.DealNumber} awaits confirmation.",
             "Deal",
             deal.Id,
             $"direct_purchase_created_{directPurchase.Id}_{product.SupplierCompanyId}",
@@ -353,12 +362,12 @@ public class PurchasingService : IPurchasingService
             prod.Sku,
             prod.NameAr,
             prod.NameEn,
-            prod.Material.Code,
-            prod.Material.NameAr,
-            prod.Material.NameEn,
-            prod.Material.DefaultUnit.Code,
-            prod.Material.DefaultUnit.NameAr,
-            prod.Material.DefaultUnit.NameEn,
+            prod.Material?.Code ?? prod.Sku,
+            prod.Material?.NameAr ?? prod.NameAr,
+            prod.Material?.NameEn ?? prod.NameEn,
+            prod.Material?.DefaultUnit?.Code ?? prod.Unit,
+            prod.Material?.DefaultUnit?.NameAr ?? prod.Unit,
+            prod.Material?.DefaultUnit?.NameEn ?? prod.Unit,
             p.Quantity,
             p.UnitPrice,
             p.TotalPrice,

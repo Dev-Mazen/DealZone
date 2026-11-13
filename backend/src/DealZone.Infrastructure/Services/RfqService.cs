@@ -1,11 +1,15 @@
+using System.Text.Json;
 using DealZone.Application.Common.Exceptions;
 using DealZone.Application.Common.Interfaces;
 using DealZone.Application.Common.Models;
+using DealZone.Application.Deals.DTOs;
 using DealZone.Application.Rfqs.DTOs;
 using DealZone.Domain.Catalog;
 using DealZone.Domain.Companies;
+using DealZone.Domain.Deals;
 using DealZone.Domain.Exceptions;
 using DealZone.Domain.Notifications;
+using DealZone.Domain.Offers;
 using DealZone.Domain.Rfqs;
 using DealZone.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -523,6 +527,216 @@ public class RfqService : IRfqService
         return await GetRfqDetailAsync(rfq.Id, buyerCompany.Id, cancellationToken);
     }
 
+    public async Task<RfqAwardResponse> AwardRfqAsync(
+        Guid id,
+        AwardRfqRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var (buyerCompany, _) = await RequireApprovedCompanyAsync(cancellationToken);
+        var now = _dateTimeProvider.UtcNow;
+        var userId = _currentUser.Id;
+
+        var rfq = await _context.Rfqs
+            .Include(r => r.BuyerCompany)
+            .Include(r => r.Items)
+            .FirstOrDefaultAsync(r => r.Id == id, cancellationToken)
+            ?? throw new NotFoundException($"RFQ {id} was not found.");
+
+        if (rfq.BuyerCompanyId != buyerCompany.Id)
+        {
+            throw new ForbiddenException("Only the owning buyer company can award this RFQ.");
+        }
+
+        if (rfq.Status is not (RfqStatus.Published or RfqStatus.Closed))
+        {
+            throw new ConflictException($"Cannot award RFQ in {rfq.Status} status.");
+        }
+
+        var offer = await _context.Offers
+            .Include(o => o.SupplierCompany)
+            .Include(o => o.Items)
+                .ThenInclude(i => i.RfqItem)
+            .FirstOrDefaultAsync(o => o.Id == request.WinningOfferId && o.RfqId == rfq.Id, cancellationToken)
+            ?? throw new NotFoundException($"Offer {request.WinningOfferId} was not found for RFQ {id}.");
+
+        if (offer.Status is not (OfferStatus.Submitted or OfferStatus.UnderReview))
+        {
+            throw new ConflictException($"Cannot award offer in '{offer.Status}' status. Only active Submitted or UnderReview offers can be awarded.");
+        }
+
+        // Concurrency safeguard
+        var dealExists = await _context.Deals
+            .AnyAsync(d => d.OfferId == offer.Id || d.RfqId == rfq.Id, cancellationToken);
+        if (dealExists)
+        {
+            throw new ConflictException("A Deal has already been created for this RFQ or offer.");
+        }
+
+        offer.Status = OfferStatus.Accepted;
+        offer.AcceptedAtUtc = now;
+        offer.AcceptedByUserId = userId;
+
+        // Reject competing offers
+        var competingOffers = await _context.Offers
+            .Where(o => o.RfqId == rfq.Id && o.Id != offer.Id && (o.Status == OfferStatus.Submitted || o.Status == OfferStatus.UnderReview))
+            .ToListAsync(cancellationToken);
+
+        foreach (var comp in competingOffers)
+        {
+            comp.Status = OfferStatus.Rejected;
+            comp.RejectedAtUtc = now;
+            comp.RejectedByUserId = userId;
+            comp.RejectionReason = "Another offer was awarded for this RFQ.";
+        }
+
+        rfq.Status = RfqStatus.Awarded;
+        rfq.AwardedOfferId = offer.Id;
+        rfq.AwardedAtUtc = now;
+        rfq.AwardedByUserId = userId;
+        rfq.AwardRationale = request.Rationale?.Trim();
+
+        var dealNumber = $"DZ-DEAL-{now:yyyy}-{Guid.NewGuid().ToString("N")[..4].ToUpperInvariant()}";
+        var snapshotItems = offer.Items.Select(i => new DealItemSnapshot(
+            i.RfqItemId,
+            i.RfqItem?.MaterialName ?? "Material",
+            i.UnitPrice,
+            i.OfferedQuantity,
+            i.TotalPrice,
+            i.MaterialSpecifications,
+            i.Notes)).ToList();
+
+        var deliveryTermsSummary = $"{(offer.ShippingIncluded ? "Shipping Included" : "Pickup")}; Payment: {offer.PaymentTerms}; Lead Time: {offer.DeliveryLeadTimeDays} days";
+
+        var termsSnapshot = new DealCommercialTermsSnapshot(
+            offer.Id,
+            offer.RevisionNumber,
+            offer.OfferNumber,
+            rfq.Id,
+            rfq.RfqNumber,
+            rfq.Title,
+            offer.TotalAmount,
+            offer.Currency,
+            offer.DeliveryLeadTimeDays,
+            offer.ShippingIncluded,
+            offer.PaymentTerms,
+            deliveryTermsSummary,
+            now.AddDays(offer.DeliveryLeadTimeDays),
+            offer.ValidityDateUtc,
+            offer.Notes,
+            snapshotItems);
+
+        var termsSnapshotJson = JsonSerializer.Serialize(termsSnapshot);
+
+        var deal = new Deal
+        {
+            DealNumber = dealNumber,
+            Source = DealSource.Rfq,
+            RfqId = rfq.Id,
+            OfferId = offer.Id,
+            OfferRevisionNumber = offer.RevisionNumber,
+            BuyerCompanyId = buyerCompany.Id,
+            SupplierCompanyId = offer.SupplierCompanyId,
+            AgreedPrice = offer.TotalAmount,
+            Currency = offer.Currency,
+            Status = DealStatus.AwaitingConfirmation,
+            DeliveryTerms = deliveryTermsSummary,
+            EstimatedDeliveryDateUtc = now.AddDays(offer.DeliveryLeadTimeDays),
+            CommercialTermsSnapshotJson = termsSnapshotJson,
+            CreatedAtUtc = now,
+            LastModifiedAtUtc = now
+        };
+
+        _context.Deals.Add(deal);
+        await _context.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("Awarded RFQ {RfqNumber} to Offer {OfferNumber}. Created Deal {DealNumber}.",
+            rfq.RfqNumber, offer.OfferNumber, deal.DealNumber);
+
+        // Notify winner
+        await _notificationService.CreateNotificationsForCompanyMembersAsync(
+            offer.SupplierCompanyId,
+            null,
+            NotificationType.OfferAccepted,
+            "تمت ترسية طلب عروض الأسعار — صفقة جديدة",
+            $"تمت ترسية طلب عروض الأسعار {rfq.RfqNumber} على عرضكم {offer.OfferNumber}! تم إنشاء الصفقة {deal.DealNumber}.",
+            "Deal",
+            deal.Id,
+            $"rfq_awarded_{rfq.Id}",
+            cancellationToken);
+
+        return new RfqAwardResponse(
+            rfq.Id,
+            rfq.RfqNumber,
+            offer.Id,
+            offer.OfferNumber,
+            offer.SupplierCompanyId,
+            offer.SupplierCompany?.LegalName ?? string.Empty,
+            offer.TotalAmount,
+            offer.Currency,
+            deal.DealNumber,
+            deal.Id,
+            now);
+    }
+
+    public async Task<RfqDetailResponse> ReopenRfqAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        var (buyerCompany, _) = await RequireApprovedCompanyAsync(cancellationToken);
+        var now = _dateTimeProvider.UtcNow;
+
+        var rfq = await _context.Rfqs
+            .FirstOrDefaultAsync(r => r.Id == id, cancellationToken)
+            ?? throw new NotFoundException($"RFQ {id} was not found.");
+
+        if (rfq.BuyerCompanyId != buyerCompany.Id)
+        {
+            throw new ForbiddenException("You do not have permission to reopen this RFQ.");
+        }
+
+        if (rfq.Status is not (RfqStatus.Closed or RfqStatus.NoAward))
+        {
+            throw new ConflictException($"Cannot reopen RFQ in {rfq.Status} status. Only Closed or NoAward RFQs can be reopened.");
+        }
+
+        rfq.Status = RfqStatus.Published;
+        rfq.ClosingDateUtc = now.AddDays(7);
+        rfq.ReopenedAtUtc = now;
+        rfq.ReopenedCount++;
+
+        await _context.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("Reopened RFQ {RfqNumber} ({RfqId})", rfq.RfqNumber, rfq.Id);
+
+        return await GetRfqDetailAsync(rfq.Id, buyerCompany.Id, cancellationToken);
+    }
+
+    public async Task<RfqDetailResponse> NoAwardRfqAsync(Guid id, string? reason, CancellationToken cancellationToken = default)
+    {
+        var (buyerCompany, _) = await RequireApprovedCompanyAsync(cancellationToken);
+
+        var rfq = await _context.Rfqs
+            .FirstOrDefaultAsync(r => r.Id == id, cancellationToken)
+            ?? throw new NotFoundException($"RFQ {id} was not found.");
+
+        if (rfq.BuyerCompanyId != buyerCompany.Id)
+        {
+            throw new ForbiddenException("You do not have permission to close this RFQ with No Award.");
+        }
+
+        if (rfq.Status is not (RfqStatus.Published or RfqStatus.Closed))
+        {
+            throw new ConflictException($"Cannot set NoAward on an RFQ in {rfq.Status} status.");
+        }
+
+        rfq.Status = RfqStatus.NoAward;
+        rfq.CancellationReason = reason?.Trim();
+
+        await _context.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("Set NoAward on RFQ {RfqNumber} ({RfqId})", rfq.RfqNumber, rfq.Id);
+
+        return await GetRfqDetailAsync(rfq.Id, buyerCompany.Id, cancellationToken);
+    }
+
     // -------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------
@@ -652,8 +866,16 @@ public class RfqService : IRfqService
                 .ThenInclude(i => i.UnitOfMeasure)
             .FirstAsync(r => r.Id == rfqId, cancellationToken);
 
+        var activeOffers = await _context.Offers
+            .AsNoTracking()
+            .Where(o => o.RfqId == rfqId && (o.Status == OfferStatus.Submitted || o.Status == OfferStatus.UnderReview))
+            .ToListAsync(cancellationToken);
+
+        decimal? lowestAmount = activeOffers.Count > 0 ? activeOffers.Min(o => o.TotalAmount) : null;
+        int activeOffersCount = activeOffers.Count;
+
         var isOwner = rfq.BuyerCompanyId == callerCompanyId;
-        return MapToDetailResponse(rfq, isOwner);
+        return MapToDetailResponse(rfq, isOwner, lowestAmount, activeOffersCount);
     }
 
     private static string GenerateRfqNumber(DateTimeOffset date)
@@ -663,7 +885,11 @@ public class RfqService : IRfqService
         return $"RFQ-{prefix}-{randomSuffix}";
     }
 
-    private static RfqDetailResponse MapToDetailResponse(Rfq rfq, bool isOwner)
+    private static RfqDetailResponse MapToDetailResponse(
+        Rfq rfq,
+        bool isOwner,
+        decimal? lowestActiveOfferAmount = null,
+        int activeOffersCount = 0)
     {
         var items = rfq.Items
             .OrderBy(i => i.LineNumber)
@@ -715,7 +941,11 @@ public class RfqService : IRfqService
             rfq.Notes,
             rfq.CreatedAtUtc,
             isOwner,
-            items);
+            items,
+            lowestActiveOfferAmount,
+            activeOffersCount,
+            rfq.AwardedOfferId,
+            rfq.AwardRationale);
     }
 
     private static RfqSummaryResponse MapToSummaryResponse(Rfq rfq)

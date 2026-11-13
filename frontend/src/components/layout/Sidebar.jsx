@@ -70,7 +70,7 @@ export default function Sidebar({ mobileOpen = false, onMobileClose = () => { } 
                   </span>
                 ) : (
                   <Link
-                    to="/verification"
+                    to="/onboarding/verification"
                     className="mt-1 inline-block text-[10px] font-bold text-amber-700 bg-amber-50 hover:bg-amber-100 px-1.5 py-0.5 rounded"
                   >
                     {isAr ? 'غير موثق · أكمل التوثيق' : 'Unverified · Complete verification'}

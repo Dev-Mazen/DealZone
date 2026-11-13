@@ -25,4 +25,3 @@ export const rfqService = {
   cancel: (id) =>
     api.post(`/rfqs/${id}/cancel`).then((r) => r.data),
 }
-

@@ -5,7 +5,9 @@ public enum RfqStatus
     Draft = 0,
     Published = 1,
     Closed = 2,
-    Cancelled = 3
+    Cancelled = 3,
+    Awarded = 4,
+    NoAward = 5
 }
 
 public enum MaterialUnit
@@ -18,4 +20,3 @@ public enum MaterialUnit
     Piece = 6,
     Barrel = 7
 }
-

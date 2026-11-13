@@ -1,40 +1,60 @@
-# Dependencies
+# Root .gitignore for DealZone Monorepo
+
+# ── Dependencies ──
+node_modules/
+*/node_modules/
 frontend/node_modules/
 
-# Build output
+# ── Build & Publish Outputs ──
+bin/
+obj/
+backend/**/bin/
+backend/**/obj/
+backend/publish/
+publish/
+dist/
 frontend/dist/
 frontend/dist-ssr/
 frontend/.output/
 
-# Vite cache
-frontend/.vite/
+# ── Local Storage & Uploads ──
+backend/private-storage/
+private-storage/
+*.mdf
+*.ldf
+*.ndf
 
-# Environment files (keep .env.example, ignore actual secrets)
+# ── Vite / Frontend Cache ──
+.vite/
+frontend/.vite/
+frontend/coverage/
+
+# ── Environment & Secret Files ──
+.env
+.env.local
+.env.*.local
+*.local
 frontend/.env.local
 frontend/.env.*.local
 
-# Editor
-.vscode/settings.json
-.idea/
-*.swp
-*.swo
-.DS_Store
-Thumbs.db
-
-# Logs
+# ── Logs & Temporary Files ──
 *.log
+*.log.*
+logs/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
-# Test coverage
-frontend/coverage/
-
-# Backend build artifacts (not needed in frontend branch)
-backend/bin/
-backend/obj/
-backend/**/bin/
-backend/**/obj/
-backend/private-storage/
-
+# ── IDE & Editor Specific ──
+.vs/
+.idea/
+.vscode/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.swp
+*.swo
+.DS_Store
+Thumbs.db

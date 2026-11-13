@@ -48,6 +48,12 @@ public class RfqConfiguration : IEntityTypeConfiguration<Rfq>
         builder.Property(r => r.Notes)
             .HasMaxLength(2000);
 
+        builder.Property(r => r.AwardRationale)
+            .HasMaxLength(1000);
+
+        builder.Property(r => r.CancellationReason)
+            .HasMaxLength(500);
+
         builder.Property(r => r.CreatedBy)
             .HasMaxLength(100);
 
@@ -79,6 +85,12 @@ public class RfqConfiguration : IEntityTypeConfiguration<Rfq>
         builder.HasOne(r => r.TargetCategory)
             .WithMany()
             .HasForeignKey(r => r.TargetCategoryId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne(r => r.AwardedOffer)
+            .WithMany()
+            .HasForeignKey(r => r.AwardedOfferId)
+            .IsRequired(false)
             .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasMany(r => r.Items)

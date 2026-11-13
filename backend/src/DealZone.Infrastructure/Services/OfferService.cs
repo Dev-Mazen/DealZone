@@ -353,6 +353,11 @@ public class OfferService : IOfferService
         var newOfferNumber = $"{rootNumber}-R{nextRevNum}";
         var totalAmount = request.Items.Sum(i => i.UnitPrice * i.OfferedQuantity);
 
+        if (totalAmount >= offer.TotalAmount)
+        {
+            throw new ValidationException(nameof(request.Items), $"Revised offer total amount ({totalAmount:N2} {offer.Currency}) must be strictly lower than your previous revision ({offer.TotalAmount:N2} {offer.Currency}) to remain competitive.");
+        }
+
         // Supersede previous offer
         offer.Status = OfferStatus.Superseded;
 
@@ -578,8 +583,12 @@ public class OfferService : IOfferService
             comp.RejectionReason = "Another offer was accepted for this RFQ.";
         }
 
-        // Close the RFQ to prevent any further offers or acceptance
-        rfq.Status = RfqStatus.Closed;
+        // Award the RFQ and link the winning offer
+        rfq.Status = RfqStatus.Awarded;
+        rfq.AwardedOfferId = offer.Id;
+        rfq.AwardedAtUtc = now;
+        rfq.AwardedByUserId = userId;
+        rfq.AwardRationale = request.Notes;
 
         // Create the Deal atomically in the same database transaction
         var dealNumber = $"DEAL-{now:yyyyMM}-{Guid.NewGuid().ToString("N")[..6].ToUpperInvariant()}";

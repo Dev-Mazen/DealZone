@@ -131,6 +131,7 @@ public static class DependencyInjection
         services.AddScoped<ITenderService, TenderService>();
         services.AddScoped<ITenderNumberGenerator, TenderNumberGenerator>();
         services.AddScoped<IPurchasingService, PurchasingService>();
+        services.AddScoped<INegotiationService, NegotiationService>();
 
         // Background Job Infrastructure
         services.Configure<BackgroundJobOptions>(

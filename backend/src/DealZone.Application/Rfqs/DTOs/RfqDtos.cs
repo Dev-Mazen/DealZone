@@ -92,7 +92,11 @@ public record RfqDetailResponse(
     string? Notes,
     DateTimeOffset CreatedAtUtc,
     bool IsOwner,
-    IReadOnlyList<RfqItemResponse> Items);
+    IReadOnlyList<RfqItemResponse> Items,
+    decimal? LowestActiveOfferAmount = null,
+    int ActiveOffersCount = 0,
+    Guid? AwardedOfferId = null,
+    string? AwardRationale = null);
 
 public record RfqSummaryResponse(
     Guid Id,
@@ -134,3 +138,21 @@ public record MyRfqFilter(
     string? SortBy = null,
     bool SortDescending = false);
 
+public record AwardRfqRequest(
+    Guid WinningOfferId,
+    string? Rationale = null);
+
+public record RfqAwardResponse(
+    Guid RfqId,
+    string RfqNumber,
+    Guid WinningOfferId,
+    string WinningOfferNumber,
+    Guid SupplierCompanyId,
+    string SupplierCompanyName,
+    decimal AwardedTotalAmount,
+    string Currency,
+    string DealNumber,
+    Guid DealId,
+    DateTimeOffset AwardedAtUtc);
+
+public record NoAwardRfqRequest(string? Reason = null);

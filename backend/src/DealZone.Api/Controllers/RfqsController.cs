@@ -121,5 +121,41 @@ public class RfqsController : ApiControllerBase
         var response = await _rfqService.CancelRfqAsync(id, cancellationToken);
         return Ok(response);
     }
+
+    /// <summary>
+    /// Award winning offer for an RFQ and atomically generate a confirmed deal.
+    /// </summary>
+    [HttpPost("{id:guid}/award")]
+    public async Task<IActionResult> AwardRfq(
+        Guid id,
+        [FromBody] AwardRfqRequest request,
+        CancellationToken cancellationToken)
+    {
+        var response = await _rfqService.AwardRfqAsync(id, request, cancellationToken);
+        return Ok(response);
+    }
+
+    /// <summary>
+    /// Reopen a closed or unawarded RFQ, extending deadline and allowing offers.
+    /// </summary>
+    [HttpPost("{id:guid}/reopen")]
+    public async Task<IActionResult> ReopenRfq(Guid id, CancellationToken cancellationToken)
+    {
+        var response = await _rfqService.ReopenRfqAsync(id, cancellationToken);
+        return Ok(response);
+    }
+
+    /// <summary>
+    /// Close an RFQ without selecting a winner (No Award).
+    /// </summary>
+    [HttpPost("{id:guid}/no-award")]
+    public async Task<IActionResult> NoAwardRfq(
+        Guid id,
+        [FromBody] NoAwardRfqRequest? request,
+        CancellationToken cancellationToken)
+    {
+        var response = await _rfqService.NoAwardRfqAsync(id, request?.Reason, cancellationToken);
+        return Ok(response);
+    }
 }
 

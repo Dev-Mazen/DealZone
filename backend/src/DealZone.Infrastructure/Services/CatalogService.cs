@@ -611,10 +611,11 @@ public class CatalogService : ICatalogService
     {
         var query = _context.CatalogProducts
             .AsNoTracking()
+            .Include(p => p.Category)
             .Include(p => p.Material)
-                .ThenInclude(m => m.Category)
+                .ThenInclude(m => m!.Category)
             .Include(p => p.Material)
-                .ThenInclude(m => m.DefaultUnit)
+                .ThenInclude(m => m!.DefaultUnit)
             .Include(p => p.SupplierCompany)
             .AsQueryable();
 
@@ -625,11 +626,11 @@ public class CatalogService : ICatalogService
 
         // Only products in the three supported marketplace categories
         var supportedCodes = MarketplaceCategories.SupportedCodes;
-        query = query.Where(p => supportedCodes.Contains(p.Material.Category.Code.ToUpper()));
+        query = query.Where(p => supportedCodes.Contains(p.Category.Code.ToUpper()));
 
         if (filter.CategoryId.HasValue)
         {
-            query = query.Where(p => p.Material.CategoryId == filter.CategoryId.Value);
+            query = query.Where(p => p.CategoryId == filter.CategoryId.Value);
         }
 
         if (filter.MaterialId.HasValue)
@@ -642,6 +643,11 @@ public class CatalogService : ICatalogService
             query = query.Where(p => p.SupplierCompanyId == filter.SupplierCompanyId.Value);
         }
 
+        if (filter.PricingMode.HasValue)
+        {
+            query = query.Where(p => (int)p.PricingMode == filter.PricingMode.Value);
+        }
+
         if (!string.IsNullOrWhiteSpace(filter.SearchTerm))
         {
             var search = filter.SearchTerm.Trim().ToLower();
@@ -649,9 +655,11 @@ public class CatalogService : ICatalogService
                 p.NameEn.ToLower().Contains(search) ||
                 p.NameAr.ToLower().Contains(search) ||
                 p.Sku.ToLower().Contains(search) ||
-                p.Material.NameEn.ToLower().Contains(search) ||
-                p.Material.NameAr.ToLower().Contains(search) ||
-                p.Material.Code.ToLower().Contains(search));
+                (p.Specifications != null && p.Specifications.ToLower().Contains(search)) ||
+                (p.Material != null && (
+                    p.Material.NameEn.ToLower().Contains(search) ||
+                    p.Material.NameAr.ToLower().Contains(search) ||
+                    p.Material.Code.ToLower().Contains(search))));
         }
 
         var totalCount = await query.CountAsync(cancellationToken);
@@ -682,10 +690,11 @@ public class CatalogService : ICatalogService
     {
         var product = await _context.CatalogProducts
             .AsNoTracking()
+            .Include(p => p.Category)
             .Include(p => p.Material)
-                .ThenInclude(m => m.Category)
+                .ThenInclude(m => m!.Category)
             .Include(p => p.Material)
-                .ThenInclude(m => m.DefaultUnit)
+                .ThenInclude(m => m!.DefaultUnit)
             .Include(p => p.SupplierCompany)
             .FirstOrDefaultAsync(p => p.Id == id, cancellationToken)
             ?? throw new NotFoundException($"Catalog product {id} was not found.");
@@ -704,18 +713,41 @@ public class CatalogService : ICatalogService
             throw new ForbiddenException("Only company Owners, Admins, and Sales Managers can list catalog products.");
         }
 
-        var material = await _context.Materials
-            .Include(m => m.Category)
-            .Include(m => m.DefaultUnit)
-            .FirstOrDefaultAsync(m => m.Id == request.MaterialId && m.IsActive && !m.IsArchived, cancellationToken)
-            ?? throw new NotFoundException($"Active material {request.MaterialId} was not found.");
-
-        if (!MarketplaceCategories.IsSupported(material.Category.Code))
+        Material? material = null;
+        if (request.MaterialId.HasValue && request.MaterialId.Value != Guid.Empty)
         {
-            throw new ConflictException($"Products can only be listed in one of the three supported marketplace categories: Textiles, Food, or Metals. Category '{material.Category.Code}' is not supported.");
+            material = await _context.Materials
+                .Include(m => m.Category)
+                .Include(m => m.DefaultUnit)
+                .FirstOrDefaultAsync(m => m.Id == request.MaterialId.Value && m.IsActive && !m.IsArchived, cancellationToken);
         }
 
-        var skuNormalized = request.Sku.Trim().ToUpperInvariant();
+        var categoryId = request.CategoryId != Guid.Empty
+            ? request.CategoryId
+            : (material?.CategoryId ?? Guid.Empty);
+
+        var category = await _context.MaterialCategories
+            .FirstOrDefaultAsync(c => c.Id == categoryId && c.IsActive && !c.IsArchived, cancellationToken);
+
+        if (category == null && material?.Category != null)
+        {
+            category = material.Category;
+        }
+
+        if (category == null)
+        {
+            throw new NotFoundException($"Active category {request.CategoryId} was not found.");
+        }
+
+        if (!MarketplaceCategories.IsSupported(category.Code))
+        {
+            throw new ConflictException($"Products can only be listed in one of the three supported marketplace categories: Textiles, Food, or Metals. Category '{category.Code}' is not supported.");
+        }
+
+        var skuNormalized = string.IsNullOrWhiteSpace(request.Sku)
+            ? $"SKU-{category.Code[..Math.Min(3, category.Code.Length)]}-{Guid.NewGuid().ToString("N")[..6]}".ToUpperInvariant()
+            : request.Sku.Trim().ToUpperInvariant();
+
         var skuExists = await _context.CatalogProducts
             .AnyAsync(p => p.Sku == skuNormalized && p.SupplierCompanyId == company.Id, cancellationToken);
 
@@ -726,18 +758,23 @@ public class CatalogService : ICatalogService
 
         var product = new CatalogProduct
         {
-            MaterialId = material.Id,
+            CategoryId = category.Id,
+            MaterialId = material?.Id,
             SupplierCompanyId = company.Id,
             Sku = skuNormalized,
             NameAr = request.NameAr.Trim(),
-            NameEn = request.NameEn.Trim(),
+            NameEn = string.IsNullOrWhiteSpace(request.NameEn) ? request.NameAr.Trim() : request.NameEn.Trim(),
             DescriptionAr = request.DescriptionAr?.Trim(),
             DescriptionEn = request.DescriptionEn?.Trim(),
+            Specifications = request.Specifications?.Trim(),
+            PricingMode = (ProductPricingMode)request.PricingMode,
             UnitPrice = request.UnitPrice,
             Currency = string.IsNullOrWhiteSpace(request.Currency) ? "EGP" : request.Currency.Trim().ToUpperInvariant(),
+            Unit = string.IsNullOrWhiteSpace(request.Unit) ? (material?.DefaultUnit?.Code ?? "ton") : request.Unit.Trim(),
             AvailableQuantity = request.AvailableQuantity,
             MinimumOrderQuantity = request.MinimumOrderQuantity,
             DeliveryLeadTimeDays = request.DeliveryLeadTimeDays,
+            ImageUrlsJson = request.ImageUrlsJson,
             IsActive = true,
             IsArchived = false
         };
@@ -745,6 +782,7 @@ public class CatalogService : ICatalogService
         _context.CatalogProducts.Add(product);
         await _context.SaveChangesAsync(cancellationToken);
 
+        product.Category = category;
         product.Material = material;
         product.SupplierCompany = company;
 
@@ -766,10 +804,11 @@ public class CatalogService : ICatalogService
         }
 
         var product = await _context.CatalogProducts
+            .Include(p => p.Category)
             .Include(p => p.Material)
-                .ThenInclude(m => m.Category)
+                .ThenInclude(m => m!.Category)
             .Include(p => p.Material)
-                .ThenInclude(m => m.DefaultUnit)
+                .ThenInclude(m => m!.DefaultUnit)
             .Include(p => p.SupplierCompany)
             .FirstOrDefaultAsync(p => p.Id == id, cancellationToken)
             ?? throw new NotFoundException($"Catalog product {id} was not found.");
@@ -780,14 +819,21 @@ public class CatalogService : ICatalogService
         }
 
         product.NameAr = request.NameAr.Trim();
-        product.NameEn = request.NameEn.Trim();
+        product.NameEn = string.IsNullOrWhiteSpace(request.NameEn) ? request.NameAr.Trim() : request.NameEn.Trim();
         product.DescriptionAr = request.DescriptionAr?.Trim();
         product.DescriptionEn = request.DescriptionEn?.Trim();
+        product.Specifications = request.Specifications?.Trim();
+        product.PricingMode = (ProductPricingMode)request.PricingMode;
         product.UnitPrice = request.UnitPrice;
         product.Currency = string.IsNullOrWhiteSpace(request.Currency) ? "EGP" : request.Currency.Trim().ToUpperInvariant();
+        if (!string.IsNullOrWhiteSpace(request.Unit))
+        {
+            product.Unit = request.Unit.Trim();
+        }
         product.AvailableQuantity = request.AvailableQuantity;
         product.MinimumOrderQuantity = request.MinimumOrderQuantity;
         product.DeliveryLeadTimeDays = request.DeliveryLeadTimeDays;
+        product.ImageUrlsJson = request.ImageUrlsJson;
         product.IsActive = request.IsActive;
 
         await _context.SaveChangesAsync(cancellationToken);
@@ -843,32 +889,36 @@ public class CatalogService : ICatalogService
 
     private static CatalogProductResponse MapProduct(CatalogProduct p)
     {
+        var categoryCode = p.Category?.Code ?? p.Material?.Category?.Code ?? string.Empty;
+        var categoryNameAr = p.Category?.NameAr ?? p.Material?.Category?.NameAr ?? string.Empty;
+        var categoryNameEn = p.Category?.NameEn ?? p.Material?.Category?.NameEn ?? string.Empty;
+
         return new CatalogProductResponse(
             p.Id,
             p.MaterialId,
-            p.Material.Code,
-            p.Material.NameAr,
-            p.Material.NameEn,
-            p.Material.CategoryId,
-            p.Material.Category.Code,
-            p.Material.Category.NameAr,
-            p.Material.Category.NameEn,
-            p.Material.DefaultUnitId,
-            p.Material.DefaultUnit.Code,
-            p.Material.DefaultUnit.NameAr,
-            p.Material.DefaultUnit.NameEn,
+            p.Material?.Code,
+            p.Material?.NameAr,
+            p.Material?.NameEn,
+            p.CategoryId != Guid.Empty ? p.CategoryId : (p.Material?.CategoryId ?? Guid.Empty),
+            categoryCode,
+            categoryNameAr,
+            categoryNameEn,
+            p.Unit,
             p.SupplierCompanyId,
-            p.SupplierCompany.LegalName,
+            p.SupplierCompany?.LegalName ?? string.Empty,
             p.Sku,
             p.NameAr,
             p.NameEn,
             p.DescriptionAr,
             p.DescriptionEn,
+            p.Specifications,
+            (int)p.PricingMode,
             p.UnitPrice,
             p.Currency,
             p.AvailableQuantity,
             p.MinimumOrderQuantity,
             p.DeliveryLeadTimeDays,
+            p.ImageUrlsJson,
             p.IsActive,
             p.CreatedAtUtc);
     }

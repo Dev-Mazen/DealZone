@@ -5,12 +5,15 @@ namespace DealZone.Domain.Catalog;
 
 /// <summary>
 /// Represents an eligible industrial raw-material product offered by a verified supplier
-/// for direct catalog purchasing with guaranteed pricing, available quantity, and MOQ.
+/// on the DealZone Marketplace with support for fixed price direct purchase and price negotiation.
 /// </summary>
 public class CatalogProduct : AuditableEntity, IConcurrencyToken
 {
-    public Guid MaterialId { get; set; }
-    public Material Material { get; set; } = null!;
+    public Guid? MaterialId { get; set; }
+    public Material? Material { get; set; }
+
+    public Guid CategoryId { get; set; }
+    public MaterialCategory Category { get; set; } = null!;
 
     public Guid SupplierCompanyId { get; set; }
     public Company SupplierCompany { get; set; } = null!;
@@ -20,19 +23,26 @@ public class CatalogProduct : AuditableEntity, IConcurrencyToken
     public string NameEn { get; set; } = string.Empty;
     public string? DescriptionAr { get; set; }
     public string? DescriptionEn { get; set; }
+    public string? Specifications { get; set; }
 
-    /// <summary>Fixed unit price snapshot in EGP for direct catalog purchase.</summary>
+    /// <summary>Pricing mode: Fixed (Buy Now + Offer) or Negotiable (Offer only).</summary>
+    public ProductPricingMode PricingMode { get; set; } = ProductPricingMode.Fixed;
+
+    /// <summary>Unit price in EGP for direct marketplace purchase or reference.</summary>
     public decimal UnitPrice { get; set; }
     public string Currency { get; set; } = "EGP";
+    public string Unit { get; set; } = "ton";
 
-    /// <summary>Current available inventory / capacity for immediate procurement.</summary>
+    /// <summary>Current available inventory / capacity.</summary>
     public decimal AvailableQuantity { get; set; }
 
-    /// <summary>Minimum Order Quantity required for direct purchasing.</summary>
+    /// <summary>Minimum Order Quantity.</summary>
     public decimal MinimumOrderQuantity { get; set; } = 1;
 
     /// <summary>Estimated delivery lead time in days.</summary>
     public int DeliveryLeadTimeDays { get; set; } = 7;
+
+    public string? ImageUrlsJson { get; set; }
 
     public bool IsActive { get; set; } = true;
     public bool IsArchived { get; set; } = false;
@@ -40,4 +50,3 @@ public class CatalogProduct : AuditableEntity, IConcurrencyToken
     // IConcurrencyToken
     public byte[] RowVersion { get; set; } = [];
 }
-

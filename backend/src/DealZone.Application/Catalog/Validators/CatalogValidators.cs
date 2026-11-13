@@ -176,11 +176,16 @@ public class CreateCatalogProductRequestValidator : AbstractValidator<CreateCata
 {
     public CreateCatalogProductRequestValidator()
     {
-        RuleFor(x => x.MaterialId)
-            .NotEmpty().WithMessage("Material ID is required.");
+        RuleFor(x => x.CategoryId)
+            .NotEmpty().WithMessage("Category ID is required.");
+
+        When(x => x.MaterialId.HasValue, () =>
+        {
+            RuleFor(x => x.MaterialId)
+                .NotEqual(Guid.Empty).WithMessage("Material ID is required.");
+        });
 
         RuleFor(x => x.Sku)
-            .NotEmpty().WithMessage("SKU is required.")
             .MaximumLength(50).WithMessage("SKU must not exceed 50 characters.");
 
         RuleFor(x => x.NameAr)
@@ -188,7 +193,6 @@ public class CreateCatalogProductRequestValidator : AbstractValidator<CreateCata
             .MaximumLength(200).WithMessage("Arabic product name must not exceed 200 characters.");
 
         RuleFor(x => x.NameEn)
-            .NotEmpty().WithMessage("English product name is required.")
             .MaximumLength(200).WithMessage("English product name must not exceed 200 characters.");
 
         RuleFor(x => x.DescriptionAr)
@@ -197,8 +201,14 @@ public class CreateCatalogProductRequestValidator : AbstractValidator<CreateCata
         RuleFor(x => x.DescriptionEn)
             .MaximumLength(1000).WithMessage("English description must not exceed 1000 characters.");
 
-        RuleFor(x => x.UnitPrice)
-            .GreaterThan(0).WithMessage("Unit price must be greater than zero.");
+        RuleFor(x => x.Specifications)
+            .MaximumLength(2000).WithMessage("Specifications must not exceed 2000 characters.");
+
+        When(x => x.PricingMode == 1, () =>
+        {
+            RuleFor(x => x.UnitPrice)
+                .GreaterThan(0).WithMessage("Unit price must be greater than zero.");
+        });
 
         RuleFor(x => x.Currency)
             .NotEmpty().WithMessage("Currency is required.")
@@ -225,7 +235,6 @@ public class UpdateCatalogProductRequestValidator : AbstractValidator<UpdateCata
             .MaximumLength(200).WithMessage("Arabic product name must not exceed 200 characters.");
 
         RuleFor(x => x.NameEn)
-            .NotEmpty().WithMessage("English product name is required.")
             .MaximumLength(200).WithMessage("English product name must not exceed 200 characters.");
 
         RuleFor(x => x.DescriptionAr)
@@ -234,8 +243,14 @@ public class UpdateCatalogProductRequestValidator : AbstractValidator<UpdateCata
         RuleFor(x => x.DescriptionEn)
             .MaximumLength(1000).WithMessage("English description must not exceed 1000 characters.");
 
-        RuleFor(x => x.UnitPrice)
-            .GreaterThan(0).WithMessage("Unit price must be greater than zero.");
+        RuleFor(x => x.Specifications)
+            .MaximumLength(2000).WithMessage("Specifications must not exceed 2000 characters.");
+
+        When(x => x.PricingMode == 1, () =>
+        {
+            RuleFor(x => x.UnitPrice)
+                .GreaterThan(0).WithMessage("Unit price must be greater than zero.");
+        });
 
         RuleFor(x => x.Currency)
             .NotEmpty().WithMessage("Currency is required.")
