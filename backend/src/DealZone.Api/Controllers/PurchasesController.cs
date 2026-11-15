@@ -15,6 +15,7 @@ namespace DealZone.Api.Controllers;
 [Tags("Purchases")]
 [Authorize]
 [Route("api/v1/purchases")]
+[Route("api/v1/purchasing")]
 public class PurchasesController : ApiControllerBase
 {
     private readonly IPurchasingService _purchasingService;
@@ -30,6 +31,7 @@ public class PurchasesController : ApiControllerBase
     /// and atomically creates a commercial agreement deal.
     /// </summary>
     [HttpPost("direct")]
+    [Authorize(Policy = "BuyerProcurement")]
     [ProducesResponseType(typeof(DirectPurchaseResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
@@ -48,6 +50,7 @@ public class PurchasesController : ApiControllerBase
     /// Get direct purchase orders for the caller's company (as buyer or supplier).
     /// </summary>
     [HttpGet("mine")]
+    [Authorize(Policy = "VerifiedCompany")]
     [ProducesResponseType(typeof(DealZone.Application.Common.Models.PagedResult<DirectPurchaseResponse>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetMyPurchases(
         [FromQuery] DirectPurchaseFilter filter,
@@ -61,6 +64,7 @@ public class PurchasesController : ApiControllerBase
     /// Get details of a specific direct purchase order.
     /// </summary>
     [HttpGet("{id:guid}")]
+    [Authorize(Policy = "VerifiedCompany")]
     [ProducesResponseType(typeof(DirectPurchaseResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]

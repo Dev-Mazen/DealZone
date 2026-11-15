@@ -73,7 +73,7 @@ function ActiveBadge({ count }) {
 // ---------------------------------------------------------------------------
 
 function CheckboxFilter({ filter, value = [], onChange }) {
-  const selected = Array.isArray(value) ? value : [];
+  const selected = useMemo(() => (Array.isArray(value) ? value : []), [value]);
 
   const toggle = useCallback(
     (optionValue) => {

@@ -11,13 +11,17 @@ export function checkPermissions(user) {
   const isVerified = company?.canPerformCommercialActivities === true
   const hasCompany = !!company
 
-  // Company commercial capability type
-  const companyType = company?.companyType || 'Both'
-  const isBuyer = companyType === 'Buyer' || companyType === 'Both'
-  const isSupplier = companyType === 'Supplier' || companyType === 'Both'
-  const isBuyerOnly = companyType === 'Buyer'
-  const isSupplierOnly = companyType === 'Supplier'
-  const hasBothCapabilities = companyType === 'Both'
+  // Company commercial capability type: authority directly from database
+  const companyType = company?.companyType || 'Buyer'
+  const isBuyer = companyType === 'Buyer'
+  const isSupplier = companyType === 'Supplier'
+  const isBuyerOnly = isBuyer
+  const isSupplierOnly = isSupplier
+  const hasBothCapabilities = false
+
+  // Operating context directly matches company capability
+  const canActAsBuyer = isBuyer
+  const canActAsSupplier = isSupplier
 
   // Role checks within company
   const isOwner = role === 'Owner'
@@ -26,18 +30,36 @@ export function checkPermissions(user) {
   const isSalesManager = role === 'SalesManager'
   const isMember = role === 'Member'
 
-  // ── Buyer operations (RFQ creation, offer acceptance) ──
+  // ── Buyer operations (RFQ creation, offer acceptance, Buy Now, Negotiations) ──
   const canManageRfqs =
     hasCompany &&
     isVerified &&
-    isBuyer &&
+    canActAsBuyer &&
     (isOwner || isAdmin || isProcurementManager)
 
-  // ── Supplier operations (offer submission) ──
+  const canBuyNow =
+    hasCompany &&
+    isVerified &&
+    canActAsBuyer &&
+    (isOwner || isAdmin || isProcurementManager)
+
+  const canNegotiate =
+    hasCompany &&
+    isVerified &&
+    canActAsBuyer &&
+    (isOwner || isAdmin || isProcurementManager)
+
+  // ── Supplier operations (offer submission, product listing) ──
   const canSubmitOffers =
     hasCompany &&
     isVerified &&
-    isSupplier &&
+    canActAsSupplier &&
+    (isOwner || isAdmin || isSalesManager)
+
+  const canListProducts =
+    hasCompany &&
+    isVerified &&
+    canActAsSupplier &&
     (isOwner || isAdmin || isSalesManager)
 
   // ── Deal management ──
@@ -59,7 +81,7 @@ export function checkPermissions(user) {
   const canManageShipments =
     hasCompany &&
     isVerified &&
-    isSupplier &&
+    canActAsSupplier &&
     (isOwner || isAdmin || isSalesManager)
 
   // ── Read-only member ──
@@ -76,12 +98,18 @@ export function checkPermissions(user) {
     isBuyerOnly,
     isSupplierOnly,
     hasBothCapabilities,
+    canActAsBuyer,
+    canActAsSupplier,
+    operatingRole: isBuyer ? 'Buyer' : (isSupplier ? 'Supplier' : null),
     isOwner,
     isAdmin,
     isProcurementManager,
     isSalesManager,
     isMember,
     canManageRfqs,
+    canBuyNow,
+    canNegotiate,
+    canListProducts,
     canSubmitOffers,
     canManageDeals,
     canEditCompanyProfile,

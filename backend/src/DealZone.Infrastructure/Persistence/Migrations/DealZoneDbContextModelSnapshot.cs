@@ -22,13 +22,7 @@ namespace DealZone.Infrastructure.Persistence.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
-            modelBuilder.HasSequence("BidNumberSequence")
-                .StartsAt(1000L);
-
             modelBuilder.HasSequence("RfqNumberSequence")
-                .StartsAt(1000L);
-
-            modelBuilder.HasSequence("TenderNumberSequence")
                 .StartsAt(1000L);
 
             modelBuilder.Entity("DealZone.Domain.Catalog.CatalogProduct", b =>
@@ -37,7 +31,7 @@ namespace DealZone.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<decimal>("AvailableQuantity")
+                    b.Property<decimal?>("AvailableQuantity")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
@@ -107,7 +101,6 @@ namespace DealZone.Infrastructure.Persistence.Migrations
                         .HasColumnType("nvarchar(200)");
 
                     b.Property<string>("NameEn")
-                        .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
 
@@ -123,7 +116,6 @@ namespace DealZone.Infrastructure.Persistence.Migrations
                         .HasColumnType("rowversion");
 
                     b.Property<string>("Sku")
-                        .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
@@ -134,14 +126,10 @@ namespace DealZone.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("SupplierCompanyId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<string>("Unit")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)")
-                        .HasDefaultValue("ton");
+                    b.Property<Guid>("UnitId")
+                        .HasColumnType("uniqueidentifier");
 
-                    b.Property<decimal>("UnitPrice")
+                    b.Property<decimal?>("UnitPrice")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
@@ -155,9 +143,18 @@ namespace DealZone.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("SupplierCompanyId");
 
+                    b.HasIndex("UnitId");
+
                     b.HasIndex("IsActive", "IsArchived");
 
-                    b.ToTable("CatalogProducts", (string)null);
+                    b.HasIndex("IsActive", "MaterialId", "SupplierCompanyId");
+
+                    b.ToTable("CatalogProducts", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_CatalogProducts_MinOrderQty", "[MinimumOrderQuantity] > 0");
+
+                            t.HasCheckConstraint("CK_CatalogProducts_UnitPrice", "[UnitPrice] IS NULL OR [UnitPrice] > 0");
+                        });
                 });
 
             modelBuilder.Entity("DealZone.Domain.Catalog.Material", b =>
@@ -362,10 +359,8 @@ namespace DealZone.Infrastructure.Persistence.Migrations
 
                     b.Property<string>("CompanyType")
                         .IsRequired()
-                        .ValueGeneratedOnAdd()
                         .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)")
-                        .HasDefaultValue("Both");
+                        .HasColumnType("nvarchar(20)");
 
                     b.Property<DateTimeOffset>("CreatedAtUtc")
                         .HasColumnType("datetimeoffset");
@@ -655,12 +650,6 @@ namespace DealZone.Infrastructure.Persistence.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
-                    b.Property<Guid?>("BidId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<int?>("BidRevisionNumber")
-                        .HasColumnType("int");
-
                     b.Property<Guid>("BuyerCompanyId")
                         .HasColumnType("uniqueidentifier");
 
@@ -787,14 +776,7 @@ namespace DealZone.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("SupplierCompanyId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<Guid?>("TenderId")
-                        .HasColumnType("uniqueidentifier");
-
                     b.HasKey("Id");
-
-                    b.HasIndex("BidId")
-                        .IsUnique()
-                        .HasFilter("[BidId] IS NOT NULL");
 
                     b.HasIndex("BuyerCompanyId");
 
@@ -820,10 +802,6 @@ namespace DealZone.Infrastructure.Persistence.Migrations
                     b.HasIndex("Status");
 
                     b.HasIndex("SupplierCompanyId");
-
-                    b.HasIndex("TenderId")
-                        .IsUnique()
-                        .HasFilter("[TenderId] IS NOT NULL");
 
                     b.ToTable("Deals", (string)null);
                 });
@@ -888,6 +866,55 @@ namespace DealZone.Infrastructure.Persistence.Migrations
                     b.HasIndex("Status");
 
                     b.ToTable("DealDisputes", (string)null);
+                });
+
+            modelBuilder.Entity("DealZone.Domain.Identity.EmailVerification", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Attempts")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset>("CodeExpiresAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("CodeHash")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.Property<DateTimeOffset?>("ConsumedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset>("ExpiresAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("IpAddress")
+                        .HasMaxLength(45)
+                        .HasColumnType("nvarchar(45)");
+
+                    b.Property<string>("LinkTokenHash")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("LinkTokenHash");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("UserId", "CreatedAtUtc");
+
+                    b.ToTable("EmailVerifications", (string)null);
                 });
 
             modelBuilder.Entity("DealZone.Domain.Identity.RefreshToken", b =>
@@ -997,6 +1024,13 @@ namespace DealZone.Infrastructure.Persistence.Migrations
                     b.Property<string>("PhoneNumber")
                         .HasMaxLength(30)
                         .HasColumnType("nvarchar(30)");
+
+                    b.Property<string>("PreferredLanguage")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)")
+                        .HasDefaultValue("ar");
 
                     b.HasKey("Id");
 
@@ -1250,6 +1284,10 @@ namespace DealZone.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("CatalogProductId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<string>("ClientRequestId")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
                     b.Property<DateTimeOffset>("CreatedAtUtc")
                         .HasColumnType("datetimeoffset");
 
@@ -1307,6 +1345,12 @@ namespace DealZone.Infrastructure.Persistence.Migrations
                     b.Property<int>("Status")
                         .HasColumnType("int");
 
+                    b.Property<decimal>("Subtotal")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)")
+                        .HasDefaultValue(0m);
+
                     b.Property<Guid>("SupplierCompanyId")
                         .HasColumnType("uniqueidentifier");
 
@@ -1317,6 +1361,18 @@ namespace DealZone.Infrastructure.Persistence.Migrations
                     b.Property<decimal>("UnitPrice")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("VatAmount")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)")
+                        .HasDefaultValue(0m);
+
+                    b.Property<decimal>("VatRate")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(5, 4)
+                        .HasColumnType("decimal(5,4)")
+                        .HasDefaultValue(0.14m);
 
                     b.HasKey("Id");
 
@@ -1332,6 +1388,10 @@ namespace DealZone.Infrastructure.Persistence.Migrations
                     b.HasIndex("Status");
 
                     b.HasIndex("SupplierCompanyId");
+
+                    b.HasIndex("BuyerCompanyId", "ClientRequestId")
+                        .IsUnique()
+                        .HasFilter("[ClientRequestId] IS NOT NULL");
 
                     b.ToTable("DirectPurchases", (string)null);
                 });
@@ -1661,6 +1721,9 @@ namespace DealZone.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("TargetCategoryId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<Guid?>("TargetSupplierCompanyId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<string>("Title")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -1676,6 +1739,8 @@ namespace DealZone.Infrastructure.Persistence.Migrations
                         .IsUnique();
 
                     b.HasIndex("TargetCategoryId");
+
+                    b.HasIndex("TargetSupplierCompanyId");
 
                     b.HasIndex("DeliveryGovernorate", "DeliveryCity");
 
@@ -1881,373 +1946,6 @@ namespace DealZone.Infrastructure.Persistence.Migrations
                     b.ToTable("ShippingProviders", (string)null);
                 });
 
-            modelBuilder.Entity("DealZone.Domain.Tenders.Bid", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTimeOffset?>("AcceptedAtUtc")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<Guid?>("AcceptedByUserId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("BidNumber")
-                        .IsRequired()
-                        .HasMaxLength(30)
-                        .HasColumnType("nvarchar(30)");
-
-                    b.Property<string>("ChangeSummary")
-                        .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)");
-
-                    b.Property<DateTimeOffset>("CreatedAtUtc")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<string>("CreatedBy")
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<string>("Currency")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(3)
-                        .HasColumnType("nvarchar(3)")
-                        .HasDefaultValue("EGP");
-
-                    b.Property<int>("DeliveryLeadTimeDays")
-                        .HasColumnType("int");
-
-                    b.Property<DateTimeOffset?>("LastModifiedAtUtc")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<string>("LastModifiedBy")
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<string>("Notes")
-                        .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)");
-
-                    b.Property<Guid?>("OriginalBidId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("PaymentTerms")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<DateTimeOffset?>("RejectedAtUtc")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<Guid?>("RejectedByUserId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("RejectionReason")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.Property<int>("RevisionNumber")
-                        .HasColumnType("int");
-
-                    b.Property<byte[]>("RowVersion")
-                        .IsConcurrencyToken()
-                        .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("rowversion");
-
-                    b.Property<bool>("ShippingIncluded")
-                        .HasColumnType("bit");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("int");
-
-                    b.Property<DateTimeOffset>("SubmittedAtUtc")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<Guid>("SupplierCompanyId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("TenderId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<decimal>("TotalAmount")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<DateTimeOffset>("ValidityDateUtc")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<string>("WithdrawalReason")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.Property<DateTimeOffset?>("WithdrawnAtUtc")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<Guid?>("WithdrawnByUserId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("BidNumber")
-                        .IsUnique();
-
-                    b.HasIndex("OriginalBidId");
-
-                    b.HasIndex("Status");
-
-                    b.HasIndex("SupplierCompanyId");
-
-                    b.HasIndex("TenderId");
-
-                    b.HasIndex("TenderId", "SupplierCompanyId", "RevisionNumber");
-
-                    b.ToTable("Bids", (string)null);
-                });
-
-            modelBuilder.Entity("DealZone.Domain.Tenders.BidItem", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("BidId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("Notes")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.Property<decimal>("Quantity")
-                        .HasPrecision(18, 4)
-                        .HasColumnType("decimal(18,4)");
-
-                    b.Property<Guid>("TenderItemId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<decimal>("TotalPrice")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<decimal>("UnitPrice")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("BidId");
-
-                    b.HasIndex("TenderItemId");
-
-                    b.ToTable("BidItems", (string)null);
-                });
-
-            modelBuilder.Entity("DealZone.Domain.Tenders.Tender", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("AwardRationale")
-                        .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)");
-
-                    b.Property<DateTimeOffset?>("AwardedAtUtc")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<Guid?>("AwardedBidId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid?>("AwardedByUserId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("BuyerCompanyId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("CancellationReason")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.Property<DateTimeOffset?>("CancelledAtUtc")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<Guid?>("CancelledByUserId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTimeOffset>("ClosingDateUtc")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<DateTimeOffset>("CreatedAtUtc")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<string>("CreatedBy")
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<string>("Currency")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(3)
-                        .HasColumnType("nvarchar(3)")
-                        .HasDefaultValue("EGP");
-
-                    b.Property<DateTimeOffset?>("DeletedAtUtc")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<string>("DeletedBy")
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<string>("DeliveryAddress")
-                        .IsRequired()
-                        .HasMaxLength(300)
-                        .HasColumnType("nvarchar(300)");
-
-                    b.Property<string>("DeliveryCity")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<string>("DeliveryGovernorate")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<string>("Description")
-                        .HasMaxLength(2000)
-                        .HasColumnType("nvarchar(2000)");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit");
-
-                    b.Property<DateTimeOffset?>("LastModifiedAtUtc")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<string>("LastModifiedBy")
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<string>("Notes")
-                        .HasMaxLength(2000)
-                        .HasColumnType("nvarchar(2000)");
-
-                    b.Property<DateTimeOffset?>("PublishedAtUtc")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<decimal?>("ReferencePrice")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<DateTimeOffset?>("ReopenedAtUtc")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<int>("ReopenedCount")
-                        .HasColumnType("int");
-
-                    b.Property<DateTimeOffset?>("RequiredDeliveryDateUtc")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<byte[]>("RowVersion")
-                        .IsConcurrencyToken()
-                        .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("rowversion");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("int");
-
-                    b.Property<Guid?>("TargetCategoryId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("TenderNumber")
-                        .IsRequired()
-                        .HasMaxLength(30)
-                        .HasColumnType("nvarchar(30)");
-
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("AwardedBidId");
-
-                    b.HasIndex("BuyerCompanyId");
-
-                    b.HasIndex("ClosingDateUtc");
-
-                    b.HasIndex("Status");
-
-                    b.HasIndex("TargetCategoryId");
-
-                    b.HasIndex("TenderNumber")
-                        .IsUnique();
-
-                    b.ToTable("Tenders", (string)null);
-                });
-
-            modelBuilder.Entity("DealZone.Domain.Tenders.TenderItem", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("CategoryId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<int>("LineNumber")
-                        .HasColumnType("int");
-
-                    b.Property<Guid?>("MaterialId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("MaterialName")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<string>("Notes")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.Property<decimal>("Quantity")
-                        .HasPrecision(18, 4)
-                        .HasColumnType("decimal(18,4)");
-
-                    b.Property<string>("Specifications")
-                        .IsRequired()
-                        .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)");
-
-                    b.Property<decimal?>("TargetPricePerUnit")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<Guid>("TenderId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<int>("Unit")
-                        .HasColumnType("int");
-
-                    b.Property<Guid?>("UnitOfMeasureId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CategoryId");
-
-                    b.HasIndex("MaterialId");
-
-                    b.HasIndex("TenderId");
-
-                    b.HasIndex("UnitOfMeasureId");
-
-                    b.ToTable("TenderItems", (string)null);
-                });
-
             modelBuilder.Entity("DealZone.Domain.Catalog.CatalogProduct", b =>
                 {
                     b.HasOne("DealZone.Domain.Catalog.MaterialCategory", "Category")
@@ -2267,11 +1965,19 @@ namespace DealZone.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("DealZone.Domain.Catalog.UnitOfMeasure", "Unit")
+                        .WithMany()
+                        .HasForeignKey("UnitId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.Navigation("Category");
 
                     b.Navigation("Material");
 
                     b.Navigation("SupplierCompany");
+
+                    b.Navigation("Unit");
                 });
 
             modelBuilder.Entity("DealZone.Domain.Catalog.Material", b =>
@@ -2397,11 +2103,6 @@ namespace DealZone.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("DealZone.Domain.Deals.Deal", b =>
                 {
-                    b.HasOne("DealZone.Domain.Tenders.Bid", "Bid")
-                        .WithMany()
-                        .HasForeignKey("BidId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
                     b.HasOne("DealZone.Domain.Companies.Company", "BuyerCompany")
                         .WithMany()
                         .HasForeignKey("BuyerCompanyId")
@@ -2432,13 +2133,6 @@ namespace DealZone.Infrastructure.Persistence.Migrations
                         .HasForeignKey("SupplierCompanyId")
                         .OnDelete(DeleteBehavior.Restrict);
 
-                    b.HasOne("DealZone.Domain.Tenders.Tender", "Tender")
-                        .WithMany()
-                        .HasForeignKey("TenderId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.Navigation("Bid");
-
                     b.Navigation("BuyerCompany");
 
                     b.Navigation("DirectPurchase");
@@ -2450,8 +2144,6 @@ namespace DealZone.Infrastructure.Persistence.Migrations
                     b.Navigation("Rfq");
 
                     b.Navigation("SupplierCompany");
-
-                    b.Navigation("Tender");
                 });
 
             modelBuilder.Entity("DealZone.Domain.Deals.DealDispute", b =>
@@ -2485,6 +2177,17 @@ namespace DealZone.Infrastructure.Persistence.Migrations
                     b.Navigation("OpenedByUser");
 
                     b.Navigation("ResolvedByUser");
+                });
+
+            modelBuilder.Entity("DealZone.Domain.Identity.EmailVerification", b =>
+                {
+                    b.HasOne("DealZone.Domain.Identity.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("DealZone.Domain.Identity.RefreshToken", b =>
@@ -2673,11 +2376,17 @@ namespace DealZone.Infrastructure.Persistence.Migrations
                         .HasForeignKey("TargetCategoryId")
                         .OnDelete(DeleteBehavior.Restrict);
 
+                    b.HasOne("DealZone.Domain.Companies.Company", "TargetSupplierCompany")
+                        .WithMany()
+                        .HasForeignKey("TargetSupplierCompanyId");
+
                     b.Navigation("AwardedOffer");
 
                     b.Navigation("BuyerCompany");
 
                     b.Navigation("TargetCategory");
+
+                    b.Navigation("TargetSupplierCompany");
                 });
 
             modelBuilder.Entity("DealZone.Domain.Rfqs.RfqItem", b =>
@@ -2729,109 +2438,6 @@ namespace DealZone.Infrastructure.Persistence.Migrations
                     b.Navigation("Deal");
 
                     b.Navigation("ShippingProvider");
-                });
-
-            modelBuilder.Entity("DealZone.Domain.Tenders.Bid", b =>
-                {
-                    b.HasOne("DealZone.Domain.Tenders.Bid", "OriginalBid")
-                        .WithMany("Revisions")
-                        .HasForeignKey("OriginalBidId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("DealZone.Domain.Companies.Company", "SupplierCompany")
-                        .WithMany()
-                        .HasForeignKey("SupplierCompanyId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("DealZone.Domain.Tenders.Tender", "Tender")
-                        .WithMany("Bids")
-                        .HasForeignKey("TenderId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("OriginalBid");
-
-                    b.Navigation("SupplierCompany");
-
-                    b.Navigation("Tender");
-                });
-
-            modelBuilder.Entity("DealZone.Domain.Tenders.BidItem", b =>
-                {
-                    b.HasOne("DealZone.Domain.Tenders.Bid", "Bid")
-                        .WithMany("Items")
-                        .HasForeignKey("BidId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("DealZone.Domain.Tenders.TenderItem", "TenderItem")
-                        .WithMany()
-                        .HasForeignKey("TenderItemId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Bid");
-
-                    b.Navigation("TenderItem");
-                });
-
-            modelBuilder.Entity("DealZone.Domain.Tenders.Tender", b =>
-                {
-                    b.HasOne("DealZone.Domain.Tenders.Bid", "AwardedBid")
-                        .WithMany()
-                        .HasForeignKey("AwardedBidId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("DealZone.Domain.Companies.Company", "BuyerCompany")
-                        .WithMany()
-                        .HasForeignKey("BuyerCompanyId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("DealZone.Domain.Catalog.MaterialCategory", "TargetCategory")
-                        .WithMany()
-                        .HasForeignKey("TargetCategoryId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.Navigation("AwardedBid");
-
-                    b.Navigation("BuyerCompany");
-
-                    b.Navigation("TargetCategory");
-                });
-
-            modelBuilder.Entity("DealZone.Domain.Tenders.TenderItem", b =>
-                {
-                    b.HasOne("DealZone.Domain.Catalog.MaterialCategory", "Category")
-                        .WithMany()
-                        .HasForeignKey("CategoryId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("DealZone.Domain.Catalog.Material", "Material")
-                        .WithMany()
-                        .HasForeignKey("MaterialId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("DealZone.Domain.Tenders.Tender", "Tender")
-                        .WithMany("Items")
-                        .HasForeignKey("TenderId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("DealZone.Domain.Catalog.UnitOfMeasure", "UnitOfMeasure")
-                        .WithMany()
-                        .HasForeignKey("UnitOfMeasureId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.Navigation("Category");
-
-                    b.Navigation("Material");
-
-                    b.Navigation("Tender");
-
-                    b.Navigation("UnitOfMeasure");
                 });
 
             modelBuilder.Entity("DealZone.Domain.Catalog.MaterialCategory", b =>
@@ -2886,20 +2492,6 @@ namespace DealZone.Infrastructure.Persistence.Migrations
                     b.Navigation("Items");
 
                     b.Navigation("Offers");
-                });
-
-            modelBuilder.Entity("DealZone.Domain.Tenders.Bid", b =>
-                {
-                    b.Navigation("Items");
-
-                    b.Navigation("Revisions");
-                });
-
-            modelBuilder.Entity("DealZone.Domain.Tenders.Tender", b =>
-                {
-                    b.Navigation("Bids");
-
-                    b.Navigation("Items");
                 });
 #pragma warning restore 612, 618
         }

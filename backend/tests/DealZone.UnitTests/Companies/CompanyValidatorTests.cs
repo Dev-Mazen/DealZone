@@ -27,7 +27,8 @@ public class CompanyValidatorTests
             CorporatePhone: "+2034000100",
             AddressLine1: "Industrial Zone 4, Borg El Arab",
             AddressLine2: null,
-            PostalCode: "21934");
+            PostalCode: "21934",
+            CompanyType: "Buyer");
 
         var result = await _createValidator.ValidateAsync(request);
 
@@ -52,7 +53,8 @@ public class CompanyValidatorTests
             CorporatePhone: "+2034000100",
             AddressLine1: "Borg El Arab",
             AddressLine2: null,
-            PostalCode: null);
+            PostalCode: null,
+            CompanyType: "Buyer");
 
         var result = await _createValidator.ValidateAsync(request);
 
@@ -77,12 +79,100 @@ public class CompanyValidatorTests
             CorporatePhone: "+2034000100",
             AddressLine1: "Borg El Arab",
             AddressLine2: null,
-            PostalCode: null);
+            PostalCode: null,
+            CompanyType: "Buyer");
 
         var result = await _createValidator.ValidateAsync(request);
 
         Assert.False(result.IsValid);
         Assert.Contains(result.Errors, e => e.PropertyName == nameof(CreateCompanyRequest.CorporateEmail));
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    [InlineData(null)]
+    public async Task CreateCompanyRequestValidator_MissingCompanyType_ShouldFail(string? companyType)
+    {
+        var request = new CreateCompanyRequest(
+            LegalName: "Alex Steel",
+            TradeName: "AlexSteel",
+            IndustrySector: "Metals",
+            City: "Alexandria",
+            Governorate: "Alexandria",
+            Description: null,
+            Website: null,
+            TaxIdNumber: "123-456-789",
+            CommercialRegistrationNumber: "987654",
+            CorporateEmail: "procurement@alexsteel.com.eg",
+            CorporatePhone: "+2034000100",
+            AddressLine1: "Borg El Arab",
+            AddressLine2: null,
+            PostalCode: null,
+            CompanyType: companyType!);
+
+        var result = await _createValidator.ValidateAsync(request);
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, e => e.PropertyName == nameof(CreateCompanyRequest.CompanyType));
+    }
+
+    [Theory]
+    [InlineData("Both")]
+    [InlineData("Broker")]
+    [InlineData("Invalid")]
+    public async Task CreateCompanyRequestValidator_InvalidCompanyType_ShouldFail(string companyType)
+    {
+        var request = new CreateCompanyRequest(
+            LegalName: "Alex Steel",
+            TradeName: "AlexSteel",
+            IndustrySector: "Metals",
+            City: "Alexandria",
+            Governorate: "Alexandria",
+            Description: null,
+            Website: null,
+            TaxIdNumber: "123-456-789",
+            CommercialRegistrationNumber: "987654",
+            CorporateEmail: "procurement@alexsteel.com.eg",
+            CorporatePhone: "+2034000100",
+            AddressLine1: "Borg El Arab",
+            AddressLine2: null,
+            PostalCode: null,
+            CompanyType: companyType!);
+
+        var result = await _createValidator.ValidateAsync(request);
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, e => e.PropertyName == nameof(CreateCompanyRequest.CompanyType));
+    }
+
+    [Theory]
+    [InlineData("Buyer")]
+    [InlineData("buyer")]
+    [InlineData("Supplier")]
+    [InlineData("supplier")]
+    public async Task CreateCompanyRequestValidator_ValidCompanyType_ShouldPass(string companyType)
+    {
+        var request = new CreateCompanyRequest(
+            LegalName: "Alex Steel",
+            TradeName: "AlexSteel",
+            IndustrySector: "Metals",
+            City: "Alexandria",
+            Governorate: "Alexandria",
+            Description: null,
+            Website: null,
+            TaxIdNumber: "123-456-789",
+            CommercialRegistrationNumber: "987654",
+            CorporateEmail: "procurement@alexsteel.com.eg",
+            CorporatePhone: "+2034000100",
+            AddressLine1: "Borg El Arab",
+            AddressLine2: null,
+            PostalCode: null,
+            CompanyType: companyType!);
+
+        var result = await _createValidator.ValidateAsync(request);
+
+        Assert.True(result.IsValid);
     }
 
     [Fact]

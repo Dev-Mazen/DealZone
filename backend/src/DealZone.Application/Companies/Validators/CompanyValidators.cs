@@ -1,4 +1,5 @@
 using DealZone.Application.Companies.DTOs;
+using DealZone.Domain.Common;
 using FluentValidation;
 
 namespace DealZone.Application.Companies.Validators;
@@ -25,6 +26,7 @@ public class CreateCompanyRequestValidator : AbstractValidator<CreateCompanyRequ
 
         RuleFor(x => x.Governorate)
             .NotEmpty().WithMessage("Governorate is required.")
+            .Must(EgyptGovernorates.IsValid).WithMessage("Governorate must be a valid Egyptian governorate.")
             .MaximumLength(100).WithMessage("Governorate cannot exceed 100 characters.");
 
         RuleFor(x => x.Description)
@@ -63,6 +65,11 @@ public class CreateCompanyRequestValidator : AbstractValidator<CreateCompanyRequ
         RuleFor(x => x.PostalCode)
             .MaximumLength(20).WithMessage("Postal code cannot exceed 20 characters.")
             .When(x => !string.IsNullOrEmpty(x.PostalCode));
+
+        RuleFor(x => x.CompanyType)
+            .NotEmpty().WithMessage("CompanyType is required and must be either 'Buyer' or 'Supplier'.")
+            .Must(t => t != null && (t.Equals("Buyer", StringComparison.OrdinalIgnoreCase) || t.Equals("Supplier", StringComparison.OrdinalIgnoreCase)))
+            .WithMessage("CompanyType must be either 'Buyer' or 'Supplier'.");
     }
 }
 
@@ -80,6 +87,7 @@ public class UpdateCompanyProfileRequestValidator : AbstractValidator<UpdateComp
 
         RuleFor(x => x.Governorate)
             .NotEmpty().WithMessage("Governorate is required.")
+            .Must(EgyptGovernorates.IsValid).WithMessage("Governorate must be a valid Egyptian governorate.")
             .MaximumLength(100).WithMessage("Governorate cannot exceed 100 characters.");
 
         RuleFor(x => x.Description)

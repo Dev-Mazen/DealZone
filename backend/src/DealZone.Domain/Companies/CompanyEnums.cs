@@ -3,8 +3,7 @@ namespace DealZone.Domain.Companies;
 public enum CompanyType
 {
     Buyer = 1,
-    Supplier = 2,
-    Both = 3
+    Supplier = 2
 }
 
 public enum CompanyVerificationStatus

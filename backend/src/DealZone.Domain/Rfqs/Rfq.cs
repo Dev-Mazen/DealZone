@@ -24,6 +24,9 @@ public class Rfq : AuditableEntity, ISoftDelete, IConcurrencyToken
     public Guid? TargetCategoryId { get; set; }
     public MaterialCategory? TargetCategory { get; set; }
 
+    public Guid? TargetSupplierCompanyId { get; set; }
+    public Company? TargetSupplierCompany { get; set; }
+
     public DateTimeOffset? RequiredDeliveryDateUtc { get; set; }
     public DateTimeOffset ClosingDateUtc { get; set; }
     public DateTimeOffset? PublishedAtUtc { get; set; }

@@ -65,7 +65,8 @@ public class DealIntegrationTests
         HttpClient client,
         string email,
         string legalName,
-        string tradeName)
+        string tradeName,
+        string companyType = "Buyer")
     {
         var token = await RegisterAndLoginAsync(client, email);
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
@@ -85,7 +86,8 @@ public class DealIntegrationTests
             "+201011112222",
             "Industrial Area",
             null,
-            "44629");
+            "44629",
+            companyType);
 
         var compRes = await client.PostAsJsonAsync("/api/v1/companies", compReq);
         Assert.Equal(HttpStatusCode.Created, compRes.StatusCode);
@@ -164,8 +166,8 @@ public class DealIntegrationTests
         await using var factory = new DealZoneWebApplicationFactory();
         var client = factory.CreateClient();
 
-        var (buyerToken, _) = await CreateVerifiedCompanyAsync(factory, client, "deal.buyer1@dealzone.eg", "Deal Buyer Ltd", "DealBuyer");
-        var (supplierToken, _) = await CreateVerifiedCompanyAsync(factory, client, "deal.supp1@dealzone.eg", "Deal Supplier SAE", "DealSupp");
+        var (buyerToken, _) = await CreateVerifiedCompanyAsync(factory, client, "deal.buyer1@dealzone.eg", "Deal Buyer Ltd", "DealBuyer", "Buyer");
+        var (supplierToken, _) = await CreateVerifiedCompanyAsync(factory, client, "deal.supp1@dealzone.eg", "Deal Supplier SAE", "DealSupp", "Supplier");
 
         var (rfq, offer) = await CreatePublishedRfqAndOfferAsync(client, buyerToken, supplierToken);
 
@@ -196,14 +198,14 @@ public class DealIntegrationTests
     }
 
     [Fact]
-    public async Task NonParticipant_CannotAccessDeal_ReturnsForbidden()
+    public async Task NonParticipant_CannotAccessDeal_ReturnsNotFound()
     {
         await using var factory = new DealZoneWebApplicationFactory();
         var client = factory.CreateClient();
 
-        var (buyerToken, _) = await CreateVerifiedCompanyAsync(factory, client, "deal.buyer2@dealzone.eg", "Deal Buyer 2", "DealBuyer2");
-        var (supplierToken, _) = await CreateVerifiedCompanyAsync(factory, client, "deal.supp2@dealzone.eg", "Deal Supplier 2", "DealSupp2");
-        var (thirdPartyToken, _) = await CreateVerifiedCompanyAsync(factory, client, "deal.third@dealzone.eg", "Third Party SAE", "ThirdParty");
+        var (buyerToken, _) = await CreateVerifiedCompanyAsync(factory, client, "deal.buyer2@dealzone.eg", "Deal Buyer 2", "DealBuyer2", "Buyer");
+        var (supplierToken, _) = await CreateVerifiedCompanyAsync(factory, client, "deal.supp2@dealzone.eg", "Deal Supplier 2", "DealSupp2", "Supplier");
+        var (thirdPartyToken, _) = await CreateVerifiedCompanyAsync(factory, client, "deal.third@dealzone.eg", "Third Party SAE", "ThirdParty", "Buyer");
 
         var (rfq, offer) = await CreatePublishedRfqAndOfferAsync(client, buyerToken, supplierToken);
 
@@ -211,10 +213,10 @@ public class DealIntegrationTests
         var acceptRes = await client.PostAsJsonAsync($"/api/v1/offers/{offer.Id}/accept", new AcceptOfferRequest());
         var acceptedOffer = await acceptRes.Content.ReadFromJsonAsync<OfferDetailResponse>(JsonOptions);
 
-        // 3rd party attempts to read deal
+        // 3rd party attempts to read deal -> 404 to avoid leaking existence
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", thirdPartyToken);
-        var forbiddenRes = await client.GetAsync($"/api/v1/deals/{acceptedOffer!.DealId}");
-        Assert.Equal(HttpStatusCode.Forbidden, forbiddenRes.StatusCode);
+        var res = await client.GetAsync($"/api/v1/deals/{acceptedOffer!.DealId}");
+        Assert.Equal(HttpStatusCode.NotFound, res.StatusCode);
     }
 
     [Fact]
@@ -223,8 +225,8 @@ public class DealIntegrationTests
         await using var factory = new DealZoneWebApplicationFactory();
         var client = factory.CreateClient();
 
-        var (buyerToken, _) = await CreateVerifiedCompanyAsync(factory, client, "deal.buyer3@dealzone.eg", "Deal Buyer 3", "DealBuyer3");
-        var (supplierToken, _) = await CreateVerifiedCompanyAsync(factory, client, "deal.supp3@dealzone.eg", "Deal Supplier 3", "DealSupp3");
+        var (buyerToken, _) = await CreateVerifiedCompanyAsync(factory, client, "deal.buyer3@dealzone.eg", "Deal Buyer 3", "DealBuyer3", "Buyer");
+        var (supplierToken, _) = await CreateVerifiedCompanyAsync(factory, client, "deal.supp3@dealzone.eg", "Deal Supplier 3", "DealSupp3", "Supplier");
 
         var (rfq, offer) = await CreatePublishedRfqAndOfferAsync(client, buyerToken, supplierToken);
 
@@ -258,8 +260,8 @@ public class DealIntegrationTests
         await using var factory = new DealZoneWebApplicationFactory();
         var client = factory.CreateClient();
 
-        var (buyerToken, _) = await CreateVerifiedCompanyAsync(factory, client, "deal.buyer4@dealzone.eg", "Deal Buyer 4", "DealBuyer4");
-        var (supplierToken, _) = await CreateVerifiedCompanyAsync(factory, client, "deal.supp4@dealzone.eg", "Deal Supplier 4", "DealSupp4");
+        var (buyerToken, _) = await CreateVerifiedCompanyAsync(factory, client, "deal.buyer4@dealzone.eg", "Deal Buyer 4", "DealBuyer4", "Buyer");
+        var (supplierToken, _) = await CreateVerifiedCompanyAsync(factory, client, "deal.supp4@dealzone.eg", "Deal Supplier 4", "DealSupp4", "Supplier");
 
         var (rfq, offer) = await CreatePublishedRfqAndOfferAsync(client, buyerToken, supplierToken);
 
@@ -300,8 +302,8 @@ public class DealIntegrationTests
         var client = factory.CreateClient();
 
         var adminToken = await CreateAdminAndLoginAsync(factory, client, "deal.admin@dealzone.eg");
-        var (buyerToken, _) = await CreateVerifiedCompanyAsync(factory, client, "deal.buyer5@dealzone.eg", "Deal Buyer 5", "DealBuyer5");
-        var (supplierToken, _) = await CreateVerifiedCompanyAsync(factory, client, "deal.supp5@dealzone.eg", "Deal Supplier 5", "DealSupp5");
+        var (buyerToken, _) = await CreateVerifiedCompanyAsync(factory, client, "deal.buyer5@dealzone.eg", "Deal Buyer 5", "DealBuyer5", "Buyer");
+        var (supplierToken, _) = await CreateVerifiedCompanyAsync(factory, client, "deal.supp5@dealzone.eg", "Deal Supplier 5", "DealSupp5", "Supplier");
 
         var (rfq, offer) = await CreatePublishedRfqAndOfferAsync(client, buyerToken, supplierToken);
 

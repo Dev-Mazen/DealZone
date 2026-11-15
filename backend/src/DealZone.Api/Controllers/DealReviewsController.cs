@@ -25,6 +25,7 @@ public class DealReviewsController : ApiControllerBase
     /// Submit a review for a completed deal. Accessible only to verified deal participants.
     /// </summary>
     [HttpPost]
+    [Authorize(Policy = "VerifiedCompany")]
     public async Task<IActionResult> CreateReview(
         Guid dealId,
         [FromBody] CreateReviewRequest request,
@@ -38,6 +39,7 @@ public class DealReviewsController : ApiControllerBase
     /// Get all reviews submitted for a specific deal.
     /// </summary>
     [HttpGet]
+    [Authorize(Policy = "VerifiedCompany")]
     public async Task<IActionResult> GetDealReviews(
         Guid dealId,
         CancellationToken cancellationToken)

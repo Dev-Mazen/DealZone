@@ -3,7 +3,8 @@ import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   ArrowLeft, Edit, Send, XCircle, Clock, MapPin, Calendar,
-  Package, Banknote, FileText, ChevronDown, ChevronUp
+  Package, Banknote, FileText, ChevronDown, ChevronUp,
+  Building2, CheckCircle
 } from 'lucide-react'
 import { rfqService } from '../shared/api/services/rfqService'
 import { offerService } from '../shared/api/services/offerService'
@@ -16,44 +17,7 @@ import Badge from '../components/ui/Badge'
 import Modal from '../components/ui/Modal'
 import { PageSpinner } from '../components/ui/Spinner'
 import { formatDate, formatDateTime, formatCurrency } from '../utils/format'
-
-const statusVariant = {
-  Draft: 'navy',
-  Published: 'success',
-  Closed: 'warning',
-  Cancelled: 'error',
-  Awarded: 'success',
-  NoAward: 'navy',
-}
-
-const offerStatusVariant = {
-  Submitted: 'info',
-  UnderReview: 'warning',
-  Accepted: 'success',
-  Rejected: 'error',
-  Superseded: 'navy',
-  Withdrawn: 'navy',
-  Expired: 'error',
-}
-
-const RFQ_STATUS_AR = {
-  Draft: 'مسودة',
-  Published: 'منشور',
-  Closed: 'مغلق',
-  Cancelled: 'ملغي',
-  Awarded: 'تمت الترسية',
-  NoAward: 'دون ترسية',
-}
-
-const OFFER_STATUS_AR = {
-  Submitted: 'مقدَّم',
-  UnderReview: 'قيد المراجعة',
-  Accepted: 'مقبول',
-  Rejected: 'مرفوض',
-  Superseded: 'تم استبداله',
-  Withdrawn: 'مسحوب',
-  Expired: 'منتهي',
-}
+import { statusMeta } from '../utils/statusLabels'
 
 const ACTIONABLE_OFFER_STATUSES = ['Submitted', 'UnderReview']
 
@@ -63,12 +27,19 @@ function OfferCard({ offer, onAccept, onReject, canAccept }) {
   const [expanded, setExpanded] = useState(false)
   const items = offer.items || []
 
+  const meta = statusMeta('offer', offer.status, isAr)
+
   return (
     <div className="bg-white rounded-xl border border-[rgba(6,36,91,0.08)] p-5">
       <div className="flex items-start justify-between gap-3 mb-3">
         <div>
           <span className="text-xs font-mono text-[#64748B]">{offer.offerNumber}</span>
-          <p className="font-semibold text-[#06245B] mt-0.5">{offer.supplierCompanyName}</p>
+          <Link
+            to={`/suppliers/${offer.supplierCompanyId}`}
+            className="font-semibold text-[#06245B] hover:text-[#1266D6] hover:underline mt-0.5 block"
+          >
+            {offer.supplierCompanyName}
+          </Link>
           <p className="text-xs text-[#64748B]">
             {offer.supplierCity}, {offer.supplierGovernorate}
             {offer.revisionNumber > 1 && (
@@ -78,9 +49,7 @@ function OfferCard({ offer, onAccept, onReject, canAccept }) {
             )}
           </p>
         </div>
-        <Badge variant={offerStatusVariant[offer.status] || 'navy'}>
-          {isAr ? (OFFER_STATUS_AR[offer.status] || offer.status) : offer.status}
-        </Badge>
+        <Badge variant={meta.variant}>{meta.label}</Badge>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm mb-3">
@@ -327,13 +296,26 @@ export default function RfqDetailPage() {
               <span className="text-xs font-mono text-[#64748B] bg-[#F4F7FB] px-2 py-1 rounded">
                 {rfq.rfqNumber}
               </span>
-              <Badge variant={statusVariant[rfq.status] || 'navy'}>
-                {isAr ? (RFQ_STATUS_AR[rfq.status] || rfq.status) : rfq.status}
+              <Badge variant={statusMeta('rfq', rfq.status, isAr).variant}>
+                {statusMeta('rfq', rfq.status, isAr).label}
               </Badge>
+              {rfq.targetSupplierCompanyId && !isOwnerBuyer && (
+                <Badge variant="info">
+                  {isAr ? 'موجه إليك' : 'Sent directly to you'}
+                </Badge>
+              )}
+              {rfq.targetSupplierCompanyId && isOwnerBuyer && (
+                <Badge variant="purple">
+                  {isAr ? `موجه إلى: ${rfq.targetSupplierCompanyName || 'مورد محدد'}` : `Targeted: ${rfq.targetSupplierCompanyName || 'Selected Supplier'}`}
+                </Badge>
+              )}
             </div>
             <h1 className="text-xl font-bold text-[#06245B] mt-1">{rfq.title}</h1>
             <p className="text-sm text-[#64748B] mt-0.5">
-              {isAr ? 'المشتري:' : 'Buyer:'} {rfq.buyerCompanyName}
+              {isAr ? 'المشتري:' : 'Buyer:'}{' '}
+              <Link to={`/buyers/${rfq.buyerCompanyId}`} className="hover:text-[#1266D6] hover:underline font-semibold">
+                {rfq.buyerCompanyName}
+              </Link>
               {rfq.publishedAtUtc && ` · ${isAr ? 'نُشر:' : 'Published:'} ${formatDate(rfq.publishedAtUtc)}`}
             </p>
           </div>
@@ -442,6 +424,33 @@ export default function RfqDetailPage() {
                 <div>
                   <dt className="text-[#64748B] text-xs">{isAr ? 'الميزانية المستهدفة' : 'Target Budget'}</dt>
                   <dd className="font-medium text-[#1E293B]">{formatCurrency(rfq.targetBudget)}</dd>
+                </div>
+              </div>
+            )}
+            {rfq.targetSupplierCompanyId && isOwnerBuyer && (
+              <div className="flex items-start gap-2 col-span-full bg-blue-50/50 p-2.5 rounded-xl border border-blue-100">
+                <Building2 size={15} className="text-[#1266D6] mt-0.5 shrink-0" />
+                <div>
+                  <dt className="text-[#64748B] text-xs">{isAr ? 'المورد الموجه إليه الطلب' : 'Directly Targeted Supplier'}</dt>
+                  <dd className="font-semibold text-[#06245B]">
+                    {rfq.targetSupplierCompanyName || rfq.targetSupplierCompanyId}
+                    <span className="ms-2 text-xs font-normal text-slate-500">
+                      {offers && offers.some((o) => o.supplierCompanyId === rfq.targetSupplierCompanyId)
+                        ? (isAr ? '· تم تقديم عرض من المورد' : '· Offer received from supplier')
+                        : (isAr ? '· بانتظار تقديم العرض' : '· Awaiting supplier proposal')}
+                    </span>
+                  </dd>
+                </div>
+              </div>
+            )}
+            {rfq.targetSupplierCompanyId && !isOwnerBuyer && (
+              <div className="flex items-start gap-2 col-span-full bg-blue-50/50 p-2.5 rounded-xl border border-blue-100">
+                <CheckCircle size={15} className="text-[#1266D6] mt-0.5 shrink-0" />
+                <div>
+                  <dt className="text-[#64748B] text-xs">{isAr ? 'طلب حصري' : 'Exclusive Request'}</dt>
+                  <dd className="font-semibold text-[#06245B]">
+                    {isAr ? 'هذا الطلب موجه خصيصاً إلى شركتكم مباشرة من المشتري.' : 'This RFQ was sent directly and exclusively to your company by the buyer.'}
+                  </dd>
                 </div>
               </div>
             )}

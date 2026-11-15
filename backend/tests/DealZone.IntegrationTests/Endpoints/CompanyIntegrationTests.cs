@@ -57,7 +57,8 @@ public class CompanyIntegrationTests
             CorporatePhone: "+2022700100",
             AddressLine1: "Plot 12, Industrial Area, 10th of Ramadan",
             AddressLine2: null,
-            PostalCode: "44629");
+            PostalCode: "44629",
+            CompanyType: "Buyer");
 
         var createRes = await client.PostAsJsonAsync("/api/v1/companies", createRequest);
         Assert.Equal(HttpStatusCode.Created, createRes.StatusCode);
@@ -136,7 +137,8 @@ public class CompanyIntegrationTests
             CorporatePhone: "+2010000001",
             AddressLine1: "Address 1",
             AddressLine2: null,
-            PostalCode: null);
+            PostalCode: null,
+            CompanyType: "Buyer");
 
         var res1 = await client.PostAsJsonAsync("/api/v1/companies", comp1);
         Assert.Equal(HttpStatusCode.Created, res1.StatusCode);
@@ -159,7 +161,8 @@ public class CompanyIntegrationTests
             CorporatePhone: "+2010000002",
             AddressLine1: "Address 2",
             AddressLine2: null,
-            PostalCode: null);
+            PostalCode: null,
+            CompanyType: "Buyer");
 
         var res2 = await client.PostAsJsonAsync("/api/v1/companies", comp2);
         Assert.Equal(HttpStatusCode.Conflict, res2.StatusCode);
@@ -205,7 +208,8 @@ public class CompanyIntegrationTests
             CorporatePhone: "+2021111111",
             AddressLine1: "Zone 1",
             AddressLine2: null,
-            PostalCode: null);
+            PostalCode: null,
+            CompanyType: "Buyer");
 
         var compRes = await client.PostAsJsonAsync("/api/v1/companies", compReq);
         Assert.Equal(HttpStatusCode.Created, compRes.StatusCode);
@@ -231,7 +235,8 @@ public class CompanyIntegrationTests
             CorporatePhone: "+2022222222",
             AddressLine1: "Zone 2",
             AddressLine2: null,
-            PostalCode: null);
+            PostalCode: null,
+            CompanyType: "Supplier");
         await client.PostAsJsonAsync("/api/v1/companies", compBReq);
 
         // Switch back to Owner of Company A
@@ -340,7 +345,7 @@ public class CompanyIntegrationTests
         Assert.Equal(HttpStatusCode.Created, suppRes.StatusCode);
         var suppCompany = await suppRes.Content.ReadFromJsonAsync<CompanyResponse>(JsonOptions);
 
-        // 2. Create Verified Both (Cairo, Polymers & Plastics)
+        // 2. Create Verified Supplier 2 (Cairo, Polymers & Plastics)
         var bothToken = await RegisterAndLoginAsync(client, "cairo.polymers@dealzone.eg");
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bothToken);
 
@@ -359,7 +364,7 @@ public class CompanyIntegrationTests
             AddressLine1: "10th of Ramadan",
             AddressLine2: null,
             PostalCode: null,
-            CompanyType: "Both");
+            CompanyType: "Supplier");
 
         var bothRes = await client.PostAsJsonAsync("/api/v1/companies", bothReq);
         Assert.Equal(HttpStatusCode.Created, bothRes.StatusCode);
@@ -441,7 +446,7 @@ public class CompanyIntegrationTests
 
         // ── Test Directory Endpoint (GET /api/v1/companies) ──
 
-        var directoryRes = await client.GetAsync("/api/v1/companies");
+        var directoryRes = await client.GetAsync("/api/v1/companies?pageSize=50");
         Assert.Equal(HttpStatusCode.OK, directoryRes.StatusCode);
 
         var page = await directoryRes.Content.ReadFromJsonAsync<PagedResult<PublicSupplierSummaryResponse>>(JsonOptions);
@@ -497,6 +502,107 @@ public class CompanyIntegrationTests
         // Non-existent company profile query returns 404 Not Found
         var nonExistentRes = await client.GetAsync($"/api/v1/companies/{Guid.NewGuid()}");
         Assert.Equal(HttpStatusCode.NotFound, nonExistentRes.StatusCode);
+    }
+
+    [Fact]
+    public async Task CreateCompany_MissingOrInvalidCompanyType_ReturnsBadRequest()
+    {
+        await using var factory = new DealZoneWebApplicationFactory();
+        var client = factory.CreateClient();
+        DevelopmentEmailService.Clear();
+
+        var token = await RegisterAndLoginAsync(client, "missing.type@dealzone.eg");
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        // Missing company type (empty string)
+        var missingReq = new CreateCompanyRequest(
+            LegalName: "No Type Corp",
+            TradeName: "NoType",
+            IndustrySector: "Metals",
+            City: "Cairo",
+            Governorate: "Cairo",
+            Description: null,
+            Website: null,
+            TaxIdNumber: "TAX-NOTYPE-1",
+            CommercialRegistrationNumber: "CRN-NOTYPE-1",
+            CorporateEmail: "info@notype.eg",
+            CorporatePhone: "+2010000000",
+            AddressLine1: "Industrial Area",
+            AddressLine2: null,
+            PostalCode: null,
+            CompanyType: "");
+
+        var missingRes = await client.PostAsJsonAsync("/api/v1/companies", missingReq);
+        Assert.Equal(HttpStatusCode.BadRequest, missingRes.StatusCode);
+
+        // Invalid company type (e.g., "Both" or "Broker")
+        var invalidReq = new CreateCompanyRequest(
+            LegalName: "Invalid Type Corp",
+            TradeName: "InvalidType",
+            IndustrySector: "Metals",
+            City: "Cairo",
+            Governorate: "Cairo",
+            Description: null,
+            Website: null,
+            TaxIdNumber: "TAX-INVTYPE-1",
+            CommercialRegistrationNumber: "CRN-INVTYPE-1",
+            CorporateEmail: "info@invtype.eg",
+            CorporatePhone: "+2010000000",
+            AddressLine1: "Industrial Area",
+            AddressLine2: null,
+            PostalCode: null,
+            CompanyType: "Both");
+
+        var invalidRes = await client.PostAsJsonAsync("/api/v1/companies", invalidReq);
+        Assert.Equal(HttpStatusCode.BadRequest, invalidRes.StatusCode);
+    }
+
+    [Fact]
+    public async Task UpdateMyCompany_CompanyTypeRemainsImmutable()
+    {
+        await using var factory = new DealZoneWebApplicationFactory();
+        var client = factory.CreateClient();
+        DevelopmentEmailService.Clear();
+
+        var token = await RegisterAndLoginAsync(client, "immutable.owner@dealzone.eg");
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        var createReq = new CreateCompanyRequest(
+            LegalName: "Immutable Type Corp",
+            TradeName: "ImmutableCo",
+            IndustrySector: "Metals",
+            City: "Cairo",
+            Governorate: "Cairo",
+            Description: "Initial description",
+            Website: null,
+            TaxIdNumber: "TAX-IMMUT-1",
+            CommercialRegistrationNumber: "CRN-IMMUT-1",
+            CorporateEmail: "info@immut.eg",
+            CorporatePhone: "+2010000000",
+            AddressLine1: "Industrial Area",
+            AddressLine2: null,
+            PostalCode: null,
+            CompanyType: "Buyer");
+
+        var createRes = await client.PostAsJsonAsync("/api/v1/companies", createReq);
+        Assert.Equal(HttpStatusCode.Created, createRes.StatusCode);
+        var created = await createRes.Content.ReadFromJsonAsync<CompanyResponse>(JsonOptions);
+        Assert.Equal("Buyer", created!.CompanyType);
+
+        // Update profile
+        var updateReq = new UpdateCompanyProfileRequest(
+            TradeName: "Updated ImmutableCo",
+            City: "Alexandria",
+            Governorate: "Alexandria",
+            Description: "Updated desc",
+            Website: "https://immut.eg");
+
+        var updateRes = await client.PutAsJsonAsync("/api/v1/companies/me", updateReq);
+        Assert.Equal(HttpStatusCode.OK, updateRes.StatusCode);
+        var updated = await updateRes.Content.ReadFromJsonAsync<CompanyResponse>(JsonOptions);
+
+        // CompanyType remains strictly Buyer
+        Assert.Equal("Buyer", updated!.CompanyType);
     }
 }
 

@@ -228,7 +228,7 @@ public static class CatalogSeeder
 
         // 5. Seed Catalog Products for Direct Purchasing if an approved supplier company exists
         var sampleSupplier = await context.Companies
-            .FirstOrDefaultAsync(c => c.IsActive && !c.IsDeleted && c.VerificationStatus == CompanyVerificationStatus.Approved && (c.CompanyType == CompanyType.Supplier || c.CompanyType == CompanyType.Both));
+            .FirstOrDefaultAsync(c => c.IsActive && !c.IsDeleted && c.VerificationStatus == CompanyVerificationStatus.Approved && c.CompanyType == CompanyType.Supplier);
 
         if (sampleSupplier != null)
         {
@@ -237,6 +237,8 @@ public static class CatalogSeeder
                 context.CatalogProducts.Add(new CatalogProduct
                 {
                     MaterialId = steelRebar.Id,
+                    CategoryId = metalsCategory.Id,
+                    UnitId = tonUnit.Id,
                     SupplierCompanyId = sampleSupplier.Id,
                     Sku = "SKU-MET-REBAR-B500D",
                     NameAr = "حديد تسليح B500D أطوال 12 متر",
@@ -257,6 +259,8 @@ public static class CatalogSeeder
                 context.CatalogProducts.Add(new CatalogProduct
                 {
                     MaterialId = cottonYarn.Id,
+                    CategoryId = textilesCategory.Id,
+                    UnitId = tonUnit.Id,
                     SupplierCompanyId = sampleSupplier.Id,
                     Sku = "SKU-TEX-YARN-30-1",
                     NameAr = "غزل قطن ممشط 30/1 تريكو",
@@ -277,6 +281,8 @@ public static class CatalogSeeder
                 context.CatalogProducts.Add(new CatalogProduct
                 {
                     MaterialId = refinedSugar.Id,
+                    CategoryId = foodCategory.Id,
+                    UnitId = tonUnit.Id,
                     SupplierCompanyId = sampleSupplier.Id,
                     Sku = "SKU-FOOD-SUGAR-45",
                     NameAr = "سكر مكرر ICUMSA 45 أكياس 50 كجم",

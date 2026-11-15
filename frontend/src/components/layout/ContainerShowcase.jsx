@@ -182,7 +182,7 @@ const ContainerShowcase = () => {
               <div className="flex items-start gap-3">
                 <span className="text-[#00D9F5] font-bold">📱</span>
                 <div>
-                  <strong className="text-[#06245B]">Mobile (< 640px):</strong>
+                  <strong className="text-[#06245B]">Mobile (&lt; 640px):</strong>
                   <span className="ml-2">px-4 (16px horizontal padding)</span>
                 </div>
               </div>

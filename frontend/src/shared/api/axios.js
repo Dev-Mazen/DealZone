@@ -158,9 +158,18 @@ export function buildApiError(error) {
     title: error.message || 'Network Error',
   }
 
-  const apiError = new Error(problem.detail || problem.title)
+  let message = problem.detail || problem.title || error.message || 'An error occurred'
+  if (problem.errors && typeof problem.errors === 'object') {
+    const errorMessages = Object.values(problem.errors).flat().filter(Boolean)
+    if (errorMessages.length > 0) {
+      message = errorMessages.join(' ')
+    }
+  }
+
+  const apiError = new Error(message)
   apiError.status = problem.status || error.response?.status || 0
   apiError.problem = problem
+  apiError.validationErrors = problem.errors || null
 
   return apiError
 }

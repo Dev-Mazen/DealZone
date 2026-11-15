@@ -27,6 +27,7 @@ public class VerificationController : ApiControllerBase
     /// Upload a verification document. Accepted types: PDF, JPEG, PNG (max 10 MB).
     /// DocumentType values: 1=CommercialRegister, 2=TaxCard, 3=IndustrialRegister, 4=QualityCertificate, 5=Other
     /// </summary>
+    [Authorize(Policy = "CompanyAdmin")]
     [HttpPost("verification-documents")]
     [HttpPost("verification/documents")]
     [Consumes("multipart/form-data")]
@@ -66,6 +67,7 @@ public class VerificationController : ApiControllerBase
     /// <summary>
     /// Delete a verification document. Only allowed when status is Pending or ChangesRequired.
     /// </summary>
+    [Authorize(Policy = "CompanyAdmin")]
     [HttpDelete("verification-documents/{documentId:guid}")]
     [HttpDelete("verification/documents/{documentId:guid}")]
     public async Task<IActionResult> DeleteDocument(Guid documentId, CancellationToken cancellationToken)
@@ -78,6 +80,7 @@ public class VerificationController : ApiControllerBase
     /// Submit uploaded documents for admin review.
     /// Requires CommercialRegister and TaxCard to be present.
     /// </summary>
+    [Authorize(Policy = "CompanyAdmin")]
     [HttpPost("verification/submit")]
     public async Task<IActionResult> SubmitForReview(CancellationToken cancellationToken)
     {

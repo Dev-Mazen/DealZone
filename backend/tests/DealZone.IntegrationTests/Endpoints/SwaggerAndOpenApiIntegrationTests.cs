@@ -41,7 +41,7 @@ public class SwaggerAndOpenApiIntegrationTests
 
         // Info assertions
         Assert.True(root.TryGetProperty("info", out var info));
-        Assert.Equal("DealZone Marketplace Web API", info.GetProperty("title").GetString());
+        Assert.Equal("DealZone Web API", info.GetProperty("title").GetString());
         Assert.Equal("v1", info.GetProperty("version").GetString());
 
         // Security schemes assertions

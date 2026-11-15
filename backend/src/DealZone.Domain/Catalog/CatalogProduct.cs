@@ -5,7 +5,7 @@ namespace DealZone.Domain.Catalog;
 
 /// <summary>
 /// Represents an eligible industrial raw-material product offered by a verified supplier
-/// on the DealZone Marketplace with support for fixed price direct purchase and price negotiation.
+/// on DealZone with support for fixed price direct purchase and price negotiation.
 /// </summary>
 public class CatalogProduct : AuditableEntity, IConcurrencyToken
 {
@@ -18,9 +18,12 @@ public class CatalogProduct : AuditableEntity, IConcurrencyToken
     public Guid SupplierCompanyId { get; set; }
     public Company SupplierCompany { get; set; } = null!;
 
-    public string Sku { get; set; } = string.Empty;
+    public Guid UnitId { get; set; }
+    public UnitOfMeasure Unit { get; set; } = null!;
+
+    public string? Sku { get; set; }
     public string NameAr { get; set; } = string.Empty;
-    public string NameEn { get; set; } = string.Empty;
+    public string? NameEn { get; set; }
     public string? DescriptionAr { get; set; }
     public string? DescriptionEn { get; set; }
     public string? Specifications { get; set; }
@@ -28,18 +31,17 @@ public class CatalogProduct : AuditableEntity, IConcurrencyToken
     /// <summary>Pricing mode: Fixed (Buy Now + Offer) or Negotiable (Offer only).</summary>
     public ProductPricingMode PricingMode { get; set; } = ProductPricingMode.Fixed;
 
-    /// <summary>Unit price in EGP for direct marketplace purchase or reference.</summary>
-    public decimal UnitPrice { get; set; }
+    /// <summary>Unit price in EGP for direct marketplace purchase or reference (null for Negotiable products).</summary>
+    public decimal? UnitPrice { get; set; }
     public string Currency { get; set; } = "EGP";
-    public string Unit { get; set; } = "ton";
 
-    /// <summary>Current available inventory / capacity.</summary>
-    public decimal AvailableQuantity { get; set; }
+    /// <summary>Current available inventory / capacity (optional).</summary>
+    public decimal? AvailableQuantity { get; set; }
 
-    /// <summary>Minimum Order Quantity.</summary>
+    /// <summary>Minimum Order Quantity (required, > 0).</summary>
     public decimal MinimumOrderQuantity { get; set; } = 1;
 
-    /// <summary>Estimated delivery lead time in days.</summary>
+    /// <summary>Estimated delivery lead time in days (required, 1..365).</summary>
     public int DeliveryLeadTimeDays { get; set; } = 7;
 
     public string? ImageUrlsJson { get; set; }

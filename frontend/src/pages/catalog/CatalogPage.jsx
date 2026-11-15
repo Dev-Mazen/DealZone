@@ -28,7 +28,6 @@ import Button from '../../components/ui/Button'
 import Badge from '../../components/ui/Badge'
 import { PageSpinner } from '../../components/ui/Spinner'
 import EmptyState from '../../components/ui/EmptyState'
-import DirectPurchaseModal from '../../components/catalog/DirectPurchaseModal'
 
 export default function CatalogPage() {
   const { t, language } = useTranslation()
@@ -39,7 +38,6 @@ export default function CatalogPage() {
 
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedCategoryId, setSelectedCategoryId] = useState()
-  const [purchasingMaterial, setPurchasingMaterial] = useState(null)
   const [suppliedMaterials, setSuppliedMaterials] = useState(() => {
     try {
       const stored = localStorage.getItem('dz_supplier_catalog')
@@ -142,7 +140,9 @@ export default function CatalogPage() {
     setSuppliedMaterials(next)
     try {
       localStorage.setItem('dz_supplier_catalog', JSON.stringify(next))
-    } catch {}
+    } catch (_err) {
+      // Ignore localStorage errors in private browsing modes
+    }
 
     if (next.includes(materialId)) {
       toast.success(
@@ -209,8 +209,8 @@ export default function CatalogPage() {
               <p className="text-sm text-slate-500 mt-1 max-w-2xl">
                 {isBuyer
                   ? isAr
-                    ? 'تصفح مواصفات المواد القياسية، اشترِ مباشرة، أو اطلب عروض أسعار وتناقص مع الموردين المعتمدين.'
-                    : 'Browse verified industrial raw materials, buy directly, or request competitive tender quotes from certified suppliers.'
+                    ? 'تصفح مواصفات المواد القياسية، اشترِ مباشرة، أو اطلب عروض أسعار من الموردين المعتمدين.'
+                    : 'Browse verified industrial raw materials, buy directly, or request competitive quotes from certified suppliers.'
                   : isAr
                   ? 'استعرض الكتالوج الصناعي القياسي وحدد المواد التي تستطيع شركتك توريدها للمصانع.'
                   : 'Review standard industrial taxonomy and register the raw materials your company supplies to manufacturers.'}
@@ -477,27 +477,17 @@ export default function CatalogPage() {
                           </button>
                         )}
 
-                        {/* Buyer Experience: Direct Purchase AND Request RFQ */}
+                        {/* Buyer Experience: Request RFQ */}
                         {isBuyer && (
                           <div className="flex items-center gap-2">
-                            {/* Direct Purchase Button */}
-                            <Button
-                              variant="primary"
-                              size="xs"
-                              icon={<ShoppingBag size={13} />}
-                              onClick={() => setPurchasingMaterial(material)}
-                            >
-                              {isAr ? 'شراء الآن' : 'Buy Now'}
-                            </Button>
-
                             {/* Request RFQ Button */}
                             <Button
-                              variant="outline"
+                              variant="primary"
                               size="xs"
                               icon={<Send size={12} />}
                               onClick={() => handleBuyerRequestQuote(material)}
                             >
-                              {isAr ? 'طلب عرض' : 'RFQ'}
+                              {isAr ? 'طلب عرض سعر (RFQ)' : 'Request RFQ'}
                             </Button>
                           </div>
                         )}
@@ -510,21 +500,6 @@ export default function CatalogPage() {
           )}
         </div>
       </div>
-
-      {/* Direct Purchase Modal */}
-      <DirectPurchaseModal
-        isOpen={!!purchasingMaterial}
-        onClose={() => setPurchasingMaterial(null)}
-        material={purchasingMaterial}
-        onSuccess={(dealId) => {
-          setPurchasingMaterial(null)
-          if (dealId) {
-            navigate(`/deals/${dealId}`)
-          } else {
-            navigate('/deals')
-          }
-        }}
-      />
     </div>
   )
 }

@@ -8,6 +8,7 @@ import { useTranslation } from '../../hooks/useTranslation'
 import { useToast } from '../../hooks/useToast'
 import Button from '../ui/Button'
 import Alert from '../ui/Alert'
+import { NumberField } from '../ui/FormControls'
 
 export default function NegotiationOfferModal({
   isOpen,
@@ -180,20 +181,15 @@ export default function NegotiationOfferModal({
                 <label className="block text-xs font-bold text-[#06245B] mb-1.5">
                   {isAr ? 'الكمية المقترحة' : 'Proposed Quantity'} <span className="text-red-500">*</span>
                 </label>
-                <div className="relative">
-                  <input
-                    type="number"
-                    min={moq}
-                    step="any"
-                    value={proposedQuantity}
-                    onChange={(e) => setProposedQuantity(e.target.value)}
-                    className="w-full h-11 px-3.5 pe-16 rounded-xl border border-slate-300 focus:border-[#1266D6] focus:ring-2 focus:ring-[#1266D6]/20 font-bold text-slate-800 text-sm"
-                    required
-                  />
-                  <span className="absolute end-3 top-1/2 -translate-y-1/2 text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
-                    {unit}
-                  </span>
-                </div>
+                <NumberField
+                  value={proposedQuantity}
+                  onChange={(val) => setProposedQuantity(val)}
+                  min={moq}
+                  step={1}
+                  decimals={2}
+                  suffix={unit}
+                  disabled={isSubmitting}
+                />
                 <p className="text-[10px] text-slate-400 mt-1">
                   {isAr ? `الحد الأدنى للطلب (MOQ): ${moq} ${unit}` : `MOQ: ${moq} ${unit}`}
                 </p>
@@ -203,20 +199,15 @@ export default function NegotiationOfferModal({
                 <label className="block text-xs font-bold text-[#06245B] mb-1.5">
                   {isAr ? 'سعر الوحدة المقترح' : 'Proposed Unit Price'} <span className="text-red-500">*</span>
                 </label>
-                <div className="relative">
-                  <input
-                    type="number"
-                    min="1"
-                    step="any"
-                    value={proposedUnitPrice}
-                    onChange={(e) => setProposedUnitPrice(e.target.value)}
-                    className="w-full h-11 px-3.5 pe-16 rounded-xl border border-slate-300 focus:border-[#1266D6] focus:ring-2 focus:ring-[#1266D6]/20 font-bold text-slate-800 text-sm"
-                    required
-                  />
-                  <span className="absolute end-3 top-1/2 -translate-y-1/2 text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
-                    {currency}
-                  </span>
-                </div>
+                <NumberField
+                  value={proposedUnitPrice}
+                  onChange={(val) => setProposedUnitPrice(val)}
+                  min={0.01}
+                  step={1}
+                  decimals={2}
+                  suffix={currency}
+                  disabled={isSubmitting}
+                />
               </div>
             </div>
 

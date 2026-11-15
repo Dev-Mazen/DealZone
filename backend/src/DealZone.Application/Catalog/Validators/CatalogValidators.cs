@@ -9,10 +9,9 @@ public class CreateCategoryRequestValidator : AbstractValidator<CreateCategoryRe
     public CreateCategoryRequestValidator()
     {
         RuleFor(x => x.Code)
-            .NotEmpty().WithMessage("Category code is required.")
             .MaximumLength(50).WithMessage("Category code must not exceed 50 characters.")
-            .Must(code => string.IsNullOrWhiteSpace(code) || MarketplaceCategories.IsSupported(code))
-            .WithMessage("DealZone only supports three official marketplace categories: Textiles (TEXTILES), Food (FOOD), and Metals (METALS).");
+            .Matches(@"^[A-Za-z0-9_\-]+$").When(x => !string.IsNullOrWhiteSpace(x.Code))
+            .WithMessage("Category code must contain only letters, numbers, hyphens, and underscores.");
 
         RuleFor(x => x.NameAr)
             .NotEmpty().WithMessage("Arabic category name is required.")
@@ -207,6 +206,7 @@ public class CreateCatalogProductRequestValidator : AbstractValidator<CreateCata
         When(x => x.PricingMode == 1, () =>
         {
             RuleFor(x => x.UnitPrice)
+                .NotNull().WithMessage("Unit price is required for fixed pricing.")
                 .GreaterThan(0).WithMessage("Unit price must be greater than zero.");
         });
 
@@ -215,7 +215,9 @@ public class CreateCatalogProductRequestValidator : AbstractValidator<CreateCata
             .Length(3).WithMessage("Currency must be a 3-letter ISO code.");
 
         RuleFor(x => x.AvailableQuantity)
-            .GreaterThanOrEqualTo(0).WithMessage("Available quantity cannot be negative.");
+            .GreaterThanOrEqualTo(0)
+            .When(x => x.AvailableQuantity.HasValue)
+            .WithMessage("Available quantity cannot be negative.");
 
         RuleFor(x => x.MinimumOrderQuantity)
             .GreaterThan(0).WithMessage("Minimum order quantity must be greater than zero.");
@@ -249,6 +251,7 @@ public class UpdateCatalogProductRequestValidator : AbstractValidator<UpdateCata
         When(x => x.PricingMode == 1, () =>
         {
             RuleFor(x => x.UnitPrice)
+                .NotNull().WithMessage("Unit price is required for fixed pricing.")
                 .GreaterThan(0).WithMessage("Unit price must be greater than zero.");
         });
 
@@ -257,7 +260,9 @@ public class UpdateCatalogProductRequestValidator : AbstractValidator<UpdateCata
             .Length(3).WithMessage("Currency must be a 3-letter ISO code.");
 
         RuleFor(x => x.AvailableQuantity)
-            .GreaterThanOrEqualTo(0).WithMessage("Available quantity cannot be negative.");
+            .GreaterThanOrEqualTo(0)
+            .When(x => x.AvailableQuantity.HasValue)
+            .WithMessage("Available quantity cannot be negative.");
 
         RuleFor(x => x.MinimumOrderQuantity)
             .GreaterThan(0).WithMessage("Minimum order quantity must be greater than zero.");

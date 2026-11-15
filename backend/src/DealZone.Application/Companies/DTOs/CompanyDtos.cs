@@ -15,7 +15,7 @@ public record CreateCompanyRequest(
     string AddressLine1,
     string? AddressLine2,
     string? PostalCode,
-    string? CompanyType = null);
+    string CompanyType);
 
 public record UpdateCompanyProfileRequest(
     string TradeName,
@@ -36,7 +36,7 @@ public record CompanyResponse(
     string VerificationStatus,
     bool CanPerformCommercialActivities,
     DateTimeOffset CreatedAtUtc,
-    string CompanyType = "Both");
+    string CompanyType);
 
 public record CompanyContactDetailsResponse(
     Guid CompanyId,
@@ -108,6 +108,21 @@ public record PublicCompanyProfileResponse(
     string VerificationStatus,
     decimal? AverageRating,
     int ReviewCount,
-    DateTimeOffset MemberSinceUtc);
+    DateTimeOffset MemberSinceUtc,
+    int PublishedRfqCount = 0,
+    int CompletedDealCount = 0,
+    int ActiveProductCount = 0,
+    List<string>? SectorsSourced = null,
+    List<PublicRfqSummaryDto>? OpenPublicRfqs = null);
+
+public record PublicRfqSummaryDto(
+    Guid Id,
+    string RfqNumber,
+    string Title,
+    string? CategoryName,
+    int ItemCount,
+    DateTimeOffset ClosingDateUtc,
+    DateTimeOffset CreatedAtUtc);
+
 
 

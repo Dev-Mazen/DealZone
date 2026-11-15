@@ -24,6 +24,7 @@ const Input = forwardRef(
       className = '',
       id,
       showPasswordToggle = true,
+      step,
       ...props
     },
     ref
@@ -33,6 +34,8 @@ const Input = forwardRef(
 
     const isPasswordType = type === 'password'
     const effectiveType = isPasswordType && isPasswordVisible ? 'text' : type
+    // For number inputs, default step to 1 (whole numbers) unless caller specifies otherwise
+    const effectiveStep = type === 'number' && step === undefined ? '1' : step
 
     // Support both naming conventions
     const displayLeftIcon = leftIcon || startIcon
@@ -90,6 +93,7 @@ const Input = forwardRef(
             type={effectiveType}
             required={required}
             disabled={disabled}
+            step={effectiveStep}
             aria-invalid={!!error}
             aria-describedby={
               error

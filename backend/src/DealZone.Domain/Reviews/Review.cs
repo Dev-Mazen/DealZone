@@ -31,7 +31,7 @@ public class Review : BaseEntity, ISoftDelete
         Guid reviewerCompanyId,
         Guid targetCompanyId,
         int rating,
-        string comment)
+        string? comment)
     {
         if (deal.Status != DealStatus.Completed)
         {
@@ -59,7 +59,7 @@ public class Review : BaseEntity, ISoftDelete
             ReviewerCompanyId = reviewerCompanyId,
             TargetCompanyId = targetCompanyId,
             Rating = rating,
-            Comment = comment.Trim()
+            Comment = comment?.Trim() ?? string.Empty
         };
     }
 }

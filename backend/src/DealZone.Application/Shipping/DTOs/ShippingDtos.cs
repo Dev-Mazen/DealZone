@@ -84,7 +84,8 @@ public record ShipmentFilter(
     ShipmentStatus? Status = null,
     string? Role = null,
     int PageNumber = 1,
-    int PageSize = 10);
+    int PageSize = 10,
+    string? Search = null);
 
 public record ShipmentSummaryResponse(
     Guid Id,

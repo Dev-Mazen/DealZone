@@ -235,7 +235,7 @@ export default function AdminAnalyticsPage() {
           value={kpis?.totalRfqs || 0}
           change={`${kpis?.openRfqs || 0} ${isAr ? 'مفتوحة' : 'open'}`}
           isPositive={true}
-          period={isAr ? 'متاحة لتلقي عروض الموردين' : 'currently active for bidding'}
+          period={isAr ? 'متاحة لتلقي عروض الموردين' : 'currently accepting offers'}
           icon={FileText}
           loading={isLoading}
         />
@@ -297,11 +297,11 @@ export default function AdminAnalyticsPage() {
           </div>
         </div>
 
-        {/* Commercial Liquidity: Bids & Offers */}
+        {/* Commercial Liquidity: Quotes & Offers */}
         <div className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="font-bold text-[#06245B] text-sm">
-              {isAr ? 'حركة العروض والمناقصات' : 'Bidding & Quote Activity'}
+              {isAr ? 'حركة عروض الأسعار' : 'Quotation Activity'}
             </h3>
             <Users size={18} className="text-[#1266D6]" />
           </div>

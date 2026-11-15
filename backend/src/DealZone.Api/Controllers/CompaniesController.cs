@@ -37,6 +37,7 @@ public class CompaniesController : ApiControllerBase
         return Ok(response);
     }
 
+    [Authorize(Policy = "CompanyAdmin")]
     [HttpPut("me")]
     public async Task<IActionResult> UpdateMyCompany(
         [FromBody] UpdateCompanyProfileRequest request,
@@ -64,6 +65,7 @@ public class CompaniesController : ApiControllerBase
         return Ok(members);
     }
 
+    [Authorize(Policy = "CompanyAdmin")]
     [HttpPost("me/members")]
     public async Task<IActionResult> AddCompanyMember(
         [FromBody] AddCompanyMemberRequest request,
@@ -75,6 +77,7 @@ public class CompaniesController : ApiControllerBase
         return StatusCode(StatusCodes.Status201Created, member);
     }
 
+    [Authorize(Policy = "CompanyAdmin")]
     [HttpPut("me/members/{userId:guid}/role")]
     public async Task<IActionResult> UpdateCompanyMemberRole(
         [FromRoute] Guid userId,
@@ -87,6 +90,7 @@ public class CompaniesController : ApiControllerBase
         return Ok(member);
     }
 
+    [Authorize(Policy = "CompanyAdmin")]
     [HttpDelete("me/members/{userId:guid}")]
     public async Task<IActionResult> RemoveCompanyMember(
         [FromRoute] Guid userId,
@@ -110,6 +114,7 @@ public class CompaniesController : ApiControllerBase
 
     [AllowAnonymous]
     [HttpGet("{companyId:guid}")]
+    [HttpGet("{companyId:guid}/profile")]
     public async Task<IActionResult> GetPublicCompanyProfile(
         [FromRoute] Guid companyId,
         CancellationToken cancellationToken)

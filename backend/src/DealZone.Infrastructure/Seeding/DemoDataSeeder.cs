@@ -10,7 +10,6 @@ using DealZone.Domain.Purchasing;
 using DealZone.Domain.Reviews;
 using DealZone.Domain.Rfqs;
 using DealZone.Domain.Shipping;
-using DealZone.Domain.Tenders;
 using DealZone.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -100,10 +99,7 @@ public static class DemoDataSeeder
         // 5. Seed RFQs and Supplier Offers (All statuses & revision lineages)
         await SeedRfqsAndOffersAsync(context, logger);
 
-        // 6. Seed Tenders and Reverse Bidding Scenarios
-        await SeedTendersAndBidsAsync(context, logger);
-
-        // 7. Seed Direct Purchases and Commercial Deals
+        // 6. Seed Direct Purchases and Commercial Deals
         await SeedDealsAndPurchasesAsync(context, logger);
 
         // 8. Seed Shipping Providers and Admin-Managed Shipments
@@ -192,40 +188,7 @@ public static class DemoDataSeeder
             .Where(p => sampleCompanyIds.Contains(p.BuyerCompanyId) || sampleCompanyIds.Contains(p.SupplierCompanyId))
             .ExecuteDeleteAsync();
 
-        // 7. Purge Tender Bids & Line Items
-        var sampleTenderIds = await context.Tenders
-            .IgnoreQueryFilters()
-            .Where(t => sampleCompanyIds.Contains(t.BuyerCompanyId))
-            .Select(t => t.Id)
-            .ToListAsync();
-
-        var sampleBidIds = await context.Bids
-            .IgnoreQueryFilters()
-            .Where(b => sampleCompanyIds.Contains(b.SupplierCompanyId) || sampleTenderIds.Contains(b.TenderId))
-            .Select(b => b.Id)
-            .ToListAsync();
-
-        await context.BidItems
-            .IgnoreQueryFilters()
-            .Where(bi => sampleBidIds.Contains(bi.BidId))
-            .ExecuteDeleteAsync();
-
-        await context.Bids
-            .IgnoreQueryFilters()
-            .Where(b => sampleBidIds.Contains(b.Id))
-            .ExecuteDeleteAsync();
-
-        await context.TenderItems
-            .IgnoreQueryFilters()
-            .Where(ti => sampleTenderIds.Contains(ti.TenderId))
-            .ExecuteDeleteAsync();
-
-        await context.Tenders
-            .IgnoreQueryFilters()
-            .Where(t => sampleTenderIds.Contains(t.Id))
-            .ExecuteDeleteAsync();
-
-        // 8. Purge RFQs, Offers, Items
+        // 7. Purge RFQs, Offers, Items
         var sampleRfqIds = await context.Rfqs
             .IgnoreQueryFilters()
             .Where(r => sampleCompanyIds.Contains(r.BuyerCompanyId))
@@ -444,14 +407,14 @@ public static class DemoDataSeeder
                 PrimaryContactUserId = Supplier3UserId,
                 IsActive = true
             },
-            // 6. Verified Dual Enterprise (Buyer & Supplier)
+            // 6. Verified Buyer Enterprise (Alexandria Trade)
             new()
             {
                 Id = DualCompanyId,
                 LegalName = "[Sample] شركة الإسكندرية للتجارة والتصنيع المشترك ش.م.م",
                 TradeName = "[Sample] الإسكندرية للتجارة والتصنيع المشترك",
                 IndustrySector = "Textiles & Food",
-                CompanyType = CompanyType.Both,
+                CompanyType = CompanyType.Buyer,
                 City = "برج العرب",
                 Governorate = "الإسكندرية",
                 Description = "منشأة صناعية وتجارية متكاملة تشتري المواد الخام وتورد المنتجات النصف مصنعة ببرج العرب.",
@@ -797,7 +760,7 @@ public static class DemoDataSeeder
                 PricingMode = ProductPricingMode.Fixed,
                 UnitPrice = 38500m,
                 Currency = "EGP",
-                Unit = "ton",
+                UnitId = tonUnit!.Id,
                 AvailableQuantity = 500m,
                 MinimumOrderQuantity = 10m,
                 DeliveryLeadTimeDays = 3,
@@ -817,7 +780,7 @@ public static class DemoDataSeeder
                 PricingMode = ProductPricingMode.Fixed,
                 UnitPrice = 32000m,
                 Currency = "EGP",
-                Unit = "ton",
+                UnitId = tonUnit!.Id,
                 AvailableQuantity = 250m,
                 MinimumOrderQuantity = 25m,
                 DeliveryLeadTimeDays = 5,
@@ -837,7 +800,7 @@ public static class DemoDataSeeder
                 PricingMode = ProductPricingMode.Negotiable,
                 UnitPrice = 39200m,
                 Currency = "EGP",
-                Unit = "ton",
+                UnitId = tonUnit!.Id,
                 AvailableQuantity = 8m,
                 MinimumOrderQuantity = 5m,
                 DeliveryLeadTimeDays = 2,
@@ -859,7 +822,7 @@ public static class DemoDataSeeder
                 PricingMode = ProductPricingMode.Fixed,
                 UnitPrice = 145000m,
                 Currency = "EGP",
-                Unit = "ton",
+                UnitId = tonUnit!.Id,
                 AvailableQuantity = 120m,
                 MinimumOrderQuantity = 2m,
                 DeliveryLeadTimeDays = 7,
@@ -879,7 +842,7 @@ public static class DemoDataSeeder
                 PricingMode = ProductPricingMode.Negotiable,
                 UnitPrice = 110000m,
                 Currency = "EGP",
-                Unit = "ton",
+                UnitId = tonUnit!.Id,
                 AvailableQuantity = 80m,
                 MinimumOrderQuantity = 3m,
                 DeliveryLeadTimeDays = 5,
@@ -899,7 +862,7 @@ public static class DemoDataSeeder
                 PricingMode = ProductPricingMode.Fixed,
                 UnitPrice = 68000m,
                 Currency = "EGP",
-                Unit = "ton",
+                UnitId = tonUnit!.Id,
                 AvailableQuantity = 4m,
                 MinimumOrderQuantity = 2m,
                 DeliveryLeadTimeDays = 4,
@@ -921,7 +884,7 @@ public static class DemoDataSeeder
                 PricingMode = ProductPricingMode.Fixed,
                 UnitPrice = 29500m,
                 Currency = "EGP",
-                Unit = "ton",
+                UnitId = tonUnit!.Id,
                 AvailableQuantity = 1000m,
                 MinimumOrderQuantity = 25m,
                 DeliveryLeadTimeDays = 4,
@@ -941,7 +904,7 @@ public static class DemoDataSeeder
                 PricingMode = ProductPricingMode.Negotiable,
                 UnitPrice = 52000m,
                 Currency = "EGP",
-                Unit = "ton",
+                UnitId = tonUnit!.Id,
                 AvailableQuantity = 300m,
                 MinimumOrderQuantity = 10m,
                 DeliveryLeadTimeDays = 3,
@@ -961,7 +924,7 @@ public static class DemoDataSeeder
                 PricingMode = ProductPricingMode.Fixed,
                 UnitPrice = 34000m,
                 Currency = "EGP",
-                Unit = "ton",
+                UnitId = tonUnit!.Id,
                 AvailableQuantity = 0m,
                 MinimumOrderQuantity = 5m,
                 DeliveryLeadTimeDays = 14,
@@ -1184,32 +1147,6 @@ public static class DemoDataSeeder
             context.Offers.Add(o1);
         }
 
-        // Offer 2 on RFQ 101 from Dual Company (Alexandria Trade): Competing Offer
-        if (!await context.Offers.AnyAsync(o => o.OfferNumber == "OFF-2026-00102"))
-        {
-            var o2 = new Offer
-            {
-                OfferNumber = "OFF-2026-00102",
-                RfqId = rfq101.Id,
-                SupplierCompanyId = DualCompanyId,
-                Status = OfferStatus.Submitted,
-                TotalAmount = 4584000m,
-                Currency = "EGP",
-                ValidityDateUtc = DateTimeOffset.UtcNow.AddDays(8),
-                DeliveryLeadTimeDays = 5, // Faster delivery
-                ShippingIncluded = true,
-                PaymentTerms = "سداد نقدي بخصم 1% أو تحويل بنكي خلال 14 يوماً من الفحص",
-                Notes = "توريد من مصانع الإسكندرية مع تسليم مباشر على ظهر الشاحنة بموقع المشتري.",
-                SubmittedAtUtc = DateTimeOffset.UtcNow.AddDays(-1).AddHours(4),
-                RevisionNumber = 1
-            };
-            foreach (var item in rfq101.Items)
-            {
-                o2.Items.Add(new OfferItem { RfqItemId = item.Id, UnitPrice = 38200m, OfferedQuantity = item.Quantity, TotalPrice = 38200m * item.Quantity, MaterialSpecifications = "صلب تسليح B500D عالي الجودة" });
-            }
-            context.Offers.Add(o2);
-        }
-
         // Offer 3 on RFQ 102 from Mahalla Yarns: Revised Offer with Revision Lineage
         var origOffer3 = await context.Offers.FirstOrDefaultAsync(o => o.OfferNumber == "OFF-2026-00103-R1");
         if (origOffer3 == null)
@@ -1348,301 +1285,28 @@ public static class DemoDataSeeder
         logger.LogDebug("DemoDataSeeder: RFQs and offers seeded.");
     }
 
-    private static async Task SeedTendersAndBidsAsync(DealZoneDbContext context, ILogger logger)
-    {
-        var metalsCategory = await context.MaterialCategories.FirstOrDefaultAsync(c => c.Code == "METALS");
-        var textilesCategory = await context.MaterialCategories.FirstOrDefaultAsync(c => c.Code == "TEXTILES");
-        var foodCategory = await context.MaterialCategories.FirstOrDefaultAsync(c => c.Code == "FOOD");
-        var tonUnit = await context.UnitsOfMeasure.FirstOrDefaultAsync(u => u.Code == "ton");
-
-        var steelRebar = await context.Materials.FirstOrDefaultAsync(m => m.Code == "STEEL-REBAR-B500D");
-        var steelBillet = await context.Materials.FirstOrDefaultAsync(m => m.Code == "STEEL-BILLET-3SP");
-        var cottonYarn = await context.Materials.FirstOrDefaultAsync(m => m.Code == "COTTON-YARN-GIZA");
-        var refinedSugar = await context.Materials.FirstOrDefaultAsync(m => m.Code == "FOOD-SUGAR-REFINED");
-
-        // 1. TENDER 201: Active Live Reverse Bidding (Published, 3 suppliers competing, price reductions & revisions!)
-        var t201 = await context.Tenders.Include(t => t.Items).Include(t => t.Bids).FirstOrDefaultAsync(t => t.TenderNumber == "TND-2026-00201");
-        if (t201 == null)
-        {
-            t201 = new Tender
-            {
-                TenderNumber = "TND-2026-00201",
-                BuyerCompanyId = Buyer1CompanyId,
-                Title = "مناقصة عكسية: توريد 200 طن صلب تسليح وبيليت إنشائي - مجمع العاشر من رمضان",
-                Description = "مناقصة مفتوحة للموردين المعتمدين لتوريد 150 طن حديد تسليح B500D و 50 طن بيليت درفلة مع اشتراط أدنى سعر منافس وتأمين ابتدائي.",
-                Status = TenderStatus.Published,
-                DeliveryGovernorate = "الشرقية",
-                DeliveryCity = "العاشر من رمضان",
-                DeliveryAddress = "موقع مصنع العاشر B3، الشرقية",
-                TargetCategoryId = metalsCategory?.Id,
-                RequiredDeliveryDateUtc = DateTimeOffset.UtcNow.AddDays(25),
-                ClosingDateUtc = DateTimeOffset.UtcNow.AddDays(5), // Active live tender
-                PublishedAtUtc = DateTimeOffset.UtcNow.AddDays(-3),
-                ReferencePrice = 7500000m,
-                Currency = "EGP",
-                Notes = "يتم التقييم آلياً وفقاً لأقل إجمالي عطاء مطابق للمواصفات الفنية."
-            };
-            t201.Items.Add(new TenderItem { CategoryId = metalsCategory!.Id, MaterialId = steelRebar?.Id, MaterialName = "حديد تسليح B500D عالي المقاومة", Specifications = "أقطار 16 مم و 20 مم أطوال 12م ES 262-2", Quantity = 150, Unit = MaterialUnit.MetricTon, UnitOfMeasureId = tonUnit!.Id, LineNumber = 1 });
-            t201.Items.Add(new TenderItem { CategoryId = metalsCategory.Id, MaterialId = steelBillet?.Id, MaterialName = "مربعات صلب بيليت 150×150 مم", Specifications = "صب مستمر 3SP درفلة", Quantity = 50, Unit = MaterialUnit.MetricTon, UnitOfMeasureId = tonUnit.Id, LineNumber = 2 });
-            context.Tenders.Add(t201);
-            await context.SaveChangesAsync();
-        }
-
-        // Bids on Tender 201:
-        // Bid 1 (Supplier 1: Al-Ahram Steel) - Revised Bid stealing the lead!
-        var t201Item1 = t201.Items.First(i => i.LineNumber == 1);
-        var t201Item2 = t201.Items.First(i => i.LineNumber == 2);
-
-        var origBid1 = await context.Bids.FirstOrDefaultAsync(b => b.BidNumber == "BID-2026-00201-R1");
-        if (origBid1 == null)
-        {
-            origBid1 = new Bid
-            {
-                BidNumber = "BID-2026-00201-R1",
-                TenderId = t201.Id,
-                SupplierCompanyId = Supplier1CompanyId,
-                Status = BidStatus.Superseded,
-                TotalAmount = 7350000m,
-                Currency = "EGP",
-                ValidityDateUtc = DateTimeOffset.UtcNow.AddDays(15),
-                DeliveryLeadTimeDays = 7,
-                ShippingIncluded = true,
-                PaymentTerms = "اعتماد مستندي أو سداد بنكي 50% مقدم و 50% عند الفحص",
-                Notes = "العطاء الأولي من الأهرام للصلب.",
-                SubmittedAtUtc = DateTimeOffset.UtcNow.AddDays(-2),
-                RevisionNumber = 1
-            };
-            origBid1.Items.Add(new BidItem { TenderItemId = t201Item1.Id, UnitPrice = 38000m, Quantity = 150, TotalPrice = 5700000m, Notes = "B500D مصري مطابق" });
-            origBid1.Items.Add(new BidItem { TenderItemId = t201Item2.Id, UnitPrice = 33000m, Quantity = 50, TotalPrice = 1650000m, Notes = "بيليت 150 مم صب مستمر" });
-            context.Bids.Add(origBid1);
-            await context.SaveChangesAsync();
-
-            // Bid 1 Revision 2 (Active Leader: 7,100,000 EGP!)
-            var revBid1 = new Bid
-            {
-                BidNumber = "BID-2026-00201-A",
-                TenderId = t201.Id,
-                SupplierCompanyId = Supplier1CompanyId,
-                OriginalBidId = origBid1.Id,
-                RevisionNumber = 2,
-                Status = BidStatus.Submitted,
-                TotalAmount = 7100000m, // Lowest Active Bid!
-                Currency = "EGP",
-                ValidityDateUtc = DateTimeOffset.UtcNow.AddDays(15),
-                DeliveryLeadTimeDays = 5,
-                ShippingIncluded = true,
-                PaymentTerms = "سداد بنكي بعد الفحص والاستلام بموقع العاشر",
-                Notes = "عطاء منافس مخفض في جولة المزايدة العكسية لانتزاع الصدارة.",
-                ChangeSummary = "تخفيض سعر طن التسليح إلى 37,000 ج.م وسعر البيليت إلى 31,000 ج.م مع تقليص مدة التوريد إلى 5 أيام.",
-                SubmittedAtUtc = DateTimeOffset.UtcNow.AddDays(-1)
-            };
-            revBid1.Items.Add(new BidItem { TenderItemId = t201Item1.Id, UnitPrice = 37000m, Quantity = 150, TotalPrice = 5550000m, Notes = "B500D مصري معتمد" });
-            revBid1.Items.Add(new BidItem { TenderItemId = t201Item2.Id, UnitPrice = 31000m, Quantity = 50, TotalPrice = 1550000m, Notes = "بيليت 150 مم صب مستمر" });
-            context.Bids.Add(revBid1);
-        }
-
-        // Bid 2 (Supplier 6: Alexandria Dual Enterprise) - Competing Bid (7,250,000 EGP)
-        if (!await context.Bids.AnyAsync(b => b.BidNumber == "BID-2026-00201-B"))
-        {
-            var bid2 = new Bid
-            {
-                BidNumber = "BID-2026-00201-B",
-                TenderId = t201.Id,
-                SupplierCompanyId = DualCompanyId,
-                Status = BidStatus.Submitted,
-                TotalAmount = 7250000m,
-                Currency = "EGP",
-                ValidityDateUtc = DateTimeOffset.UtcNow.AddDays(12),
-                DeliveryLeadTimeDays = 6,
-                ShippingIncluded = true,
-                PaymentTerms = "سداد 100% خلال 14 يوماً من الاستلام",
-                Notes = "عطاء توريد منافس من شركة الإسكندرية المشتركة.",
-                SubmittedAtUtc = DateTimeOffset.UtcNow.AddDays(-1).AddHours(2),
-                RevisionNumber = 1
-            };
-            bid2.Items.Add(new BidItem { TenderItemId = t201Item1.Id, UnitPrice = 37500m, Quantity = 150, TotalPrice = 5625000m, Notes = "حديد تسليح B500D معتمد" });
-            bid2.Items.Add(new BidItem { TenderItemId = t201Item2.Id, UnitPrice = 32500m, Quantity = 50, TotalPrice = 1625000m, Notes = "بيليت صلب درفلة" });
-            context.Bids.Add(bid2);
-        }
-
-        // Bid 3 (Withdrawn Bid by Supplier 2)
-        if (!await context.Bids.AnyAsync(b => b.BidNumber == "BID-2026-00201-C"))
-        {
-            var bid3 = new Bid
-            {
-                BidNumber = "BID-2026-00201-C",
-                TenderId = t201.Id,
-                SupplierCompanyId = Supplier2CompanyId,
-                Status = BidStatus.Withdrawn,
-                TotalAmount = 7500000m,
-                Currency = "EGP",
-                ValidityDateUtc = DateTimeOffset.UtcNow.AddDays(10),
-                DeliveryLeadTimeDays = 12,
-                ShippingIncluded = false,
-                PaymentTerms = "سداد نقدي",
-                Notes = "تم الانسحاب رسمياً لتغير تكلفة مدخلات الإنتاج.",
-                SubmittedAtUtc = DateTimeOffset.UtcNow.AddDays(-2).AddHours(2),
-                WithdrawnAtUtc = DateTimeOffset.UtcNow.AddDays(-1).AddHours(6),
-                WithdrawalReason = "تذبذب أسعار الخامات العالمية وعدم التمكن من تثبيت سعر الصرف للشحن البحري.",
-                RevisionNumber = 1
-            };
-            bid3.Items.Add(new BidItem { TenderItemId = t201Item1.Id, UnitPrice = 39000m, Quantity = 150, TotalPrice = 5850000m, Notes = "صلب تسليح" });
-            bid3.Items.Add(new BidItem { TenderItemId = t201Item2.Id, UnitPrice = 33000m, Quantity = 50, TotalPrice = 1650000m, Notes = "بيليت درفلة" });
-            context.Bids.Add(bid3);
-        }
-
-        // 2. TENDER 202: Awarded Tender (Led to Deal 2026-0051)
-        var t202 = await context.Tenders.Include(t => t.Items).Include(t => t.Bids).FirstOrDefaultAsync(t => t.TenderNumber == "TND-2026-00202");
-        if (t202 == null)
-        {
-            t202 = new Tender
-            {
-                TenderNumber = "TND-2026-00202",
-                BuyerCompanyId = DualCompanyId,
-                Title = "مناقصة توريد 60 طن غزل قطن ممشط جيزة 94 لمصانع برج العرب (تمت الترسية)",
-                Description = "مناقصة لتوريد غزل قطني ممتاز، تم استلام العطاءات وترسيتها على العطاء الأفضل فنياً ومالياً.",
-                Status = TenderStatus.Awarded,
-                DeliveryGovernorate = "الإسكندرية",
-                DeliveryCity = "برج العرب",
-                DeliveryAddress = "مجمع النسيج، برج العرب الجديدة",
-                TargetCategoryId = textilesCategory?.Id,
-                RequiredDeliveryDateUtc = DateTimeOffset.UtcNow.AddDays(15),
-                ClosingDateUtc = DateTimeOffset.UtcNow.AddDays(-3),
-                PublishedAtUtc = DateTimeOffset.UtcNow.AddDays(-14),
-                ReferencePrice = 6000000m,
-                Currency = "EGP",
-                AwardedAtUtc = DateTimeOffset.UtcNow.AddDays(-2),
-                AwardedByUserId = DualUserId,
-                AwardRationale = "تمت الترسية على شركة المحلة للغزول لتقديمها أقل سعر مطابق للمواصفة القياسية مع شهادة فحص الجودة Uster."
-            };
-            var t202Item = new TenderItem { CategoryId = textilesCategory!.Id, MaterialId = cottonYarn?.Id, MaterialName = "غزل قطن مصري جيزة 94 ممشط 30/1", Specifications = "كونات معقمة معيار Uster 5%", Quantity = 60, Unit = MaterialUnit.MetricTon, UnitOfMeasureId = tonUnit!.Id, LineNumber = 1 };
-            t202.Items.Add(t202Item);
-
-            var winningBid = new Bid
-            {
-                BidNumber = "BID-2026-00202-WIN",
-                Tender = t202,
-                SupplierCompanyId = Supplier2CompanyId,
-                Status = BidStatus.Accepted,
-                TotalAmount = 5700000m,
-                Currency = "EGP",
-                ValidityDateUtc = DateTimeOffset.UtcNow.AddDays(10),
-                DeliveryLeadTimeDays = 7,
-                ShippingIncluded = true,
-                PaymentTerms = "اعتماد مستندي بنكي معزز",
-                Notes = "العطاء الفائز بمناقصة توريد الغزل.",
-                SubmittedAtUtc = DateTimeOffset.UtcNow.AddDays(-8),
-                AcceptedAtUtc = DateTimeOffset.UtcNow.AddDays(-2),
-                RevisionNumber = 1
-            };
-            winningBid.Items.Add(new BidItem { TenderItem = t202Item, UnitPrice = 95000m, Quantity = 60, TotalPrice = 5700000m, Notes = "غزل قطن مصري مطابق 100%" });
-            t202.Bids.Add(winningBid);
-
-            context.Tenders.Add(t202);
-            await context.SaveChangesAsync();
-
-            t202.AwardedBidId = winningBid.Id;
-            await context.SaveChangesAsync();
-        }
-
-        // 3. TENDER 203: Closed Tender (Evaluating bids)
-        if (!await context.Tenders.AnyAsync(t => t.TenderNumber == "TND-2026-00203"))
-        {
-            var t203 = new Tender
-            {
-                TenderNumber = "TND-2026-00203",
-                BuyerCompanyId = Buyer2CompanyId,
-                Title = "مناقصة توريد 100 طن سكر نقي وزيوت صناعية لمصانع أكتوبر (مغلقة - قيد التقييم)",
-                Description = "انتهت فترة تقديم العطاءات وحالياً تجري لجنة المشتريات تقييم عروض التوريد.",
-                Status = TenderStatus.Closed,
-                DeliveryGovernorate = "الجيزة",
-                DeliveryCity = "السادس من أكتوبر",
-                DeliveryAddress = "المنطقة الصناعية الأولى، أكتوبر",
-                TargetCategoryId = foodCategory?.Id,
-                ClosingDateUtc = DateTimeOffset.UtcNow.AddDays(-1),
-                PublishedAtUtc = DateTimeOffset.UtcNow.AddDays(-10),
-                ReferencePrice = 3500000m,
-                Currency = "EGP"
-            };
-            t203.Items.Add(new TenderItem { CategoryId = foodCategory!.Id, MaterialId = refinedSugar?.Id, MaterialName = "سكر أبيض مكرر 50 كجم", Specifications = "ICUMSA 45", Quantity = 100, Unit = MaterialUnit.MetricTon, UnitOfMeasureId = tonUnit!.Id, LineNumber = 1 });
-            context.Tenders.Add(t203);
-        }
-
-        // 4. TENDER 204: NoAward Tender (Bids exceeded reference budget)
-        if (!await context.Tenders.AnyAsync(t => t.TenderNumber == "TND-2026-00204"))
-        {
-            var t204 = new Tender
-            {
-                TenderNumber = "TND-2026-00204",
-                BuyerCompanyId = Buyer1CompanyId,
-                Title = "مناقصة توريد قطاعات صلب ثقيلة مستوردة (عدم ترسية - تجاوز الميزانية)",
-                Description = "تقرر إلغاء الترسية نظراً لتجاوز جميع العروض المقدمة الميزانية التقديرية المعتمدة للمشروع.",
-                Status = TenderStatus.NoAward,
-                DeliveryGovernorate = "الشرقية",
-                DeliveryCity = "العاشر من رمضان",
-                DeliveryAddress = "موقع العاشر",
-                TargetCategoryId = metalsCategory?.Id,
-                ClosingDateUtc = DateTimeOffset.UtcNow.AddDays(-8),
-                PublishedAtUtc = DateTimeOffset.UtcNow.AddDays(-20),
-                ReferencePrice = 2800000m,
-                Currency = "EGP",
-                AwardRationale = "جميع العروض المقدمة تجاوزت السعر المرجعي المعتمد بنسبة تزيد عن 25%، وسيتم إعادة طرح المناقصة بمواصفات معدلة."
-            };
-            t204.Items.Add(new TenderItem { CategoryId = metalsCategory!.Id, MaterialName = "كمرات صلب ثقيلة HEB", Specifications = "صلب أوروبي مستورد", Quantity = 40, Unit = MaterialUnit.MetricTon, UnitOfMeasureId = tonUnit!.Id, LineNumber = 1 });
-            context.Tenders.Add(t204);
-        }
-
-        // 5. TENDER 205: Cancelled Tender
-        if (!await context.Tenders.AnyAsync(t => t.TenderNumber == "TND-2026-00205"))
-        {
-            var t205 = new Tender
-            {
-                TenderNumber = "TND-2026-00205",
-                BuyerCompanyId = Buyer2CompanyId,
-                Title = "مناقصة توريد 50 طن نشا ذرة غذائي (ملغاة من المشتري)",
-                Description = "تم إلغاء المناقصة من قِبل إدارة المشتريات لتأجيل تشغيل خط الإنتاج المخصص.",
-                Status = TenderStatus.Cancelled,
-                DeliveryGovernorate = "الجيزة",
-                DeliveryCity = "السادس من أكتوبر",
-                DeliveryAddress = "مجمع مصانع الأغذية بأكتوبر",
-                TargetCategoryId = foodCategory?.Id,
-                ClosingDateUtc = DateTimeOffset.UtcNow.AddDays(-4),
-                PublishedAtUtc = DateTimeOffset.UtcNow.AddDays(-12),
-                ReferencePrice = 1200000m,
-                Currency = "EGP",
-                CancelledAtUtc = DateTimeOffset.UtcNow.AddDays(-5),
-                CancelledByUserId = Buyer2UserId,
-                CancellationReason = "إعادة هيكلة خطوط الإنتاج الغذائي وتأجيل التشغيل إلى الربع الثاني من العام المالي."
-            };
-            t205.Items.Add(new TenderItem { CategoryId = foodCategory!.Id, MaterialName = "نشا ذرة غذائي معبأ", Specifications = "نقاوة 99.5%", Quantity = 50, Unit = MaterialUnit.MetricTon, UnitOfMeasureId = tonUnit!.Id, LineNumber = 1 });
-            context.Tenders.Add(t205);
-        }
-
-        await context.SaveChangesAsync();
-        logger.LogDebug("DemoDataSeeder: Tenders and reverse bidding scenarios seeded.");
-    }
 
     private static async Task SeedDealsAndPurchasesAsync(DealZoneDbContext context, ILogger logger)
     {
         var rfq105 = await context.Rfqs.FirstOrDefaultAsync(r => r.RfqNumber == "RFQ-2026-00105");
         var offer105 = await context.Offers.FirstOrDefaultAsync(o => o.OfferNumber == "OFF-2026-00105");
-        var tender202 = await context.Tenders.FirstOrDefaultAsync(t => t.TenderNumber == "TND-2026-00202");
-        var bid202 = await context.Bids.FirstOrDefaultAsync(b => b.BidNumber == "BID-2026-00202-WIN");
+        var rfq102 = await context.Rfqs.FirstOrDefaultAsync(r => r.RfqNumber == "RFQ-2026-00102");
+        var offer103 = await context.Offers.FirstOrDefaultAsync(o => o.OfferNumber == "OFF-2026-00103");
         var catalogSugar = await context.CatalogProducts.FirstOrDefaultAsync(p => p.Sku == "SKU-FOOD-SUGAR-45");
 
-        // 1. Deal 1: Sourced from Tender 202 (AwaitingConfirmation - Tender Award)
+        // 1. Deal 1: Sourced from RFQ 102 (AwaitingConfirmation)
         if (!await context.Deals.AnyAsync(d => d.DealNumber == "DZ-DEAL-2026-0051"))
         {
             var deal1 = new Deal
             {
                 DealNumber = "DZ-DEAL-2026-0051",
-                Source = DealSource.Tender,
-                TenderId = tender202?.Id,
-                BidId = bid202?.Id,
-                BidRevisionNumber = 1,
-                BuyerCompanyId = DualCompanyId,
+                Source = DealSource.Rfq,
+                RfqId = rfq102?.Id,
+                OfferId = offer103?.Id,
+                OfferRevisionNumber = 2,
+                BuyerCompanyId = Buyer1CompanyId,
                 SupplierCompanyId = Supplier2CompanyId,
-                AgreedPrice = 5700000m,
+                AgreedPrice = 2425000m,
                 Currency = "EGP",
                 Status = DealStatus.AwaitingConfirmation,
                 DeliveryTerms = "تسليم مصانع المشتري ببرج العرب، شامل النقل والتفريغ والفحص المعملي.",
@@ -1650,10 +1314,10 @@ public static class DemoDataSeeder
                 CommercialTermsSnapshotJson = JsonSerializer.Serialize(new
                 {
                     item = "غزل قطن مصري جيزة 94 ممشط 30/1",
-                    quantity = "60 طن",
-                    unitPrice = "95,000 ج.م/طن",
-                    total = "5,700,000 ج.م",
-                    tenderNumber = "TND-2026-00202"
+                    quantity = "25 طن",
+                    unitPrice = "97,000 ج.م/طن",
+                    total = "2,425,000 ج.م",
+                    rfqNumber = "RFQ-2026-00102"
                 })
             };
             context.Deals.Add(deal1);
@@ -2100,18 +1764,18 @@ public static class DemoDataSeeder
             // Buyer Notifications
             Notification.Create(Buyer1UserId, NotificationType.OfferSubmitted, "عرض سعر جديد مستلم", "قدمت شركة الأهرام لتوريدات الصلب عرض سعر رسمي على طلب التسعير RFQ-2026-00101 بقيمة 4,560,000 ج.م.", "Rfq", Guid.Empty, "notif-b1-1", DateTimeOffset.UtcNow.AddDays(-1)),
             Notification.Create(Buyer1UserId, NotificationType.OfferSubmitted, "عرض سعر منافس مستلم", "قدمت شركة الإسكندرية للتجارة والتصنيع عرض سعر على طلب التسعير RFQ-2026-00101 بقيمة 4,584,000 ج.م.", "Rfq", Guid.Empty, "notif-b1-2", DateTimeOffset.UtcNow.AddHours(-18)),
-            Notification.Create(Buyer1UserId, NotificationType.BidSubmitted, "عطاء منافس جديد في المناقصة العكسية", "قدمت شركة الأهرام لتوريدات الصلب عطاءً مخفضاً بقيمة 7,100,000 ج.م لانتزاع الصدارة في مناقصة TND-2026-00201.", "Tender", Guid.Empty, "notif-b1-3", DateTimeOffset.UtcNow.AddHours(-12)),
+            Notification.Create(Buyer1UserId, NotificationType.OfferRevisionSubmitted, "تعديل عرض سعر مستلم", "قدمت شركة الأهرام لتوريدات الصلب تعديلاً مخفضاً على عرض السعر RFQ-2026-00101.", "Offer", Guid.Empty, "notif-b1-3", DateTimeOffset.UtcNow.AddHours(-12)),
             Notification.Create(Buyer1UserId, NotificationType.ShipmentStatusChanged, "تحديث تتبع الشحنة", "الشحنة رقم DZ-SHP-2026-00042 في طريقها الآن إلى موقع العاشر من رمضان عبر الطريق الدائري الأوسطي.", "Shipment", Guid.Empty, "notif-b1-4", DateTimeOffset.UtcNow.AddHours(-6)),
             Notification.Create(Buyer1UserId, NotificationType.DealDisputeOpened, "تسجيل نزاع تجاري", "تم تسجيل النزاع الفني رقم DSP-35 بخصوص نقص أوزان شحنة الزوايا الصناعية وجاري مراجعته من الإدارة.", "Dispute", Guid.Empty, "notif-b1-5", DateTimeOffset.UtcNow.AddDays(-3)),
 
             // Supplier Notifications
             Notification.Create(Supplier1UserId, NotificationType.RfqPublished, "طلب تسعير جديد مؤهل في قطاع المعادن", "طرحت الشركة المصرية للصناعات الهندسية طلب سعر جديد RFQ-2026-00101 لتوريد 120 طن حديد تسليح.", "Rfq", Guid.Empty, "notif-s1-1", DateTimeOffset.UtcNow.AddDays(-2)),
-            Notification.Create(Supplier1UserId, NotificationType.TenderPublished, "مناقصة عكسية جديدة متاحة للمزايدة", "تم فتح باب التقديم في مناقصة توريد 200 طن صلب تسليح وبيليت بميزانية تقديرية 7.5 مليون ج.م.", "Tender", Guid.Empty, "notif-s1-2", DateTimeOffset.UtcNow.AddDays(-3)),
+            Notification.Create(Supplier1UserId, NotificationType.RfqPublished, "فرصة توريد جديدة في قطاع النسيج", "طرحت شركة مصر للغزل طلب سعر جديد RFQ-2026-00102.", "Rfq", Guid.Empty, "notif-s1-2", DateTimeOffset.UtcNow.AddDays(-3)),
             Notification.Create(Supplier1UserId, NotificationType.DealStarted, "بدء تنفيذ الصفقة DZ-DEAL-2026-0042", "تم اعتماد الصفقة رسمياً وإسناد الشحن تمهيداً للتسليم بموقع المشتري.", "Deal", Guid.Empty, "notif-s1-3", DateTimeOffset.UtcNow.AddDays(-3)),
             Notification.Create(Supplier1UserId, NotificationType.ReviewReceived, "تقييم جديد 5 نجوم من المشتري!", "أضافت الشركة المصرية للصناعات الهندسية تقييماً ممتازاً (5/5) على الصفقة المكتملة DZ-DEAL-2026-0030.", "Review", Guid.Empty, "notif-s1-4", DateTimeOffset.UtcNow.AddDays(-9)),
 
             // Dual Enterprise Notifications
-            Notification.Create(DualUserId, NotificationType.TenderAwarded, "تمت ترسية المناقصة بنجاح", "تمت ترسية مناقصة الغزل TND-2026-00202 على شركة المحلة وجاري انتظار تأكيد الصفقة DZ-DEAL-2026-0051.", "Tender", Guid.Empty, "notif-d1-1", DateTimeOffset.UtcNow.AddDays(-2)),
+            Notification.Create(DualUserId, NotificationType.OfferAccepted, "تم قبول عرض السعر بنجاح", "تم قبول عرض السعر على طلب الغزل RFQ-2026-00102 وجاري انتظار تأكيد الصفقة DZ-DEAL-2026-0051.", "Offer", Guid.Empty, "notif-d1-1", DateTimeOffset.UtcNow.AddDays(-2)),
             Notification.Create(DualUserId, NotificationType.OfferRevisionSubmitted, "تعديل عرض سعر رسمي", "قدمت شركة المحلة للغزول تعديلاً مخفضاً على عرض السعر OFF-2026-00103 شامل تكاليف الشحن.", "Offer", Guid.Empty, "notif-d1-2", DateTimeOffset.UtcNow.AddDays(-1)),
 
             // Admin Notifications

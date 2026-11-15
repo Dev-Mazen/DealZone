@@ -30,15 +30,7 @@ import Badge from '../../components/ui/Badge'
 import { PageSpinner } from '../../components/ui/Spinner'
 import EmptyState from '../../components/ui/EmptyState'
 import { formatCurrency, formatDate } from '../../utils/format'
-
-const statusVariant = {
-  AwaitingConfirmation: 'warning',
-  Confirmed: 'info',
-  InProgress: 'cyan',
-  Disputed: 'error',
-  Completed: 'success',
-  Cancelled: 'error',
-}
+import { statusMeta } from '../../utils/statusLabels'
 
 const statusOptions = [
   { value: '', label: 'All Statuses', labelAr: 'جميع الحالات' },
@@ -348,15 +340,15 @@ export default function DealsListPage() {
           title={isAr ? 'لا توجد صفقات تجارية مطابقة' : 'No Deals Found'}
           description={
             isAr
-              ? 'تتشكل الصفقات الملزمة فور قبول أحد عروض الأسعار المقدمة في مناقصات التوريد.'
-              : 'Binding deals are atomically created upon accepting an industrial quote in open tenders.'
+              ? 'تتشكل الصفقات الملزمة فور قبول أحد عروض الأسعار المقدمة في طلبات التوريد أو المفاوضات.'
+              : 'Binding deals are atomically created upon accepting an industrial quote in open RFQs or negotiations.'
           }
           action={
             <Button as={Link} to="/rfqs" variant="primary">
               {roleFilter === 'supplier'
                 ? isAr
-                  ? 'استعراض مناقصات السوق المفتوحة'
-                  : 'Browse Open Market Tenders'
+                  ? 'استعراض طلبات عروض الأسعار المفتوحة'
+                  : 'Browse Open Market RFQs'
                 : isAr
                 ? 'إنشاء أو متابعة طلبات الأسعار'
                 : 'Browse Procurement RFQs'}
@@ -406,8 +398,8 @@ export default function DealsListPage() {
                         </h3>
                       </div>
 
-                      <Badge variant={statusVariant[deal.status] || 'info'}>
-                        {deal.status.replace(/([A-Z])/g, ' $1').trim()}
+                      <Badge variant={statusMeta('deal', deal.status, isAr).variant}>
+                        {statusMeta('deal', deal.status, isAr).label}
                       </Badge>
                     </div>
 
@@ -416,9 +408,13 @@ export default function DealsListPage() {
                       <div className="flex items-center gap-2">
                         <Building2 size={14} className="text-[#1266D6] shrink-0" />
                         <span className="text-slate-400">{counterpartyRole}:</span>
-                        <strong className="text-[#06245B] font-bold truncate">
+                        <Link
+                          to={isBuyerDeal ? `/suppliers/${deal.supplierCompanyId}` : `/buyers/${deal.buyerCompanyId}`}
+                          onClick={(e) => e.stopPropagation()}
+                          className="text-[#06245B] hover:text-[#1266D6] hover:underline font-bold truncate"
+                        >
                           {counterparty || 'Egyptian Industrial Enterprise'}
-                        </strong>
+                        </Link>
                       </div>
 
                       {deal.deliveryZone && (

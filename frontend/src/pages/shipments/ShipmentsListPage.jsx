@@ -95,13 +95,14 @@ export default function ShipmentsListPage() {
     } else if (isBuyerOnly && filterRole !== 'buyer') {
       setFilterRole('buyer')
     }
-  }, [isSupplierOnly, isBuyerOnly])
+  }, [isSupplierOnly, isBuyerOnly, filterRole])
 
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ['shipments', 'mine', { role: filterRole, status: statusFilter, pageNumber, pageSize }],
+    queryKey: ['shipments', 'mine', { role: filterRole, status: statusFilter, search: searchQuery.trim(), pageNumber, pageSize }],
     queryFn: () => shipmentService.getMine({
       role: filterRole === 'all' ? undefined : filterRole,
       status: statusFilter || undefined,
+      search: searchQuery.trim() || undefined,
       pageNumber,
       pageSize,
     }),
@@ -110,21 +111,7 @@ export default function ShipmentsListPage() {
   })
 
   const shipments = data?.items ?? []
-
-  const filteredShipments = useMemo(() => {
-    if (!searchQuery.trim()) return shipments
-    const q = searchQuery.toLowerCase().trim()
-    return shipments.filter((shp) => {
-      const matchTitle = (shp.materialTitle || '').toLowerCase().includes(q)
-      const matchNum = (shp.shipmentNumber || '').toLowerCase().includes(q)
-      const matchDeal = (shp.dealNumber || '').toLowerCase().includes(q)
-      const matchDest = (shp.destinationLocation || '').toLowerCase().includes(q)
-      const matchOrigin = (shp.originLocation || '').toLowerCase().includes(q)
-      const matchCarrier = (shp.carrierName || '').toLowerCase().includes(q)
-      const matchTracking = (shp.trackingNumber || '').toLowerCase().includes(q)
-      return matchTitle || matchNum || matchDeal || matchDest || matchOrigin || matchCarrier || matchTracking
-    })
-  }, [shipments, searchQuery])
+  const filteredShipments = shipments
 
   // Company onboarding wall check
   if (!hasCompany) {
@@ -251,7 +238,10 @@ export default function ShipmentsListPage() {
           <input
             type="text"
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => {
+              setSearchQuery(e.target.value)
+              setPageNumber(1)
+            }}
             placeholder={
               isAr
                 ? 'بحث برقم الشحنة، الخامة، الناقل، المنطقة...'

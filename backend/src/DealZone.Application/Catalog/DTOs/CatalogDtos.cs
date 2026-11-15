@@ -13,7 +13,8 @@ public record CategoryDto(
     int DisplayOrder,
     bool IsActive,
     bool IsArchived,
-    IReadOnlyList<CategoryDto> SubCategories);
+    IReadOnlyList<CategoryDto> SubCategories,
+    bool IsMarketplaceAllowed = false);
 
 public record CategorySummaryDto(
     Guid Id,
@@ -26,7 +27,7 @@ public record CategorySummaryDto(
 
 public record CreateCategoryRequest(
     Guid? ParentCategoryId,
-    string Code,
+    string? Code,
     string NameAr,
     string NameEn,
     string? DescriptionAr,
@@ -139,21 +140,25 @@ public record CatalogProductResponse(
     string Unit,
     Guid SupplierCompanyId,
     string SupplierCompanyName,
-    string Sku,
+    string? Sku,
     string NameAr,
-    string NameEn,
+    string? NameEn,
     string? DescriptionAr,
     string? DescriptionEn,
     string? Specifications,
     int PricingMode,
-    decimal UnitPrice,
+    decimal? UnitPrice,
     string Currency,
-    decimal AvailableQuantity,
+    decimal? AvailableQuantity,
     decimal MinimumOrderQuantity,
     int DeliveryLeadTimeDays,
     string? ImageUrlsJson,
     bool IsActive,
-    DateTimeOffset CreatedAtUtc);
+    DateTimeOffset CreatedAtUtc,
+    string? SupplierCity = null,
+    string? SupplierGovernorate = null,
+    bool SupplierIsVerified = false,
+    decimal SupplierRating = 0);
 
 [method: JsonConstructor]
 public record CreateCatalogProductRequest(
@@ -166,13 +171,14 @@ public record CreateCatalogProductRequest(
     string? DescriptionEn = null,
     string? Specifications = null,
     int PricingMode = 1,
-    decimal UnitPrice = 0,
+    decimal? UnitPrice = null,
     string? Currency = "EGP",
     string? Unit = "ton",
-    decimal AvailableQuantity = 0,
+    decimal? AvailableQuantity = null,
     decimal MinimumOrderQuantity = 1,
     int DeliveryLeadTimeDays = 7,
-    string? ImageUrlsJson = null)
+    string? ImageUrlsJson = null,
+    Guid? UnitId = null)
 {
     public CreateCatalogProductRequest(
         Guid materialId,
@@ -202,6 +208,7 @@ public record CreateCatalogProductRequest(
             availableQuantity,
             minimumOrderQuantity,
             deliveryLeadTimeDays,
+            null,
             null)
     {
     }
@@ -215,14 +222,15 @@ public record UpdateCatalogProductRequest(
     string? DescriptionEn = null,
     string? Specifications = null,
     int PricingMode = 1,
-    decimal UnitPrice = 0,
+    decimal? UnitPrice = null,
     string? Currency = "EGP",
     string? Unit = "ton",
-    decimal AvailableQuantity = 0,
+    decimal? AvailableQuantity = null,
     decimal MinimumOrderQuantity = 1,
     int DeliveryLeadTimeDays = 7,
     string? ImageUrlsJson = null,
-    bool IsActive = true)
+    bool IsActive = true,
+    Guid? UnitId = null)
 {
     public UpdateCatalogProductRequest(
         string nameAr,
@@ -249,7 +257,8 @@ public record UpdateCatalogProductRequest(
             minimumOrderQuantity,
             deliveryLeadTimeDays,
             null,
-            isActive)
+            isActive,
+            null)
     {
     }
 }
@@ -264,6 +273,10 @@ public record CatalogProductFilter(
     int PageNumber = 1,
     int PageSize = 20,
     string? SortBy = null,
-    bool SortDescending = false);
+    bool SortDescending = false,
+    string? Q = null)
+{
+    public string? EffectiveSearchTerm => !string.IsNullOrWhiteSpace(SearchTerm) ? SearchTerm : Q;
+}
 
 

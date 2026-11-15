@@ -1,4 +1,5 @@
 using DealZone.Application.Rfqs.DTOs;
+using DealZone.Domain.Common;
 using FluentValidation;
 
 namespace DealZone.Application.Rfqs.Validators;
@@ -43,6 +44,7 @@ public class CreateRfqRequestValidator : AbstractValidator<CreateRfqRequest>
 
         RuleFor(x => x.DeliveryGovernorate)
             .NotEmpty().WithMessage("Delivery governorate is required.")
+            .Must(EgyptGovernorates.IsValid).WithMessage("Delivery governorate must be a valid Egyptian governorate.")
             .MaximumLength(100).WithMessage("Governorate must not exceed 100 characters.");
 
         RuleFor(x => x.DeliveryCity)
@@ -117,6 +119,7 @@ public class UpdateRfqRequestValidator : AbstractValidator<UpdateRfqRequest>
 
         RuleFor(x => x.DeliveryGovernorate)
             .NotEmpty().WithMessage("Delivery governorate is required.")
+            .Must(EgyptGovernorates.IsValid).WithMessage("Delivery governorate must be a valid Egyptian governorate.")
             .MaximumLength(100).WithMessage("Governorate must not exceed 100 characters.");
 
         RuleFor(x => x.DeliveryCity)

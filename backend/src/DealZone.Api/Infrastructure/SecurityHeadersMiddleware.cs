@@ -1,3 +1,4 @@
+
 namespace DealZone.Api.Infrastructure;
 
 public class SecurityHeadersMiddleware
@@ -15,8 +16,22 @@ public class SecurityHeadersMiddleware
         context.Response.Headers.Append("X-Frame-Options", "DENY");
         context.Response.Headers.Append("Referrer-Policy", "strict-origin-when-cross-origin");
         context.Response.Headers.Append("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
-        context.Response.Headers.Append("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none';");
         context.Response.Headers.Append("X-Permitted-Cross-Domain-Policies", "none");
+
+        if (context.Request.Path.StartsWithSegments("/swagger", StringComparison.OrdinalIgnoreCase))
+        {
+            context.Response.Headers.Append(
+                "Content-Security-Policy",
+                "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none';"
+            );
+        }
+        else
+        {
+            context.Response.Headers.Append(
+                "Content-Security-Policy",
+                "default-src 'none'; frame-ancestors 'none';"
+            );
+        }
 
         if (context.Request.Path.StartsWithSegments("/api/v1/auth", StringComparison.OrdinalIgnoreCase))
         {

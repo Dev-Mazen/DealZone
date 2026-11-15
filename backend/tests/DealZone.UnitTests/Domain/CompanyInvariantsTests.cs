@@ -49,5 +49,32 @@ public class CompanyInvariantsTests
         Assert.False(approvedButInactiveCompany.CanPerformCommercialActivities);
         Assert.False(approvedButDeletedCompany.CanPerformCommercialActivities);
     }
+
+    [Fact]
+    public void CompanyType_ShouldNotHaveDefaultBuyer_AndRequiresExplicitAssignment()
+    {
+        var company = new Company();
+        Assert.Equal((CompanyType)0, company.CompanyType);
+
+        company.CompanyType = CompanyType.Buyer;
+        Assert.True(company.HasBuyerCapability());
+        Assert.False(company.HasSupplierCapability());
+
+        company.CompanyType = CompanyType.Supplier;
+        Assert.False(company.HasBuyerCapability());
+        Assert.True(company.HasSupplierCapability());
+    }
+
+    [Fact]
+    public void CompanyCapabilityExtensions_ThrowAppropriateExceptions()
+    {
+        var buyer = new Company { CompanyType = CompanyType.Buyer };
+        buyer.AssertCanOperateAsBuyer();
+        Assert.Throws<DealZone.Domain.Exceptions.ForbiddenException>(() => buyer.AssertCanOperateAsSupplier());
+
+        var supplier = new Company { CompanyType = CompanyType.Supplier };
+        supplier.AssertCanOperateAsSupplier();
+        Assert.Throws<DealZone.Domain.Exceptions.ForbiddenException>(() => supplier.AssertCanOperateAsBuyer());
+    }
 }
 

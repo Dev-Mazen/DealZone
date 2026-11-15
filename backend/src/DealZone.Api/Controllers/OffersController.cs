@@ -28,6 +28,7 @@ public class OffersController : ApiControllerBase
     /// Accessible to the owning supplier or the owning buyer of the RFQ.
     /// </summary>
     [HttpGet("{id:guid}")]
+    [Authorize(Policy = "VerifiedCompany")]
     public async Task<IActionResult> GetOfferById(Guid id, CancellationToken cancellationToken)
     {
         var response = await _offerService.GetOfferByIdAsync(id, cancellationToken);
@@ -38,6 +39,7 @@ public class OffersController : ApiControllerBase
     /// List all offers submitted across RFQs by the current authenticated supplier company.
     /// </summary>
     [HttpGet("mine")]
+    [Authorize(Policy = "SupplierCompany")]
     public async Task<IActionResult> GetMyOffers(
         [FromQuery] OfferFilter filter,
         CancellationToken cancellationToken)
@@ -50,6 +52,7 @@ public class OffersController : ApiControllerBase
     /// List all offers received across RFQs published by the current authenticated buyer company.
     /// </summary>
     [HttpGet("received")]
+    [Authorize(Policy = "BuyerCompany")]
     public async Task<IActionResult> GetReceivedOffers(
         [FromQuery] OfferFilter filter,
         CancellationToken cancellationToken)
@@ -62,6 +65,7 @@ public class OffersController : ApiControllerBase
     /// Submit a new immutable revision of an existing offer, superseding the previous version.
     /// </summary>
     [HttpPost("{id:guid}/revise")]
+    [Authorize(Policy = "SupplierSales")]
     public async Task<IActionResult> ReviseOffer(
         Guid id,
         [FromBody] ReviseOfferRequest request,
@@ -78,6 +82,7 @@ public class OffersController : ApiControllerBase
     /// Accessible to the owning supplier or the owning buyer.
     /// </summary>
     [HttpGet("{id:guid}/revisions")]
+    [Authorize(Policy = "VerifiedCompany")]
     public async Task<IActionResult> GetOfferRevisions(Guid id, CancellationToken cancellationToken)
     {
         var response = await _offerService.GetOfferRevisionsAsync(id, cancellationToken);
@@ -89,6 +94,7 @@ public class OffersController : ApiControllerBase
     /// Atomically rejects competing offers and closes the RFQ. Restricted to the owning buyer.
     /// </summary>
     [HttpPost("{id:guid}/accept")]
+    [Authorize(Policy = "BuyerProcurement")]
     public async Task<IActionResult> AcceptOffer(
         Guid id,
         [FromBody] AcceptOfferRequest? request,
@@ -102,6 +108,7 @@ public class OffersController : ApiControllerBase
     /// Reject a submitted offer. Restricted to the owning buyer.
     /// </summary>
     [HttpPost("{id:guid}/reject")]
+    [Authorize(Policy = "BuyerProcurement")]
     public async Task<IActionResult> RejectOffer(
         Guid id,
         [FromBody] RejectOfferRequest request,
@@ -118,6 +125,7 @@ public class OffersController : ApiControllerBase
     /// Restricted to the owning supplier company.
     /// </summary>
     [HttpPost("{id:guid}/withdraw")]
+    [Authorize(Policy = "SupplierSales")]
     public async Task<IActionResult> WithdrawOffer(
         Guid id,
         [FromBody] WithdrawOfferRequest? request,

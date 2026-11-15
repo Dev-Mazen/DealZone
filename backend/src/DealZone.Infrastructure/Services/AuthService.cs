@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using DealZone.Application.Auth.DTOs;
 using DealZone.Application.Common.Interfaces;
 using DealZone.Domain.Exceptions;
@@ -37,6 +39,22 @@ public class AuthService : IAuthService
         _jwtSettings = jwtSettings.Value;
     }
 
+    private string ComputeCodeHash(string code)
+    {
+        using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(_jwtSettings.SecretKey));
+        var hashBytes = hmac.ComputeHash(Encoding.UTF8.GetBytes(code));
+        return Convert.ToHexString(hashBytes).ToLowerInvariant();
+    }
+
+    private static string GenerateLinkToken()
+    {
+        var bytes = RandomNumberGenerator.GetBytes(32);
+        return Convert.ToBase64String(bytes)
+            .Replace("+", "-")
+            .Replace("/", "_")
+            .TrimEnd('=');
+    }
+
     public async Task<RegisterResponse> RegisterAsync(RegisterRequest request, CancellationToken cancellationToken = default)
     {
         var emailLower = request.Email.Trim().ToLowerInvariant();
@@ -47,31 +65,49 @@ public class AuthService : IAuthService
             throw new ConflictException($"A user with email '{request.Email}' already exists.");
         }
 
-        var (rawToken, tokenHash) = _tokenGenerator.GenerateRefreshToken();
+        var code = RandomNumberGenerator.GetInt32(100000, 1000000).ToString("D6");
+        var codeHash = ComputeCodeHash(code);
+        var linkToken = GenerateLinkToken();
+        var linkTokenHash = _tokenGenerator.HashToken(linkToken);
 
         var user = new User
         {
             Email = emailLower,
             FullName = request.FullName.Trim(),
             PhoneNumber = request.PhoneNumber?.Trim(),
+            PreferredLanguage = string.Equals(request.PreferredLanguage, "en", StringComparison.OrdinalIgnoreCase) ? "en" : "ar",
             IsActive = true,
             IsEmailConfirmed = false,
-            EmailConfirmationTokenHash = tokenHash,
+            EmailConfirmationTokenHash = linkTokenHash,
             EmailConfirmationExpiresAtUtc = _dateTimeProvider.UtcNow.AddHours(24),
             CreatedAtUtc = _dateTimeProvider.UtcNow
         };
 
         user.PasswordHash = _passwordHasher.HashPassword(user, request.Password);
-
         _context.Users.Add(user);
+
+        var verification = new EmailVerification
+        {
+            UserId = user.Id,
+            User = user,
+            CodeHash = codeHash,
+            LinkTokenHash = linkTokenHash,
+            ExpiresAtUtc = _dateTimeProvider.UtcNow.AddHours(24),
+            CodeExpiresAtUtc = _dateTimeProvider.UtcNow.AddMinutes(15),
+            Attempts = 0,
+            CreatedAtUtc = _dateTimeProvider.UtcNow
+        };
+        _context.EmailVerifications.Add(verification);
+
         await _context.SaveChangesAsync(cancellationToken);
 
         try
         {
-            await _emailService.SendEmailConfirmationAsync(user.Email, rawToken, cancellationToken);
+            await _emailService.SendEmailConfirmationAsync(user.Email, code, linkToken, user.PreferredLanguage, cancellationToken);
         }
         catch (EmailDeliveryException)
         {
+            _context.EmailVerifications.Remove(verification);
             _context.Users.Remove(user);
             await _context.SaveChangesAsync(CancellationToken.None);
             throw;
@@ -237,8 +273,19 @@ public class AuthService : IAuthService
 
     public async Task ConfirmEmailAsync(ConfirmEmailRequest request, CancellationToken cancellationToken = default)
     {
-        var emailLower = request.Email.Trim().ToLowerInvariant();
+        var rawToken = request.Token.Trim();
+        if (rawToken.Length == 6 && rawToken.All(char.IsDigit))
+        {
+            await ConfirmEmailCodeAsync(new ConfirmEmailCodeRequest(request.Email, rawToken), cancellationToken);
+            return;
+        }
 
+        await ConfirmEmailLinkAsync(new ConfirmEmailLinkRequest(rawToken), cancellationToken);
+    }
+
+    public async Task ConfirmEmailCodeAsync(ConfirmEmailCodeRequest request, CancellationToken cancellationToken = default)
+    {
+        var emailLower = request.Email.Trim().ToLowerInvariant();
         var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == emailLower, cancellationToken);
         if (user == null)
         {
@@ -250,15 +297,41 @@ public class AuthService : IAuthService
             return;
         }
 
-        var tokenHash = _tokenGenerator.HashToken(request.Token);
+        var now = _dateTimeProvider.UtcNow;
+        var verification = await _context.EmailVerifications
+            .Where(ev => ev.UserId == user.Id && ev.ConsumedAtUtc == null)
+            .OrderByDescending(ev => ev.CreatedAtUtc)
+            .FirstOrDefaultAsync(cancellationToken);
 
-        if (user.EmailConfirmationTokenHash != tokenHash ||
-            user.EmailConfirmationExpiresAtUtc == null ||
-            user.EmailConfirmationExpiresAtUtc < _dateTimeProvider.UtcNow)
+        if (verification == null)
         {
-            throw new DomainException("Invalid or expired email confirmation token.");
+            throw new DomainException("Invalid or expired verification code.");
         }
 
+        if (verification.Attempts >= 5)
+        {
+            throw new DomainException("Too many invalid attempts. This verification code has been locked. Please request a new code.");
+        }
+
+        if (now > verification.CodeExpiresAtUtc)
+        {
+            throw new DomainException("Verification code has expired. Please request a new code.");
+        }
+
+        var inputHash = ComputeCodeHash(request.Code.Trim());
+        var isMatch = CryptographicOperations.FixedTimeEquals(
+            Encoding.UTF8.GetBytes(inputHash),
+            Encoding.UTF8.GetBytes(verification.CodeHash));
+
+        if (!isMatch)
+        {
+            verification.Attempts++;
+            await _context.SaveChangesAsync(cancellationToken);
+            var remaining = Math.Max(0, 5 - verification.Attempts);
+            throw new DomainException($"Invalid verification code. {remaining} attempt(s) remaining.");
+        }
+
+        verification.ConsumedAtUtc = now;
         user.IsEmailConfirmed = true;
         user.EmailConfirmationTokenHash = null;
         user.EmailConfirmationExpiresAtUtc = null;
@@ -266,20 +339,123 @@ public class AuthService : IAuthService
         await _context.SaveChangesAsync(cancellationToken);
     }
 
-    public async Task ResendConfirmationAsync(ResendConfirmationRequest request, CancellationToken cancellationToken = default)
+    public async Task ConfirmEmailLinkAsync(ConfirmEmailLinkRequest request, CancellationToken cancellationToken = default)
     {
-        var emailLower = request.Email.Trim().ToLowerInvariant();
+        var tokenHash = _tokenGenerator.HashToken(request.Token.Trim());
+        var now = _dateTimeProvider.UtcNow;
 
-        var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == emailLower, cancellationToken);
-        if (user != null && !user.IsEmailConfirmed)
+        var verification = await _context.EmailVerifications
+            .Include(ev => ev.User)
+            .FirstOrDefaultAsync(ev => ev.LinkTokenHash == tokenHash && ev.ConsumedAtUtc == null, cancellationToken);
+
+        if (verification != null)
         {
-            var (rawToken, tokenHash) = _tokenGenerator.GenerateRefreshToken();
-            user.EmailConfirmationTokenHash = tokenHash;
-            user.EmailConfirmationExpiresAtUtc = _dateTimeProvider.UtcNow.AddHours(24);
+            if (now > verification.ExpiresAtUtc)
+            {
+                throw new DomainException("This confirmation link has expired. Please request a new one.");
+            }
+
+            verification.ConsumedAtUtc = now;
+            verification.User.IsEmailConfirmed = true;
+            verification.User.EmailConfirmationTokenHash = null;
+            verification.User.EmailConfirmationExpiresAtUtc = null;
 
             await _context.SaveChangesAsync(cancellationToken);
-            await _emailService.SendEmailConfirmationAsync(user.Email, rawToken, cancellationToken);
+            return;
         }
+
+        // Direct user fallback
+        var user = await _context.Users.FirstOrDefaultAsync(u => u.EmailConfirmationTokenHash == tokenHash, cancellationToken);
+        if (user != null)
+        {
+            if (user.EmailConfirmationExpiresAtUtc.HasValue && user.EmailConfirmationExpiresAtUtc < now)
+            {
+                throw new DomainException("This confirmation link has expired. Please request a new one.");
+            }
+
+            user.IsEmailConfirmed = true;
+            user.EmailConfirmationTokenHash = null;
+            user.EmailConfirmationExpiresAtUtc = null;
+            await _context.SaveChangesAsync(cancellationToken);
+            return;
+        }
+
+        throw new DomainException("Invalid or expired email confirmation link.");
+    }
+
+    public async Task ResendConfirmationAsync(ResendConfirmationRequest request, CancellationToken cancellationToken = default)
+    {
+        await ResendConfirmationAsync(request, null, cancellationToken);
+    }
+
+    public async Task ResendConfirmationAsync(ResendConfirmationRequest request, string? ipAddress = null, CancellationToken cancellationToken = default)
+    {
+        var emailLower = request.Email.Trim().ToLowerInvariant();
+        var now = _dateTimeProvider.UtcNow;
+
+        var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == emailLower, cancellationToken);
+        if (user == null || user.IsEmailConfirmed)
+        {
+            // Enumeration safe response: silently succeed
+            return;
+        }
+
+        // 60-second cooldown per user
+        var latestVerification = await _context.EmailVerifications
+            .Where(ev => ev.UserId == user.Id)
+            .OrderByDescending(ev => ev.CreatedAtUtc)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (latestVerification != null && (now - latestVerification.CreatedAtUtc).TotalSeconds < 60)
+        {
+            var remaining = 60 - (int)(now - latestVerification.CreatedAtUtc).TotalSeconds;
+            throw new DomainException($"Please wait {remaining} seconds before requesting a new confirmation code.");
+        }
+
+        // Hourly limit (max 5 per user)
+        var hourlyCount = await _context.EmailVerifications
+            .CountAsync(ev => ev.UserId == user.Id && ev.CreatedAtUtc >= now.AddHours(-1), cancellationToken);
+
+        if (hourlyCount >= 5)
+        {
+            throw new DomainException("Maximum verification requests exceeded for this hour. Please try again later.");
+        }
+
+        // Invalidate prior unconsumed verifications
+        var unconsumed = await _context.EmailVerifications
+            .Where(ev => ev.UserId == user.Id && ev.ConsumedAtUtc == null)
+            .ToListAsync(cancellationToken);
+
+        foreach (var old in unconsumed)
+        {
+            old.ConsumedAtUtc = now;
+        }
+
+        var code = RandomNumberGenerator.GetInt32(100000, 1000000).ToString("D6");
+        var codeHash = ComputeCodeHash(code);
+        var linkToken = GenerateLinkToken();
+        var linkTokenHash = _tokenGenerator.HashToken(linkToken);
+
+        var verification = new EmailVerification
+        {
+            UserId = user.Id,
+            User = user,
+            CodeHash = codeHash,
+            LinkTokenHash = linkTokenHash,
+            ExpiresAtUtc = now.AddHours(24),
+            CodeExpiresAtUtc = now.AddMinutes(15),
+            Attempts = 0,
+            CreatedAtUtc = now,
+            IpAddress = ipAddress
+        };
+
+        user.EmailConfirmationTokenHash = linkTokenHash;
+        user.EmailConfirmationExpiresAtUtc = verification.ExpiresAtUtc;
+
+        _context.EmailVerifications.Add(verification);
+        await _context.SaveChangesAsync(cancellationToken);
+
+        await _emailService.SendEmailConfirmationAsync(user.Email, code, linkToken, user.PreferredLanguage, cancellationToken);
     }
 
     public async Task ForgotPasswordAsync(ForgotPasswordRequest request, CancellationToken cancellationToken = default)
@@ -376,7 +552,8 @@ public class AuthService : IAuthService
             user.PhoneNumber,
             user.IsEmailConfirmed,
             user.IsSystemAdmin,
-            companyDto);
+            companyDto,
+            user.PreferredLanguage ?? "ar");
     }
 
     public async Task<UserProfileResponse> UpdateUserProfileAsync(
@@ -397,6 +574,11 @@ public class AuthService : IAuthService
 
         user.FullName = request.FullName.Trim();
         user.PhoneNumber = string.IsNullOrWhiteSpace(request.PhoneNumber) ? null : request.PhoneNumber.Trim();
+
+        if (!string.IsNullOrWhiteSpace(request.PreferredLanguage))
+        {
+            user.PreferredLanguage = string.Equals(request.PreferredLanguage, "en", StringComparison.OrdinalIgnoreCase) ? "en" : "ar";
+        }
 
         await _context.SaveChangesAsync(cancellationToken);
 

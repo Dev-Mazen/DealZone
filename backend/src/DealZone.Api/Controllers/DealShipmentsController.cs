@@ -23,9 +23,10 @@ public class DealShipmentsController : ApiControllerBase
 
     /// <summary>
     /// Create or arrange a shipment for a confirmed or in-progress deal.
-    /// Accessible only to the supplier company.
+    /// Accessible only to system administrators.
     /// </summary>
     [HttpPost]
+    [Authorize(Policy = "SystemAdmin")]
     public async Task<IActionResult> CreateShipment(
         Guid dealId,
         [FromBody] CreateShipmentRequest request,
@@ -40,6 +41,7 @@ public class DealShipmentsController : ApiControllerBase
     /// Accessible to deal participants or system administrators.
     /// </summary>
     [HttpGet]
+    [Authorize(Policy = "VerifiedCompany")]
     public async Task<IActionResult> GetDealShipments(
         Guid dealId,
         CancellationToken cancellationToken)

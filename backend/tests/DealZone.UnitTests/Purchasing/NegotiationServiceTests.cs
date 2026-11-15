@@ -85,6 +85,8 @@ public class NegotiationServiceTests
     [Fact]
     public void CatalogProduct_WithNegotiablePricing_CorrectlyIdentified()
     {
+        var unitId = Guid.NewGuid();
+        var unit = new UnitOfMeasure { Id = unitId, Code = "ton", NameAr = "طن", NameEn = "Ton", SymbolAr = "طن", SymbolEn = "ton" };
         var product = new CatalogProduct
         {
             Sku = "SKU-TEX-YARN-NEG",
@@ -93,13 +95,14 @@ public class NegotiationServiceTests
             CategoryId = Guid.NewGuid(),
             PricingMode = ProductPricingMode.Negotiable,
             UnitPrice = 0m,
-            Unit = "ton",
+            UnitId = unitId,
+            Unit = unit,
             AvailableQuantity = 100m,
             MinimumOrderQuantity = 5m
         };
 
         Assert.Equal(ProductPricingMode.Negotiable, product.PricingMode);
-        Assert.Equal("ton", product.Unit);
+        Assert.Equal("ton", product.Unit.Code);
     }
 }
 

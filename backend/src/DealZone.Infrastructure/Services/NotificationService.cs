@@ -181,9 +181,23 @@ public class NotificationService : INotificationService
         {
             await _context.SaveChangesAsync(cancellationToken);
         }
-        catch (DbUpdateException ex) when (!string.IsNullOrWhiteSpace(idempotencyKey))
+        catch (DbUpdateException ex)
         {
-            _logger.LogWarning(ex, "Idempotency conflict for user {UserId} and key '{Key}'. Duplicate suppressed.", userId, idempotencyKey);
+            _context.Entry(notification).State = EntityState.Detached;
+
+            var isUniqueViolation = !string.IsNullOrWhiteSpace(idempotencyKey) &&
+                (ex.InnerException is Microsoft.Data.SqlClient.SqlException sqlEx && (sqlEx.Number == 2601 || sqlEx.Number == 2627));
+
+            if (isUniqueViolation)
+            {
+                _logger.LogInformation(
+                    "Idempotency conflict for user {UserId} and key '{Key}'. Duplicate suppressed.",
+                    userId, idempotencyKey);
+                return;
+            }
+
+            _logger.LogError(ex, "DbUpdateException saving notification for user {UserId}", userId);
+            throw;
         }
     }
 
@@ -253,7 +267,22 @@ public class NotificationService : INotificationService
             }
             catch (DbUpdateException ex)
             {
-                _logger.LogWarning(ex, "DbUpdateException saving notifications for company {CompanyId}. Some duplicates may have collided.", companyId);
+                foreach (var item in toAdd)
+                {
+                    _context.Entry(item).State = EntityState.Detached;
+                }
+
+                var isUniqueViolation = ex.InnerException is Microsoft.Data.SqlClient.SqlException sqlEx &&
+                    (sqlEx.Number == 2601 || sqlEx.Number == 2627);
+
+                if (isUniqueViolation)
+                {
+                    _logger.LogWarning(ex, "DbUpdateException saving notifications for company {CompanyId}. Duplicate key suppressed.", companyId);
+                    return;
+                }
+
+                _logger.LogError(ex, "DbUpdateException saving notifications for company {CompanyId}", companyId);
+                throw;
             }
         }
     }

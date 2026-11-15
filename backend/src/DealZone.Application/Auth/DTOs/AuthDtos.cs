@@ -4,7 +4,8 @@ public record RegisterRequest(
     string Email,
     string Password,
     string FullName,
-    string? PhoneNumber = null);
+    string? PhoneNumber = null,
+    string? PreferredLanguage = "ar");
 
 public record RegisterResponse(
     Guid UserId,
@@ -28,6 +29,13 @@ public record ConfirmEmailRequest(
     string Email,
     string Token);
 
+public record ConfirmEmailCodeRequest(
+    string Email,
+    string Code);
+
+public record ConfirmEmailLinkRequest(
+    string Token);
+
 public record ResendConfirmationRequest(
     string Email);
 
@@ -49,7 +57,7 @@ public record UserCompanyDto(
     string VerificationStatus,
     bool CanPerformCommercialActivities,
     string Role,
-    string CompanyType = "Both");
+    string CompanyType = "Buyer");
 
 public record UserProfileResponse(
     Guid Id,
@@ -58,9 +66,11 @@ public record UserProfileResponse(
     string? PhoneNumber,
     bool IsEmailConfirmed,
     bool IsSystemAdmin,
-    UserCompanyDto? Company);
+    UserCompanyDto? Company,
+    string PreferredLanguage = "ar");
 
 public record UpdateProfileRequest(
     string FullName,
-    string? PhoneNumber = null);
+    string? PhoneNumber = null,
+    string? PreferredLanguage = null);
 

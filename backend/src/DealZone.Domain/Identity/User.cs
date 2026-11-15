@@ -11,6 +11,7 @@ public class User : BaseEntity
     public bool IsSystemAdmin { get; set; }
     public bool IsActive { get; set; } = true;
     public bool IsEmailConfirmed { get; set; }
+    public string PreferredLanguage { get; set; } = "ar";
     public string? EmailConfirmationTokenHash { get; set; }
     public DateTimeOffset? EmailConfirmationExpiresAtUtc { get; set; }
     public string? PasswordResetTokenHash { get; set; }

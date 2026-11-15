@@ -39,6 +39,7 @@ public interface IShippingService
         ShipmentStatus? status,
         int pageNumber,
         int pageSize,
+        string? search = null,
         CancellationToken cancellationToken = default);
 
     Task<ShipmentResponse> AssignProviderAsync(

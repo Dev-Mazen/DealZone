@@ -9,6 +9,7 @@ using DealZone.Domain.Deals;
 using DealZone.Domain.Exceptions;
 using DealZone.Domain.Notifications;
 using DealZone.Domain.Purchasing;
+using DealZone.Infrastructure.Authorization;
 using DealZone.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -45,6 +46,7 @@ public class NegotiationService : INegotiationService
         var userId = _currentUser.Id ?? throw new UnauthorizedException("User is not authenticated.");
 
         var (buyerCompany, buyerMember) = await RequireApprovedCompanyAsync(cancellationToken);
+        buyerCompany.AssertCanOperateAsBuyer();
 
         if (buyerMember.Role is not (CompanyRole.Owner or CompanyRole.Admin or CompanyRole.ProcurementManager))
         {
@@ -170,7 +172,7 @@ public class NegotiationService : INegotiationService
         var member = await _context.CompanyMembers
             .Include(m => m.Company)
             .FirstOrDefaultAsync(m => m.UserId == userId && m.IsActive, cancellationToken)
-            ?? throw new UnauthorizedException("No active company membership found.");
+            ?? throw new ForbiddenException("No active company membership found.");
 
         var companyId = member.CompanyId;
 
@@ -221,10 +223,14 @@ public class NegotiationService : INegotiationService
         var userId = _currentUser.Id ?? throw new UnauthorizedException("User is not authenticated.");
 
         var member = await _context.CompanyMembers
-            .FirstOrDefaultAsync(m => m.UserId == userId && m.IsActive, cancellationToken)
-            ?? throw new UnauthorizedException("No active company membership found.");
+            .FirstOrDefaultAsync(m => m.UserId == userId && m.IsActive, cancellationToken);
 
-        var companyId = member.CompanyId;
+        if (member == null && !_currentUser.IsSystemAdmin)
+        {
+            throw new ForbiddenException("No active company membership found.");
+        }
+
+        var companyId = member?.CompanyId;
 
         var negotiation = await _context.ProductNegotiations
             .AsNoTracking()
@@ -237,9 +243,9 @@ public class NegotiationService : INegotiationService
             .FirstOrDefaultAsync(n => n.Id == id, cancellationToken)
             ?? throw new NotFoundException($"Negotiation {id} was not found.");
 
-        if (negotiation.BuyerCompanyId != companyId && negotiation.SupplierCompanyId != companyId)
+        if (!_currentUser.IsSystemAdmin && negotiation.BuyerCompanyId != companyId && negotiation.SupplierCompanyId != companyId)
         {
-            throw new ForbiddenException("You do not have access to this negotiation.");
+            throw new NotFoundException($"Negotiation {id} was not found.");
         }
 
         return await MapNegotiationAsync(negotiation, cancellationToken);
@@ -253,7 +259,7 @@ public class NegotiationService : INegotiationService
         var now = _dateTimeProvider.UtcNow;
         var userId = _currentUser.Id ?? throw new UnauthorizedException("User is not authenticated.");
 
-        var (company, _) = await RequireApprovedCompanyAsync(cancellationToken);
+        var (company, member) = await RequireApprovedCompanyAsync(cancellationToken);
 
         var negotiation = await _context.ProductNegotiations
             .Include(n => n.CatalogProduct)
@@ -270,17 +276,49 @@ public class NegotiationService : INegotiationService
             throw new ForbiddenException("You do not have access to this negotiation.");
         }
 
-        if (negotiation.Status == ProductNegotiationStatus.PendingSupplierResponse && negotiation.SupplierCompanyId != company.Id)
+        // Check terminal statuses first with clear detail
+        if (negotiation.Status == ProductNegotiationStatus.Accepted)
         {
-            throw new ConflictException("It is the supplier's turn to respond.");
+            throw new ConflictException("Negotiation is already accepted.");
+        }
+        if (negotiation.Status == ProductNegotiationStatus.Rejected)
+        {
+            throw new ConflictException("Negotiation is already rejected.");
+        }
+        if (negotiation.Status == ProductNegotiationStatus.Cancelled)
+        {
+            throw new ConflictException("Negotiation is already cancelled.");
+        }
+        if (negotiation.Status == ProductNegotiationStatus.Expired)
+        {
+            throw new ConflictException("Negotiation has expired.");
         }
 
-        if (negotiation.Status == ProductNegotiationStatus.CounterofferPendingBuyerResponse && negotiation.BuyerCompanyId != company.Id)
+        if (negotiation.Status == ProductNegotiationStatus.PendingSupplierResponse)
         {
-            throw new ConflictException("It is the buyer's turn to respond.");
+            if (negotiation.SupplierCompanyId != company.Id)
+            {
+                throw new ConflictException("It is the supplier's turn to respond.");
+            }
+            company.AssertCanOperateAsSupplier();
+            if (!CompanyActionRoleMap.SupplierSales.Contains(member.Role))
+            {
+                throw new ForbiddenException("Only supplier Owners, Admins, or Sales Managers can submit a counter offer.");
+            }
         }
-
-        if (negotiation.Status is not (ProductNegotiationStatus.PendingSupplierResponse or ProductNegotiationStatus.CounterofferPendingBuyerResponse))
+        else if (negotiation.Status == ProductNegotiationStatus.CounterofferPendingBuyerResponse)
+        {
+            if (negotiation.BuyerCompanyId != company.Id)
+            {
+                throw new ConflictException("It is the buyer's turn to respond.");
+            }
+            company.AssertCanOperateAsBuyer();
+            if (!CompanyActionRoleMap.BuyerProcurement.Contains(member.Role))
+            {
+                throw new ForbiddenException("Only buyer Owners, Admins, or Procurement Managers can submit a counter offer.");
+            }
+        }
+        else
         {
             throw new ConflictException($"Cannot counter a negotiation in '{negotiation.Status}' status.");
         }
@@ -292,6 +330,7 @@ public class NegotiationService : INegotiationService
 
         var revision = new ProductNegotiationRevision
         {
+            NegotiationId = negotiation.Id,
             RevisionNumber = revisionNumber,
             ProposedByCompanyId = company.Id,
             ProposedByUserId = userId,
@@ -302,7 +341,7 @@ public class NegotiationService : INegotiationService
             Notes = request.Notes?.Trim(),
             CreatedAtUtc = now
         };
-        negotiation.Revisions.Add(revision);
+        _context.ProductNegotiationRevisions.Add(revision);
 
         negotiation.CurrentUnitPrice = request.ProposedUnitPrice;
         negotiation.Quantity = newQuantity;
@@ -336,6 +375,8 @@ public class NegotiationService : INegotiationService
 
         _logger.LogInformation("Counter on negotiation {Id} by company {CompanyId}", id, company.Id);
 
+        _logger.LogInformation("Counter on negotiation {Id} by company {CompanyId}", id, company.Id);
+
         return await MapNegotiationAsync(negotiation, cancellationToken);
     }
 
@@ -346,7 +387,7 @@ public class NegotiationService : INegotiationService
         var now = _dateTimeProvider.UtcNow;
         var userId = _currentUser.Id ?? throw new UnauthorizedException("User is not authenticated.");
 
-        var (company, _) = await RequireApprovedCompanyAsync(cancellationToken);
+        var (company, member) = await RequireApprovedCompanyAsync(cancellationToken);
 
         var negotiation = await _context.ProductNegotiations
             .Include(n => n.CatalogProduct)
@@ -362,18 +403,50 @@ public class NegotiationService : INegotiationService
             throw new ForbiddenException("You do not have access to this negotiation.");
         }
 
+        // Check terminal statuses first with clear detail
+        if (negotiation.Status == ProductNegotiationStatus.Accepted)
+        {
+            throw new ConflictException("Negotiation is already accepted.");
+        }
+        if (negotiation.Status == ProductNegotiationStatus.Rejected)
+        {
+            throw new ConflictException("Negotiation is already rejected.");
+        }
+        if (negotiation.Status == ProductNegotiationStatus.Cancelled)
+        {
+            throw new ConflictException("Negotiation is already cancelled.");
+        }
+        if (negotiation.Status == ProductNegotiationStatus.Expired)
+        {
+            throw new ConflictException("Negotiation has expired.");
+        }
+
         // Accepting party must be the one waiting for a response
-        if (negotiation.Status == ProductNegotiationStatus.PendingSupplierResponse && negotiation.SupplierCompanyId != company.Id)
+        if (negotiation.Status == ProductNegotiationStatus.PendingSupplierResponse)
         {
-            throw new ConflictException("Only the supplier can accept at this stage.");
+            if (negotiation.SupplierCompanyId != company.Id)
+            {
+                throw new ConflictException("Only the supplier can accept at this stage.");
+            }
+            company.AssertCanOperateAsSupplier();
+            if (!CompanyActionRoleMap.SupplierSales.Contains(member.Role))
+            {
+                throw new ForbiddenException("Only supplier Owners, Admins, or Sales Managers can accept negotiations.");
+            }
         }
-
-        if (negotiation.Status == ProductNegotiationStatus.CounterofferPendingBuyerResponse && negotiation.BuyerCompanyId != company.Id)
+        else if (negotiation.Status == ProductNegotiationStatus.CounterofferPendingBuyerResponse)
         {
-            throw new ConflictException("Only the buyer can accept at this stage.");
+            if (negotiation.BuyerCompanyId != company.Id)
+            {
+                throw new ConflictException("Only the buyer can accept at this stage.");
+            }
+            company.AssertCanOperateAsBuyer();
+            if (!CompanyActionRoleMap.BuyerProcurement.Contains(member.Role))
+            {
+                throw new ForbiddenException("Only buyer Owners, Admins, or Procurement Managers can accept negotiations.");
+            }
         }
-
-        if (negotiation.Status is not (ProductNegotiationStatus.PendingSupplierResponse or ProductNegotiationStatus.CounterofferPendingBuyerResponse))
+        else
         {
             throw new ConflictException($"Cannot accept a negotiation in '{negotiation.Status}' status.");
         }
@@ -422,8 +495,14 @@ public class NegotiationService : INegotiationService
 
         _context.Deals.Add(deal);
         negotiation.Deal = deal;
+        negotiation.DealId = deal.Id;
 
         await _context.SaveChangesAsync(cancellationToken);
+
+        // Detach the negotiation and newly-created deal so the second SaveChangesAsync (inside
+        // NotificationService) does not re-issue UPDATEs with stale RowVersions.
+        _context.Entry(negotiation).State = EntityState.Detached;
+        _context.Entry(deal).State = EntityState.Detached;
 
         // Notify both parties
         var notifyParty = company.Id == negotiation.BuyerCompanyId
@@ -453,7 +532,7 @@ public class NegotiationService : INegotiationService
         var now = _dateTimeProvider.UtcNow;
         var userId = _currentUser.Id ?? throw new UnauthorizedException("User is not authenticated.");
 
-        var (company, _) = await RequireApprovedCompanyAsync(cancellationToken);
+        var (company, member) = await RequireApprovedCompanyAsync(cancellationToken);
 
         var negotiation = await _context.ProductNegotiations
             .Include(n => n.CatalogProduct).ThenInclude(p => p.Category)
@@ -468,7 +547,49 @@ public class NegotiationService : INegotiationService
             throw new ForbiddenException("You do not have access to this negotiation.");
         }
 
-        if (negotiation.Status is not (ProductNegotiationStatus.PendingSupplierResponse or ProductNegotiationStatus.CounterofferPendingBuyerResponse))
+        // Check terminal statuses first with clear detail
+        if (negotiation.Status == ProductNegotiationStatus.Accepted)
+        {
+            throw new ConflictException("Negotiation is already accepted.");
+        }
+        if (negotiation.Status == ProductNegotiationStatus.Rejected)
+        {
+            throw new ConflictException("Negotiation is already rejected.");
+        }
+        if (negotiation.Status == ProductNegotiationStatus.Cancelled)
+        {
+            throw new ConflictException("Negotiation is already cancelled.");
+        }
+        if (negotiation.Status == ProductNegotiationStatus.Expired)
+        {
+            throw new ConflictException("Negotiation has expired.");
+        }
+
+        if (negotiation.Status == ProductNegotiationStatus.PendingSupplierResponse)
+        {
+            if (negotiation.SupplierCompanyId != company.Id)
+            {
+                throw new ConflictException("Only the supplier can reject at this stage.");
+            }
+            company.AssertCanOperateAsSupplier();
+            if (!CompanyActionRoleMap.SupplierSales.Contains(member.Role))
+            {
+                throw new ForbiddenException("Only supplier Owners, Admins, or Sales Managers can reject negotiations.");
+            }
+        }
+        else if (negotiation.Status == ProductNegotiationStatus.CounterofferPendingBuyerResponse)
+        {
+            if (negotiation.BuyerCompanyId != company.Id)
+            {
+                throw new ConflictException("Only the buyer can reject at this stage.");
+            }
+            company.AssertCanOperateAsBuyer();
+            if (!CompanyActionRoleMap.BuyerProcurement.Contains(member.Role))
+            {
+                throw new ForbiddenException("Only buyer Owners, Admins, or Procurement Managers can reject negotiations.");
+            }
+        }
+        else
         {
             throw new ConflictException($"Cannot reject a negotiation in '{negotiation.Status}' status.");
         }
@@ -481,6 +602,9 @@ public class NegotiationService : INegotiationService
         negotiation.LastModifiedAtUtc = now;
 
         await _context.SaveChangesAsync(cancellationToken);
+
+        // Detach so the second SaveChangesAsync in NotificationService does not re-UPDATE with a stale RowVersion.
+        _context.Entry(negotiation).State = EntityState.Detached;
 
         // Notify the other party
         var notifyParty = company.Id == negotiation.BuyerCompanyId
@@ -509,7 +633,7 @@ public class NegotiationService : INegotiationService
         var now = _dateTimeProvider.UtcNow;
         var userId = _currentUser.Id ?? throw new UnauthorizedException("User is not authenticated.");
 
-        var (company, _) = await RequireApprovedCompanyAsync(cancellationToken);
+        var (company, member) = await RequireApprovedCompanyAsync(cancellationToken);
 
         var negotiation = await _context.ProductNegotiations
             .Include(n => n.CatalogProduct).ThenInclude(p => p.Category)
@@ -523,6 +647,28 @@ public class NegotiationService : INegotiationService
         if (negotiation.BuyerCompanyId != company.Id)
         {
             throw new ForbiddenException("Only the buyer who initiated the negotiation can cancel it.");
+        }
+        company.AssertCanOperateAsBuyer();
+        if (!CompanyActionRoleMap.BuyerProcurement.Contains(member.Role))
+        {
+            throw new ForbiddenException("Only buyer Owners, Admins, or Procurement Managers can cancel negotiations.");
+        }
+
+        if (negotiation.Status == ProductNegotiationStatus.Accepted)
+        {
+            throw new ConflictException("Negotiation is already accepted.");
+        }
+        if (negotiation.Status == ProductNegotiationStatus.Rejected)
+        {
+            throw new ConflictException("Negotiation is already rejected.");
+        }
+        if (negotiation.Status == ProductNegotiationStatus.Cancelled)
+        {
+            throw new ConflictException("Negotiation is already cancelled.");
+        }
+        if (negotiation.Status == ProductNegotiationStatus.Expired)
+        {
+            throw new ConflictException("Negotiation has expired.");
         }
 
         if (negotiation.Status is not (ProductNegotiationStatus.PendingSupplierResponse or ProductNegotiationStatus.CounterofferPendingBuyerResponse))
@@ -552,7 +698,7 @@ public class NegotiationService : INegotiationService
         var member = await _context.CompanyMembers
             .Include(m => m.Company)
             .FirstOrDefaultAsync(m => m.UserId == userId && m.IsActive, cancellationToken)
-            ?? throw new UnauthorizedException("No active company membership found for the current user.");
+            ?? throw new ForbiddenException("No active company membership found for the current user.");
 
         var company = member.Company;
         if (company == null || !company.CanPerformCommercialActivities)
@@ -620,7 +766,7 @@ public class NegotiationService : INegotiationService
             (int)n.Status,
             n.Status.ToString(),
             n.LastActionByCompanyId,
-            n.DealId,
+            n.DealId ?? n.Deal?.Id,
             n.Deal?.DealNumber,
             n.RejectionReason,
             n.CreatedAtUtc,

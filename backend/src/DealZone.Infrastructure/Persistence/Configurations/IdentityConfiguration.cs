@@ -39,6 +39,10 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
         builder.Property(u => u.IsEmailConfirmed)
             .HasDefaultValue(false);
 
+        builder.Property(u => u.PreferredLanguage)
+            .HasMaxLength(10)
+            .HasDefaultValue("ar");
+
         builder.Property(u => u.EmailConfirmationTokenHash)
             .HasMaxLength(128);
 
@@ -79,6 +83,36 @@ public class RefreshTokenConfiguration : IEntityTypeConfiguration<RefreshToken>
 
         builder.Property(rt => rt.ReasonRevoked)
             .HasMaxLength(250);
+    }
+}
+
+public class EmailVerificationConfiguration : IEntityTypeConfiguration<EmailVerification>
+{
+    public void Configure(EntityTypeBuilder<EmailVerification> builder)
+    {
+        builder.ToTable("EmailVerifications");
+
+        builder.HasKey(ev => ev.Id);
+
+        builder.Property(ev => ev.CodeHash)
+            .HasMaxLength(128)
+            .IsRequired();
+
+        builder.Property(ev => ev.LinkTokenHash)
+            .HasMaxLength(128)
+            .IsRequired();
+
+        builder.Property(ev => ev.IpAddress)
+            .HasMaxLength(45);
+
+        builder.HasOne(ev => ev.User)
+            .WithMany()
+            .HasForeignKey(ev => ev.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasIndex(ev => ev.UserId);
+        builder.HasIndex(ev => ev.LinkTokenHash);
+        builder.HasIndex(ev => new { ev.UserId, ev.CreatedAtUtc });
     }
 }
 

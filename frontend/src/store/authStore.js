@@ -6,8 +6,9 @@ export const useAuthStore = create((set) => ({
   isLoading: true, // starts true — we try to rehydrate on app load
   isAuthenticated: false,
 
-  setUser: (user) =>
-    set({ user, isAuthenticated: !!user }),
+  setUser: (user) => {
+    set({ user, isAuthenticated: !!user })
+  },
 
   setTokens: (access, refresh) => {
     tokenStore.setAccess(access)
@@ -16,6 +17,7 @@ export const useAuthStore = create((set) => ({
 
   clearAuth: () => {
     tokenStore.clearAll()
+    localStorage.removeItem('dz_operating_role')
     set({ user: null, isAuthenticated: false })
   },
 

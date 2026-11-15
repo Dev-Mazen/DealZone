@@ -243,12 +243,6 @@ export default function SupplierDirectoryPage() {
                         <ShieldCheck size={12} className="text-emerald-600" />
                         <span>{isAr ? 'موثق رسمياً' : 'Verified'}</span>
                       </span>
-
-                      {supplier.companyType === 'Both' && (
-                        <span className="text-[10px] text-slate-500 font-semibold bg-slate-100 px-2 py-0.5 rounded-md">
-                          {isAr ? 'مورد ومصنع مشتري' : 'Buyer & Supplier'}
-                        </span>
-                      )}
                     </div>
                   </div>
 

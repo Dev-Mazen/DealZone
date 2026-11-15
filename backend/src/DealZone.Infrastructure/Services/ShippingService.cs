@@ -70,7 +70,7 @@ public class ShippingService : IShippingService
             throw new DealZone.Application.Common.Exceptions.ValidationException(validationResult.Errors);
         }
 
-        var (company, member) = await RequireApprovedCompanyAsync(cancellationToken);
+        RequireSystemAdmin();
         var now = _dateTimeProvider.UtcNow;
         var userId = _currentUser.Id;
 
@@ -79,18 +79,6 @@ public class ShippingService : IShippingService
             .Include(d => d.SupplierCompany)
             .FirstOrDefaultAsync(d => d.Id == dealId, cancellationToken)
             ?? throw new NotFoundException($"Deal with ID '{dealId}' was not found.");
-
-        if (deal.SupplierCompanyId != company.Id)
-        {
-            throw new ForbiddenException("Only the supplier company is authorized to arrange shipments for this deal.");
-        }
-
-        if (member.Role != CompanyRole.Owner &&
-            member.Role != CompanyRole.Admin &&
-            member.Role != CompanyRole.SalesManager)
-        {
-            throw new ForbiddenException("Only supplier Owners, Admins, or Sales Managers are authorized to create shipments.");
-        }
 
         if (deal.Status != DealStatus.Confirmed && deal.Status != DealStatus.InProgress)
         {
@@ -115,9 +103,9 @@ public class ShippingService : IShippingService
             new(
                 Status: ShipmentStatus.Pending.ToString(),
                 Location: request.PickupAddress,
-                Description: $"Shipment created ({request.Arrangement}).",
+                Description: "Shipment created by Administrator.",
                 TimestampUtc: now,
-                UpdatedBy: _currentUser.Email ?? "Supplier"
+                UpdatedBy: _currentUser.Email ?? "Administrator"
             )
         };
 
@@ -125,11 +113,11 @@ public class ShippingService : IShippingService
         {
             ShipmentNumber = shipmentNumber,
             DealId = deal.Id,
-            Arrangement = request.Arrangement,
+            Arrangement = ShippingArrangement.DealZoneArranged,
             PickupAddress = request.PickupAddress,
             DeliveryAddress = request.DeliveryAddress,
-            CarrierName = request.Arrangement == ShippingArrangement.SupplierArranged ? request.CarrierName : null,
-            TrackingNumber = request.Arrangement == ShippingArrangement.SupplierArranged ? request.TrackingNumber : null,
+            CarrierName = request.CarrierName,
+            TrackingNumber = request.TrackingNumber,
             Status = ShipmentStatus.Pending,
             EstimatedDeliveryDateUtc = request.EstimatedDeliveryDateUtc,
             Notes = request.Notes,
@@ -203,6 +191,17 @@ public class ShippingService : IShippingService
             }
         }
 
+        if (!string.IsNullOrWhiteSpace(filter.Search))
+        {
+            var search = filter.Search.Trim().ToLower();
+            query = query.Where(s =>
+                s.ShipmentNumber.ToLower().Contains(search) ||
+                (s.TrackingNumber != null && s.TrackingNumber.ToLower().Contains(search)) ||
+                (s.CarrierName != null && s.CarrierName.ToLower().Contains(search)) ||
+                s.Deal.DealNumber.ToLower().Contains(search) ||
+                (s.Deal.Rfq != null && s.Deal.Rfq.Title.ToLower().Contains(search)));
+        }
+
         var totalCount = await query.CountAsync(cancellationToken);
 
         var pageNumber = Math.Max(1, filter.PageNumber);
@@ -259,7 +258,7 @@ public class ShippingService : IShippingService
             var (company, _) = await RequireApprovedCompanyAsync(cancellationToken);
             if (deal.BuyerCompanyId != company.Id && deal.SupplierCompanyId != company.Id)
             {
-                throw new ForbiddenException("You are not a participant in this deal.");
+                throw new NotFoundException($"Deal with ID '{dealId}' was not found.");
             }
         }
 
@@ -294,7 +293,7 @@ public class ShippingService : IShippingService
             var (company, _) = await RequireApprovedCompanyAsync(cancellationToken);
             if (shipment.Deal.BuyerCompanyId != company.Id && shipment.Deal.SupplierCompanyId != company.Id)
             {
-                throw new ForbiddenException("You are not a participant in this deal.");
+                throw new NotFoundException($"Shipment with ID '{shipmentId}' was not found.");
             }
         }
 
@@ -324,26 +323,7 @@ public class ShippingService : IShippingService
 
         var now = _dateTimeProvider.UtcNow;
 
-        if (!_currentUser.IsSystemAdmin)
-        {
-            var (company, member) = await RequireApprovedCompanyAsync(cancellationToken);
-            if (shipment.Deal.SupplierCompanyId != company.Id)
-            {
-                throw new ForbiddenException("Only the supplier company is authorized to update shipment tracking.");
-            }
-
-            if (member.Role != CompanyRole.Owner &&
-                member.Role != CompanyRole.Admin &&
-                member.Role != CompanyRole.SalesManager)
-            {
-                throw new ForbiddenException("Only supplier Owners, Admins, or Sales Managers can update tracking.");
-            }
-
-            if (shipment.Arrangement == ShippingArrangement.DealZoneArranged)
-            {
-                throw new ForbiddenException("Tracking for DealZone-arranged shipments is managed by platform administrators.");
-            }
-        }
+        RequireSystemAdmin();
 
         if (shipment.Status == ShipmentStatus.Delivered || shipment.Status == ShipmentStatus.Cancelled)
         {
@@ -399,25 +379,8 @@ public class ShippingService : IShippingService
             .FirstOrDefaultAsync(s => s.Id == shipmentId, cancellationToken)
             ?? throw new NotFoundException($"Shipment with ID '{shipmentId}' was not found.");
 
-        var (company, member) = await RequireApprovedCompanyAsync(cancellationToken);
-        if (shipment.Deal.SupplierCompanyId != company.Id)
-        {
-            throw new ForbiddenException("Only the supplier company is authorized to update status for supplier-arranged shipments.");
-        }
-
-        if (member.Role != CompanyRole.Owner &&
-            member.Role != CompanyRole.Admin &&
-            member.Role != CompanyRole.SalesManager)
-        {
-            throw new ForbiddenException("Only supplier Owners, Admins, or Sales Managers can update shipment status.");
-        }
-
-        if (shipment.Arrangement == ShippingArrangement.DealZoneArranged)
-        {
-            throw new ForbiddenException("DealZone-arranged shipment status transitions must be executed by platform administrators.");
-        }
-
-        ValidateStatusTransition(shipment.Status, request.Status, shipment.Arrangement, isAdmin: false);
+        RequireSystemAdmin();
+        ValidateStatusTransition(shipment.Status, request.Status, shipment.Arrangement, isAdmin: true);
 
         var now = _dateTimeProvider.UtcNow;
         ApplyStatusChange(shipment, request.Status, request.Location, request.Description, now);
@@ -457,6 +420,7 @@ public class ShippingService : IShippingService
         ShipmentStatus? status,
         int pageNumber,
         int pageSize,
+        string? search = null,
         CancellationToken cancellationToken = default)
     {
         RequireSystemAdmin();
@@ -473,6 +437,16 @@ public class ShippingService : IShippingService
         if (status.HasValue)
         {
             query = query.Where(s => s.Status == status.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var q = search.Trim().ToLower();
+            query = query.Where(s =>
+                s.ShipmentNumber.ToLower().Contains(q) ||
+                (s.TrackingNumber != null && s.TrackingNumber.ToLower().Contains(q)) ||
+                (s.CarrierName != null && s.CarrierName.ToLower().Contains(q)) ||
+                s.Deal.DealNumber.ToLower().Contains(q));
         }
 
         var totalCount = await query.CountAsync(cancellationToken);

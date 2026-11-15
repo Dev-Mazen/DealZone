@@ -76,7 +76,8 @@ public class AdminVerificationIntegrationTests
             CorporatePhone: "+2062330040",
             AddressLine1: "Attaqa Free Zone, Area C",
             AddressLine2: null,
-            PostalCode: "43511");
+            PostalCode: "43511",
+            CompanyType: "Buyer");
 
         var createRes = await client.PostAsJsonAsync("/api/v1/companies", createRequest);
         Assert.Equal(HttpStatusCode.Created, createRes.StatusCode);

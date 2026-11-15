@@ -36,19 +36,4 @@ public class BackgroundJobOptions
     /// Retention in days for revoked or expired tokens before deletion. Default: 30 days.
     /// </summary>
     public int TokenRetentionDays { get; set; } = 30;
-
-    /// <summary>
-    /// Enable or disable automatic tender closing worker.
-    /// </summary>
-    public bool EnableTenderClosingJob { get; set; } = true;
-
-    /// <summary>
-    /// Interval in seconds between tender closing runs. Default: 60s.
-    /// </summary>
-    public int TenderClosingIntervalSeconds { get; set; } = 60;
-
-    /// <summary>
-    /// Maximum number of tenders to evaluate and close in a single batch.
-    /// </summary>
-    public int TenderClosingBatchSize { get; set; } = 50;
 }

@@ -16,8 +16,10 @@ import {
   Handshake,
   CheckCircle,
   ExternalLink,
+  Package,
 } from 'lucide-react'
 import { companyService } from '../../shared/api/services/companyService'
+import { catalogService } from '../../shared/api/services/catalogService'
 import { useTranslation } from '../../hooks/useTranslation'
 import { usePermissions } from '../../hooks/usePermissions'
 import Button from '../../components/ui/Button'
@@ -32,7 +34,7 @@ export default function CompanyProfilePage() {
   const navigate = useNavigate()
   const { language } = useTranslation()
   const isAr = language === 'ar'
-  const { isBuyer, hasCompany } = usePermissions()
+  const { isBuyer, hasCompany, canActAsBuyer } = usePermissions()
 
   // Fetch Public Profile
   const {
@@ -55,6 +57,19 @@ export default function CompanyProfilePage() {
     queryKey: ['company', 'reviews', companyId],
     queryFn: () => companyService.getCompanyReviews(companyId, { pageNumber: 1, pageSize: 20 }),
     enabled: !!companyId,
+    retry: 1,
+  })
+
+  // Fetch Supplier Products if Company has Supplier capability
+  const isSupplierEntity = profile?.companyType === 'Supplier'
+  const isBuyerEntity = profile?.companyType === 'Buyer'
+  const {
+    data: productsData,
+    isLoading: loadingProducts,
+  } = useQuery({
+    queryKey: ['company', 'products', companyId],
+    queryFn: () => catalogService.getProducts({ supplierCompanyId: companyId, pageSize: 12 }),
+    enabled: !!companyId && isSupplierEntity,
     retry: 1,
   })
 
@@ -83,17 +98,18 @@ export default function CompanyProfilePage() {
 
   const reviews = reviewsData?.reviews?.items || []
   const stats = reviewsData?.stats
+  const products = productsData?.items || []
 
   return (
     <div className="max-w-5xl mx-auto space-y-6 animate-fade-in">
       {/* Back Link */}
       <div className="flex items-center justify-between">
         <Link
-          to="/suppliers"
+          to={isBuyerEntity ? "/rfqs" : "/suppliers"}
           className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#1266D6] hover:underline"
         >
           {isAr ? <ArrowRight size={14} /> : <ArrowLeft size={14} />}
-          <span>{isAr ? 'العودة لدليل الموردين المعتمدين' : 'Back to Verified Suppliers'}</span>
+          <span>{isBuyerEntity ? (isAr ? 'العودة لطلبات التوريد' : 'Back to RFQs') : (isAr ? 'العودة لدليل الموردين المعتمدين' : 'Back to Verified Suppliers')}</span>
         </Link>
       </div>
 
@@ -141,16 +157,16 @@ export default function CompanyProfilePage() {
           </div>
 
           {/* Action Button */}
-          {isBuyer && (
+          {isSupplierEntity && canActAsBuyer && (
             <div className="shrink-0">
               <Button
                 as={Link}
-                to="/rfqs/create"
+                to={`/rfqs/create?targetSupplierId=${profile.id}&targetSupplierName=${encodeURIComponent(profile.tradeName || profile.legalName)}`}
                 variant="primary"
                 size="md"
                 icon={<FileText size={16} />}
               >
-                {isAr ? 'طرح طلب تسعير (RFQ)' : 'Request a Quote (RFQ)'}
+                {isAr ? 'طلب عرض سعر من هذا المورّد' : 'Request Quote from Supplier'}
               </Button>
             </div>
           )}
@@ -199,7 +215,145 @@ export default function CompanyProfilePage() {
             </div>
           </Card>
 
-          {/* Card 2: Commercial Reviews */}
+          {/* Card 2: Active Listed Products (Only for Supplier capable companies) */}
+          {isSupplierEntity && (
+            <Card>
+              <CardHeader
+                title={isAr ? 'المنتجات المعروضة في السوق' : 'Active Listed Products'}
+                subtitle={
+                  isAr
+                    ? 'الخامات والمنتجات الصناعية المتوفرة للتوريد المباشر أو التفاوض'
+                    : 'Real-time available catalog products from this verified supplier'
+                }
+              />
+
+              {loadingProducts ? (
+                <PageSpinner />
+              ) : products.length === 0 ? (
+                <div className="text-center py-8 bg-slate-50 rounded-2xl border border-slate-100 p-6">
+                  <Package size={32} className="text-slate-300 mx-auto mb-2" />
+                  <p className="text-sm font-semibold text-[#06245B]">
+                    {isAr ? 'لا توجد منتجات معروضة حالياً' : 'No Listed Products Currently'}
+                  </p>
+                  <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
+                    {isAr
+                      ? 'لم يقم هذا المورد بإضافة منتجات متاحة للشراء المباشر حالياً، يمكنك طلب عرض سعر مخصص عبر زر طلب السعر أعلاه.'
+                      : 'This supplier currently has no fixed-price inventory listed. You can request a custom quote via Request Quote.'}
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {products.map((p) => (
+                    <div
+                      key={p.id}
+                      className="p-4 rounded-2xl bg-white border border-slate-200/80 hover:border-[#1266D6] transition-all flex flex-col justify-between"
+                    >
+                      <div>
+                        <div className="flex items-center justify-between gap-2 mb-1.5">
+                          <span className="text-[10px] font-mono font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded">
+                            {p.sku}
+                          </span>
+                          <span className="text-[10px] font-semibold text-[#1266D6] bg-blue-50 px-2 py-0.5 rounded">
+                            {isAr ? p.categoryNameAr : p.categoryNameEn}
+                          </span>
+                        </div>
+                        <h4 className="font-bold text-sm text-[#06245B] line-clamp-1 mb-1">
+                          {isAr ? p.nameAr : (p.nameEn || p.nameAr)}
+                        </h4>
+                        {p.specifications && (
+                          <p className="text-xs text-slate-500 line-clamp-2 mb-3">
+                            {p.specifications}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+                        <div>
+                          <span className="text-xs text-slate-400 block">{isAr ? 'السعر:' : 'Price:'}</span>
+                          <span className="text-sm font-extrabold text-[#06245B]">
+                            {p.pricingMode === 2
+                              ? (isAr ? 'قابل للتفاوض' : 'Negotiable')
+                              : `${p.unitPrice?.toLocaleString()} ${p.currency} / ${p.unit}`}
+                          </span>
+                        </div>
+                        <Button
+                          as={Link}
+                          to="/marketplace"
+                          variant="ghost"
+                          size="sm"
+                          className="text-xs"
+                        >
+                          {isAr ? 'عرض بالسوق' : 'View'}
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Card>
+          )}
+
+          {/* Card 2.5: Open Public RFQs (Only for Buyer companies) */}
+          {isBuyerEntity && (
+            <Card>
+              <CardHeader
+                title={isAr ? 'طلبات التوريد المفتوحة' : 'Open Public RFQs'}
+                subtitle={
+                  isAr
+                    ? 'طلبات عروض الأسعار العامة المتاحة حالياً للموردين لتقديم عروضهم'
+                    : 'Public requests for quotation currently open for supplier offers'
+                }
+              />
+
+              {!profile.openPublicRfqs || profile.openPublicRfqs.length === 0 ? (
+                <div className="text-center py-8 bg-slate-50 rounded-2xl border border-slate-100 p-6">
+                  <FileText size={32} className="text-slate-300 mx-auto mb-2" />
+                  <p className="text-sm font-semibold text-[#06245B]">
+                    {isAr ? 'لا توجد طلبات توريد عامة مفتوحة حالياً' : 'No Open Public RFQs Currently'}
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {profile.openPublicRfqs.map((rfq) => (
+                    <div
+                      key={rfq.id}
+                      className="p-4 rounded-2xl bg-white border border-slate-200/80 hover:border-[#1266D6] transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                    >
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-[10px] font-mono font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded">
+                            {rfq.rfqNumber}
+                          </span>
+                          {rfq.categoryName && (
+                            <span className="text-[10px] font-semibold text-[#1266D6] bg-blue-50 px-2 py-0.5 rounded">
+                              {rfq.categoryName}
+                            </span>
+                          )}
+                          <span className="text-[10px] text-slate-400">
+                            {isAr ? `${rfq.itemCount} بنود` : `${rfq.itemCount} items`}
+                          </span>
+                        </div>
+                        <h4 className="font-bold text-sm text-[#06245B]">{rfq.title}</h4>
+                        <p className="text-xs text-slate-500 mt-0.5">
+                          {isAr ? `ينتهي في: ${formatDate(rfq.closingDateUtc)}` : `Closes: ${formatDate(rfq.closingDateUtc)}`}
+                        </p>
+                      </div>
+                      <Button
+                        as={Link}
+                        to={`/rfqs/${rfq.id}`}
+                        variant="outline"
+                        size="sm"
+                      >
+                        {isAr ? 'عرض الطلب' : 'View RFQ'}
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Card>
+          )}
+
+          {/* Card 3: Commercial Reviews */}
           <Card>
             <CardHeader
               title={isAr ? 'تقييمات الصفقات المبرمة' : 'Commercial Deal Reviews'}
@@ -342,9 +496,7 @@ export default function CompanyProfilePage() {
               <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 flex justify-between items-center">
                 <span className="text-slate-500">{isAr ? 'نوع المنشأة:' : 'Entity Type:'}</span>
                 <strong className="text-[#06245B]">
-                  {profile.companyType === 'Both'
-                    ? isAr ? 'مورد ومصنع مشتري' : 'Buyer & Supplier'
-                    : profile.companyType === 'Supplier'
+                  {profile.companyType === 'Supplier'
                     ? isAr ? 'مورد خامات صناعية' : 'Raw Materials Supplier'
                     : isAr ? 'مصنع مشتري' : 'Buyer Manufacturer'}
                 </strong>
@@ -363,6 +515,37 @@ export default function CompanyProfilePage() {
                   {profile.city}, {profile.governorate}
                 </strong>
               </div>
+
+              {profile.sectorsSourced && profile.sectorsSourced.length > 0 && (
+                <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 space-y-1.5">
+                  <span className="text-slate-500 block text-[11px]">{isAr ? 'القطاعات المطلوبة:' : 'Sectors Sourced:'}</span>
+                  <div className="flex flex-wrap gap-1">
+                    {profile.sectorsSourced.map((s, idx) => (
+                      <span key={idx} className="bg-blue-50 text-[#1266D6] text-[10px] font-semibold px-2 py-0.5 rounded">
+                        {s}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {profile.publishedRfqCount > 0 && (
+                <div className="bg-blue-50/60 p-3 rounded-xl border border-blue-100 flex justify-between items-center">
+                  <span className="text-slate-600">{isAr ? 'طلبات التوريد المنشورة:' : 'Active RFQs:'}</span>
+                  <strong className="text-[#1266D6] font-bold">
+                    {profile.publishedRfqCount}
+                  </strong>
+                </div>
+              )}
+
+              {profile.completedDealCount > 0 && (
+                <div className="bg-emerald-50/60 p-3 rounded-xl border border-emerald-100 flex justify-between items-center">
+                  <span className="text-slate-600">{isAr ? 'الصفقات التجارية المنجزة:' : 'Completed Deals:'}</span>
+                  <strong className="text-emerald-700 font-bold">
+                    {profile.completedDealCount}
+                  </strong>
+                </div>
+              )}
             </div>
           </Card>
         </div>

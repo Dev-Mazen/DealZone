@@ -79,6 +79,11 @@ public class OfferService : IOfferService
             throw new ConflictException("A company cannot submit an offer to its own RFQ.");
         }
 
+        if (rfq.TargetSupplierCompanyId.HasValue && rfq.TargetSupplierCompanyId.Value != supplierCompany.Id)
+        {
+            throw new NotFoundException($"RFQ with ID '{rfqId}' was not found.");
+        }
+
         // Only one active submitted offer per supplier per RFQ
         var hasActiveOffer = await _context.Offers
             .AnyAsync(o => o.RfqId == rfq.Id &&
@@ -205,8 +210,12 @@ public class OfferService : IOfferService
             query = query.Where(o => o.RfqId == filter.RfqId.Value);
         }
 
-        if (!string.IsNullOrWhiteSpace(filter.Status) && Enum.TryParse<OfferStatus>(filter.Status, true, out var status))
+        if (!string.IsNullOrWhiteSpace(filter.Status))
         {
+            if (!Enum.TryParse<OfferStatus>(filter.Status, true, out var status))
+            {
+                throw new ValidationException(nameof(filter.Status), $"Invalid offer status '{filter.Status}'.");
+            }
             query = query.Where(o => o.Status == status);
         }
 
@@ -255,8 +264,12 @@ public class OfferService : IOfferService
             query = query.Where(o => o.RfqId == filter.RfqId.Value);
         }
 
-        if (!string.IsNullOrWhiteSpace(filter.Status) && Enum.TryParse<OfferStatus>(filter.Status, true, out var status))
+        if (!string.IsNullOrWhiteSpace(filter.Status))
         {
+            if (!Enum.TryParse<OfferStatus>(filter.Status, true, out var status))
+            {
+                throw new ValidationException(nameof(filter.Status), $"Invalid offer status '{filter.Status}'.");
+            }
             query = query.Where(o => o.Status == status);
         }
 
@@ -524,6 +537,11 @@ public class OfferService : IOfferService
         if (rfq.BuyerCompanyId != buyerCompany.Id)
         {
             throw new ForbiddenException("Only the owning buyer company can accept offers for this RFQ.");
+        }
+
+        if (offer.SupplierCompanyId == buyerCompany.Id)
+        {
+            throw new ConflictException("A company cannot accept an offer from itself.");
         }
 
         if (rfq.Status != RfqStatus.Published || rfq.ClosingDateUtc <= now)
@@ -1033,6 +1051,7 @@ public class OfferService : IOfferService
         CancellationToken cancellationToken)
     {
         var (company, member) = await RequireApprovedCompanyAsync(cancellationToken);
+        company.AssertCanOperateAsSupplier();
 
         if (member.Role != CompanyRole.Owner &&
             member.Role != CompanyRole.Admin &&
@@ -1048,6 +1067,7 @@ public class OfferService : IOfferService
         CancellationToken cancellationToken)
     {
         var (company, member) = await RequireApprovedCompanyAsync(cancellationToken);
+        company.AssertCanOperateAsBuyer();
 
         if (member.Role != CompanyRole.Owner &&
             member.Role != CompanyRole.Admin &&

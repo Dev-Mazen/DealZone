@@ -68,10 +68,10 @@ export default function AboutPage() {
     },
     {
       icon: FileText,
-      title: isAr ? 'نظام مناقصات وعروض أسعار منظم' : 'Structured RFQ & Reverse Bidding',
+      title: isAr ? 'نظام طلبات عروض أسعار منظم' : 'Structured RFQ & Quotations',
       desc: isAr
         ? 'نظام طلبات عروض أسعار (RFQ) يحدد الكميات والمواصفات بدقة، مع استقبال عروض تفصيلية ومراجعات موثقة بسجل تدقيق كامل.'
-        : 'Formal bidding system with itemized unit pricing, delivery schedules, and immutable revision histories.',
+        : 'Formal procurement system with itemized unit pricing, delivery schedules, and immutable revision histories.',
       bullets: isAr
         ? ['تسعير مفصل لكل بند صناعي', 'سجل تدقيق كامل للمراجعات', 'فترة صلاحية واضحة للعروض']
         : ['Line-by-line item pricing', 'Immutable revision audit trails', 'Strict quote validity windows'],
@@ -363,7 +363,7 @@ export default function AboutPage() {
             <div className="bg-white rounded-3xl overflow-hidden border border-slate-200/90 shadow-sm hover:shadow-xl transition-all duration-300">
               <div className="relative h-48 overflow-hidden">
                 <img
-                  src="/images/tenders-reverse-bidding.jpeg"
+                  src="/images/rfqs-competitive-pricing.jpeg"
                   alt="For industrial buyers"
                   className="w-full h-full object-cover object-center"
                   loading="lazy"
@@ -387,11 +387,11 @@ export default function AboutPage() {
                 <ul className="space-y-3 text-xs sm:text-sm font-semibold text-slate-700">
                   <li className="flex items-center gap-2">
                     <CheckCircle2 size={16} className="text-[#10B981] shrink-0" />
-                    <span>{isAr ? 'نشر مناقصات وطلبات شراء محددة المواصفات' : 'Publish custom tenders with exact technical grades'}</span>
+                    <span>{isAr ? 'نشر طلبات شراء وعروض أسعار محددة المواصفات' : 'Publish custom RFQs with exact technical grades'}</span>
                   </li>
                   <li className="flex items-center gap-2">
                     <CheckCircle2 size={16} className="text-[#10B981] shrink-0" />
-                    <span>{isAr ? 'استقبال عروض أسعار متنافسة ومقارنتها بنداً ببند' : 'Receive and compare line-by-line itemized bids'}</span>
+                    <span>{isAr ? 'استقبال عروض أسعار متنافسة ومقارنتها بنداً ببند' : 'Receive and compare line-by-line itemized offers'}</span>
                   </li>
                   <li className="flex items-center gap-2">
                     <CheckCircle2 size={16} className="text-[#10B981] shrink-0" />
@@ -423,13 +423,13 @@ export default function AboutPage() {
                 </h3>
                 <p className="text-sm text-slate-600 leading-relaxed mb-6">
                   {isAr
-                    ? 'وسع قاعدة عملائك الصناعيين في جميع المحافظات، وشارك في مناقصات كبرى المصانع بضمانات تعاقدية واضحة.'
+                    ? 'وسع قاعدة عملائك الصناعيين في جميع المحافظات، وشارك في توريد كبرى المصانع بضمانات تعاقدية واضحة.'
                     : 'Expand your factory customer base across Egyptian industrial governorates with credit-vetted counterparties.'}
                 </p>
                 <ul className="space-y-3 text-xs sm:text-sm font-semibold text-slate-700">
                   <li className="flex items-center gap-2">
                     <CheckCircle2 size={16} className="text-[#10B981] shrink-0" />
-                    <span>{isAr ? 'الوصول المباشر لطلبات الشراء الجادة فور نشرها' : 'Direct access to verified high-volume industrial tenders'}</span>
+                    <span>{isAr ? 'الوصول المباشر لطلبات الشراء الجادة فور نشرها' : 'Direct access to verified high-volume industrial RFQs'}</span>
                   </li>
                   <li className="flex items-center gap-2">
                     <CheckCircle2 size={16} className="text-[#10B981] shrink-0" />

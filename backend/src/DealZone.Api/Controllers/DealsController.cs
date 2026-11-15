@@ -26,8 +26,10 @@ public class DealsController : ApiControllerBase
     /// List current company's deals (as buyer or supplier) with pagination and optional status filter.
     /// </summary>
     [HttpGet("mine")]
+    [HttpGet]
+    [Authorize(Policy = "VerifiedCompany")]
     public async Task<IActionResult> GetMyDeals(
-        [FromQuery] DealStatus? status,
+        [FromQuery] string? status,
         [FromQuery] int pageNumber = 1,
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
@@ -39,6 +41,7 @@ public class DealsController : ApiControllerBase
     /// <summary>
     /// Get details of an authorized deal. Accessible only to deal participants (buyer or supplier) or system admins.
     /// </summary>
+    [Authorize(Policy = "VerifiedCompany")]
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> GetDealById(Guid id, CancellationToken cancellationToken)
     {
@@ -49,6 +52,7 @@ public class DealsController : ApiControllerBase
     /// <summary>
     /// Confirm deal participation. Moves deal to Confirmed once both buyer and supplier have confirmed.
     /// </summary>
+    [Authorize(Policy = "VerifiedCompany")]
     [HttpPost("{id:guid}/confirm")]
     public async Task<IActionResult> ConfirmDeal(Guid id, CancellationToken cancellationToken)
     {
@@ -60,6 +64,7 @@ public class DealsController : ApiControllerBase
     /// Start work/fulfillment on a confirmed deal. Moves deal to InProgress.
     /// Accessible only to the supplier company.
     /// </summary>
+    [Authorize(Policy = "SupplierSales")]
     [HttpPost("{id:guid}/start")]
     public async Task<IActionResult> StartDeal(Guid id, CancellationToken cancellationToken)
     {
@@ -70,6 +75,7 @@ public class DealsController : ApiControllerBase
     /// <summary>
     /// Complete fulfillment on a deal currently in InProgress status. Moves deal to Completed.
     /// </summary>
+    [Authorize(Policy = "BuyerProcurement")]
     [HttpPost("{id:guid}/complete")]
     public async Task<IActionResult> CompleteDeal(Guid id, CancellationToken cancellationToken)
     {
@@ -81,6 +87,7 @@ public class DealsController : ApiControllerBase
     /// Request or execute deal cancellation with mandatory reason.
     /// Unilateral while AwaitingConfirmation; mutual agreement required once Confirmed or InProgress.
     /// </summary>
+    [Authorize(Policy = "VerifiedCompany")]
     [HttpPost("{id:guid}/cancel")]
     public async Task<IActionResult> CancelDeal(
         Guid id,
@@ -94,6 +101,7 @@ public class DealsController : ApiControllerBase
     /// <summary>
     /// Open a formal dispute on a deal, moving the deal to Disputed status and preserving prior state.
     /// </summary>
+    [Authorize(Policy = "VerifiedCompany")]
     [HttpPost("{id:guid}/disputes")]
     public async Task<IActionResult> OpenDispute(
         Guid id,
@@ -107,6 +115,7 @@ public class DealsController : ApiControllerBase
     /// <summary>
     /// List all disputes associated with a deal. Accessible to deal participants or system admins.
     /// </summary>
+    [Authorize(Policy = "VerifiedCompany")]
     [HttpGet("{id:guid}/disputes")]
     public async Task<IActionResult> GetDealDisputes(Guid id, CancellationToken cancellationToken)
     {

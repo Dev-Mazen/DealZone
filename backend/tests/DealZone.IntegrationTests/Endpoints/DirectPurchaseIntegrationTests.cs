@@ -47,7 +47,8 @@ public class DirectPurchaseIntegrationTests : IClassFixture<DealZoneWebApplicati
         HttpClient client,
         string email,
         string legalName,
-        string tradeName)
+        string tradeName,
+        string companyType = "Buyer")
     {
         var token = await RegisterAndLoginAsync(client, email);
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
@@ -67,7 +68,8 @@ public class DirectPurchaseIntegrationTests : IClassFixture<DealZoneWebApplicati
             "+201011112222",
             "12 Industrial St",
             null,
-            "44629");
+            "44629",
+            companyType);
 
         var compRes = await client.PostAsJsonAsync("/api/v1/companies", compReq);
         Assert.Equal(HttpStatusCode.Created, compRes.StatusCode);
@@ -79,6 +81,10 @@ public class DirectPurchaseIntegrationTests : IClassFixture<DealZoneWebApplicati
             var comp = await db.Companies.FirstAsync(c => c.Id == company!.Id);
             comp.VerificationStatus = CompanyVerificationStatus.Approved;
             comp.VerifiedAtUtc = DateTimeOffset.UtcNow;
+            if (Enum.TryParse<CompanyType>(companyType, true, out var parsedType))
+            {
+                comp.CompanyType = parsedType;
+            }
             await db.SaveChangesAsync();
         }
 
@@ -105,7 +111,7 @@ public class DirectPurchaseIntegrationTests : IClassFixture<DealZoneWebApplicati
 
         // 1. Setup Supplier
         var (supplierToken, supplierCompId) = await CreateVerifiedCompanyAsync(
-            client, $"supplier.{suffix}@directtest.eg", $"Supplier Co {suffix}", "Supplier Trades");
+            client, $"supplier.{suffix}@directtest.eg", $"Supplier Co {suffix}", "Supplier Trades", "Supplier");
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", supplierToken);
 
         var materialId = await GetSeededMaterialIdAsync(client);
@@ -125,7 +131,8 @@ public class DirectPurchaseIntegrationTests : IClassFixture<DealZoneWebApplicati
             3);   // Lead time
 
         var createProdRes = await client.PostAsJsonAsync("/api/v1/catalog/products", createProductReq);
-        Assert.Equal(HttpStatusCode.Created, createProdRes.StatusCode);
+        var createProdBody = await createProdRes.Content.ReadAsStringAsync();
+        Assert.True(createProdRes.StatusCode == HttpStatusCode.Created, $"CreateProduct failed with {createProdRes.StatusCode}: {createProdBody}");
         var product = await createProdRes.Content.ReadFromJsonAsync<CatalogProductResponse>(JsonOptions);
         Assert.NotNull(product);
         Assert.Equal(100m, product.AvailableQuantity);
@@ -150,7 +157,10 @@ public class DirectPurchaseIntegrationTests : IClassFixture<DealZoneWebApplicati
         Assert.NotNull(purchase);
         Assert.Equal(10m, purchase.Quantity);
         Assert.Equal(120m, purchase.UnitPrice);
-        Assert.Equal(1200m, purchase.TotalPrice);
+        Assert.Equal(1200m, purchase.Subtotal);
+        Assert.Equal(0.14m, purchase.VatRate);
+        Assert.Equal(168m, purchase.VatAmount);
+        Assert.Equal(1368m, purchase.TotalPrice);
         Assert.Equal("Submitted", purchase.Status);
         Assert.NotNull(purchase.DealId);
         Assert.NotNull(purchase.DealNumber);
@@ -164,7 +174,7 @@ public class DirectPurchaseIntegrationTests : IClassFixture<DealZoneWebApplicati
         Assert.NotNull(deal);
         Assert.Equal("AwaitingConfirmation", deal.Status);
         Assert.Equal("DirectPurchase", deal.DealSource);
-        Assert.Equal(1200m, deal.AgreedPrice);
+        Assert.Equal(1368m, deal.AgreedPrice);
         Assert.NotNull(deal.ConfirmedByBuyerAtUtc);
         Assert.Null(deal.ConfirmedBySupplierAtUtc);
 
@@ -198,7 +208,7 @@ public class DirectPurchaseIntegrationTests : IClassFixture<DealZoneWebApplicati
         var suffix = Random.Shared.Next(10000, 99999);
 
         var (supplierToken, _) = await CreateVerifiedCompanyAsync(
-            client, $"self.{suffix}@directtest.eg", $"Self Co {suffix}", "Self Trades");
+            client, $"self.{suffix}@directtest.eg", $"Self Co {suffix}", "Self Trades", "Supplier");
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", supplierToken);
 
         var materialId = await GetSeededMaterialIdAsync(client);
@@ -221,7 +231,7 @@ public class DirectPurchaseIntegrationTests : IClassFixture<DealZoneWebApplicati
         var purchaseReq = new CreateDirectPurchaseRequest(product!.Id, 5m, null, null);
         var purchaseRes = await client.PostAsJsonAsync("/api/v1/purchases/direct", purchaseReq);
 
-        Assert.True(purchaseRes.StatusCode is HttpStatusCode.BadRequest or HttpStatusCode.Conflict);
+        Assert.True(purchaseRes.StatusCode is HttpStatusCode.BadRequest or HttpStatusCode.Conflict or HttpStatusCode.Forbidden);
     }
 
     [Fact]
@@ -231,7 +241,7 @@ public class DirectPurchaseIntegrationTests : IClassFixture<DealZoneWebApplicati
         var suffix = Random.Shared.Next(10000, 99999);
 
         var (supplierToken, _) = await CreateVerifiedCompanyAsync(
-            client, $"suppmoq.{suffix}@directtest.eg", $"MOQ Supp {suffix}", "MOQ Trades");
+            client, $"suppmoq.{suffix}@directtest.eg", $"MOQ Supp {suffix}", "MOQ Trades", "Supplier");
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", supplierToken);
         var materialId = await GetSeededMaterialIdAsync(client);
 
@@ -267,7 +277,7 @@ public class DirectPurchaseIntegrationTests : IClassFixture<DealZoneWebApplicati
         var suffix = Random.Shared.Next(10000, 99999);
 
         var (supplierToken, _) = await CreateVerifiedCompanyAsync(
-            client, $"stocksupp.{suffix}@directtest.eg", $"Stock Supp {suffix}", "Stock Trades");
+            client, $"stocksupp.{suffix}@directtest.eg", $"Stock Supp {suffix}", "Stock Trades", "Supplier");
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", supplierToken);
         var materialId = await GetSeededMaterialIdAsync(client);
 
@@ -304,7 +314,7 @@ public class DirectPurchaseIntegrationTests : IClassFixture<DealZoneWebApplicati
 
         // Supplier + Product
         var (supplierToken, _) = await CreateVerifiedCompanyAsync(
-            client, $"isolsupp.{suffix}@directtest.eg", $"Isol Supp {suffix}", "Isol Trades");
+            client, $"isolsupp.{suffix}@directtest.eg", $"Isol Supp {suffix}", "Isol Trades", "Supplier");
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", supplierToken);
         var materialId = await GetSeededMaterialIdAsync(client);
 
@@ -336,7 +346,7 @@ public class DirectPurchaseIntegrationTests : IClassFixture<DealZoneWebApplicati
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", thirdToken);
 
         var getRes = await client.GetAsync($"/api/v1/purchases/{purchase!.Id}");
-        Assert.Equal(HttpStatusCode.Forbidden, getRes.StatusCode);
+        Assert.True(getRes.StatusCode is HttpStatusCode.NotFound or HttpStatusCode.Forbidden);
     }
 
     [Fact]
@@ -353,5 +363,186 @@ public class DirectPurchaseIntegrationTests : IClassFixture<DealZoneWebApplicati
 
         var getMineRes = await client.GetAsync("/api/v1/purchases/mine");
         Assert.Equal(HttpStatusCode.Unauthorized, getMineRes.StatusCode);
+    }
+
+    [Fact]
+    public async Task DirectPurchase_DoubleSubmit_IsIdempotentWithClientRequestId()
+    {
+        var client = _factory.CreateClient();
+        var suffix = Random.Shared.Next(10000, 99999);
+
+        var (supplierToken, _) = await CreateVerifiedCompanyAsync(
+            client, $"idemsupp.{suffix}@directtest.eg", $"Idem Supp {suffix}", "Idem Trades", "Supplier");
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", supplierToken);
+        var materialId = await GetSeededMaterialIdAsync(client);
+
+        var createProdRes = await client.PostAsJsonAsync("/api/v1/catalog/products", new CreateCatalogProductRequest(
+            materialId,
+            $"SKU-IDEM-{suffix}",
+            "منتج تكرار الطلب",
+            "Idempotency Product",
+            null,
+            null,
+            200m,
+            "EGP",
+            100m,
+            1m,
+            3));
+        var product = await createProdRes.Content.ReadFromJsonAsync<CatalogProductResponse>(JsonOptions);
+
+        var (buyerToken, _) = await CreateVerifiedCompanyAsync(
+            client, $"idembuyer.{suffix}@directtest.eg", $"Idem Buyer {suffix}", "Idem Buyer Trades");
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", buyerToken);
+
+        var clientRequestId = $"req-{Guid.NewGuid():N}";
+        var purchaseReq = new CreateDirectPurchaseRequest(
+            product!.Id,
+            5m,
+            "123 Street",
+            "First submit",
+            clientRequestId);
+
+        // 1. First submission
+        var res1 = await client.PostAsJsonAsync("/api/v1/purchases/direct", purchaseReq);
+        Assert.Equal(HttpStatusCode.Created, res1.StatusCode);
+        var purchase1 = await res1.Content.ReadFromJsonAsync<DirectPurchaseResponse>(JsonOptions);
+
+        // 2. Second submission with the exact same clientRequestId
+        var res2 = await client.PostAsJsonAsync("/api/v1/purchases/direct", purchaseReq);
+        Assert.True(res2.StatusCode is HttpStatusCode.OK or HttpStatusCode.Created);
+        var purchase2 = await res2.Content.ReadFromJsonAsync<DirectPurchaseResponse>(JsonOptions);
+
+        // Idempotency check: Same purchase returned
+        Assert.Equal(purchase1!.Id, purchase2!.Id);
+        Assert.Equal(purchase1.PurchaseNumber, purchase2.PurchaseNumber);
+
+        // Inventory check: Only decremented once (100 - 5 = 95)
+        var getProd = await client.GetAsync($"/api/v1/catalog/products/{product.Id}");
+        var prod = await getProd.Content.ReadFromJsonAsync<CatalogProductResponse>(JsonOptions);
+        Assert.Equal(95m, prod!.AvailableQuantity);
+    }
+
+    [Fact]
+    public async Task Marketplace_ProductWithUnverifiedSupplier_IsHiddenFromListingAndDetail()
+    {
+        var client = _factory.CreateClient();
+        var suffix = Random.Shared.Next(10000, 99999);
+
+        // Create supplier and create a product while approved
+        var (supplierToken, supplierCompId) = await CreateVerifiedCompanyAsync(
+            client, $"unver.{suffix}@directtest.eg", $"Unver Supp {suffix}", "Unver Trades", "Supplier");
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", supplierToken);
+        var materialId = await GetSeededMaterialIdAsync(client);
+
+        var createProdRes = await client.PostAsJsonAsync("/api/v1/catalog/products", new CreateCatalogProductRequest(
+            materialId,
+            $"SKU-UNVER-{suffix}",
+            "منتج مورد غير موثق",
+            "Unverified Supplier Product",
+            null,
+            null,
+            150m,
+            "EGP",
+            50m,
+            1m,
+            3));
+        var product = await createProdRes.Content.ReadFromJsonAsync<CatalogProductResponse>(JsonOptions);
+
+        // Now set supplier company to Pending in database
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<DealZoneDbContext>();
+            var comp = await db.Companies.FirstAsync(c => c.Id == supplierCompId);
+            comp.VerificationStatus = CompanyVerificationStatus.Pending;
+            await db.SaveChangesAsync();
+        }
+
+        // Anonymous or buyer calls Marketplace listing
+        client.DefaultRequestHeaders.Authorization = null;
+        var listRes = await client.GetAsync("/api/v1/catalog/products");
+        Assert.Equal(HttpStatusCode.OK, listRes.StatusCode);
+        var paged = await listRes.Content.ReadFromJsonAsync<PagedResult<CatalogProductResponse>>(JsonOptions);
+        Assert.DoesNotContain(paged!.Items, p => p.Id == product!.Id);
+
+        // Detail endpoint returns 404
+        var detailRes = await client.GetAsync($"/api/v1/catalog/products/{product!.Id}");
+        Assert.Equal(HttpStatusCode.NotFound, detailRes.StatusCode);
+    }
+
+    [Fact]
+    public async Task LegacyMaterialPurchaseEndpoint_IsDeletedAndReturnsNotFound()
+    {
+        var client = _factory.CreateClient();
+        var suffix = Random.Shared.Next(10000, 99999);
+
+        var (buyerToken, _) = await CreateVerifiedCompanyAsync(
+            client, $"legbuyer.{suffix}@directtest.eg", $"Leg Buyer {suffix}", "Leg Trades");
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", buyerToken);
+
+        var materialId = await GetSeededMaterialIdAsync(client);
+        var legacyRes = await client.PostAsJsonAsync($"/api/v1/catalog/materials/{materialId}/purchase", new { quantity = 10 });
+        Assert.Equal(HttpStatusCode.NotFound, legacyRes.StatusCode);
+    }
+
+    [Fact]
+    public async Task Negotiation_CounterOffer_ShouldSucceedWithoutConcurrencyConflict()
+    {
+        var client = _factory.CreateClient();
+        var suffix = Random.Shared.Next(10000, 99999);
+
+        // 1. Setup supplier and product
+        var (supplierToken, supplierCompanyId) = await CreateVerifiedCompanyAsync(
+            client, $"negsupp.{suffix}@directtest.eg", $"Neg Supp {suffix}", "Neg Supp Trades", "Supplier");
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", supplierToken);
+        var materialId = await GetSeededMaterialIdAsync(client);
+
+        var createProdRes = await client.PostAsJsonAsync("/api/v1/catalog/products", new CreateCatalogProductRequest(
+            materialId,
+            $"SKU-NEG-{suffix}",
+            "منتج تفاوض",
+            "Negotiation Product",
+            null,
+            null,
+            100m,
+            "EGP",
+            500m,
+            1m,
+            5));
+        var product = await createProdRes.Content.ReadFromJsonAsync<CatalogProductResponse>(JsonOptions);
+
+        // 2. Setup buyer and start negotiation
+        var (buyerToken, _) = await CreateVerifiedCompanyAsync(
+            client, $"negbuyer.{suffix}@directtest.eg", $"Neg Buyer {suffix}", "Neg Buyer Trades", "Buyer");
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", buyerToken);
+
+        var startNegRes = await client.PostAsJsonAsync("/api/v1/negotiations", new CreateProductNegotiationRequest(
+            product!.Id,
+            90m,
+            10m,
+            7,
+            "123 Test St",
+            "Initial offer"));
+        Assert.Equal(HttpStatusCode.Created, startNegRes.StatusCode);
+        var neg = await startNegRes.Content.ReadFromJsonAsync<ProductNegotiationResponse>(JsonOptions);
+        Assert.NotNull(neg);
+
+        // 3. Supplier counters
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", supplierToken);
+        var counterRes = await client.PostAsJsonAsync($"/api/v1/negotiations/{neg.Id}/counter", new CounterNegotiationRequest(
+            95m,
+            10m,
+            5,
+            "Counter offer from supplier"));
+
+        if (!counterRes.IsSuccessStatusCode)
+        {
+            var errorBody = await counterRes.Content.ReadAsStringAsync();
+            throw new Exception($"Counter failed with status {counterRes.StatusCode}: {errorBody}");
+        }
+
+        Assert.Equal(HttpStatusCode.OK, counterRes.StatusCode);
+        var countered = await counterRes.Content.ReadFromJsonAsync<ProductNegotiationResponse>(JsonOptions);
+        Assert.NotNull(countered);
+        Assert.Equal(95m, countered.CurrentUnitPrice);
     }
 }

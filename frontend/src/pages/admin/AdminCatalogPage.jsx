@@ -20,7 +20,7 @@ export default function AdminCatalogPage() {
   // Modals state
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [showAddCategory, setShowAddCategory] = useState(false)
-  const [newCat, setNewCat] = useState({ nameEn: '', nameAr: '', code: '' })
+  const [newCat, setNewCat] = useState({ nameEn: '', nameAr: '', code: '', parentCategoryId: '' })
 
   const [showAddUnit, setShowAddUnit] = useState(false)
   const [newUnit, setNewUnit] = useState({ nameEn: '', nameAr: '', code: '', symbolEn: '', symbolAr: '' })
@@ -46,14 +46,20 @@ export default function AdminCatalogPage() {
 
   // Category Mutations
   const createCategoryMutation = useMutation({
-    mutationFn: (data) => catalogService.createCategory(data),
+    mutationFn: (data) =>
+      catalogService.createCategory({
+        nameEn: data.nameEn.trim(),
+        nameAr: data.nameAr.trim(),
+        code: data.code?.trim() || null,
+        parentCategoryId: data.parentCategoryId || null,
+      }),
     onSuccess: () => {
-      toast.success('Category created successfully')
+      toast.success(isAr ? 'تم إنشاء التصنيف بنجاح' : 'Category created successfully')
       setShowAddCategory(false)
-      setNewCat({ nameEn: '', nameAr: '', code: '' })
+      setNewCat({ nameEn: '', nameAr: '', code: '', parentCategoryId: '' })
       queryClient.invalidateQueries({ queryKey: ['admin', 'catalog', 'categories'] })
     },
-    onError: (err) => toast.error(err?.problem?.detail || 'Failed to create category'),
+    onError: (err) => toast.error(err?.message || (isAr ? 'فشل إنشاء التصنيف' : 'Failed to create category')),
   })
 
   const deleteCategoryMutation = useMutation({
@@ -166,17 +172,46 @@ export default function AdminCatalogPage() {
           </div>
           <div className="divide-y divide-[rgba(6,36,91,0.06)]">
             {categories?.map((cat) => (
-              <div key={cat.id} className="p-4 flex items-center justify-between hover:bg-[#F8FAFC]">
-                <div>
-                  <p className="font-semibold text-sm text-[#06245B]">{cat.nameEn} · {cat.nameAr}</p>
-                  <span className="text-xs font-mono text-[#64748B]">Code: {cat.code}</span>
+              <div key={cat.id} className="divide-y divide-slate-100">
+                <div className="p-4 flex items-center justify-between hover:bg-[#F8FAFC]">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <p className="font-semibold text-sm text-[#06245B]">{cat.nameEn} · {cat.nameAr}</p>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#EAF4FF] text-[#0066FF]">
+                        {isAr ? 'تصنيف رئيسي' : 'Root'}
+                      </span>
+                    </div>
+                    <span className="text-xs font-mono text-[#64748B]">Code: {cat.code}</span>
+                  </div>
+                  <button
+                    onClick={() => setDeleteTarget({ type: 'category', id: cat.id, name: isAr ? cat.nameAr || cat.nameEn : cat.nameEn || cat.nameAr })}
+                    className="p-1.5 rounded-lg text-[#EF4444] hover:bg-red-50 transition-colors"
+                  >
+                    <Trash2 size={16} />
+                  </button>
                 </div>
-                <button
-                  onClick={() => setDeleteTarget({ type: 'category', id: cat.id, name: isAr ? cat.nameAr || cat.nameEn : cat.nameEn || cat.nameAr })}
-                  className="p-1.5 rounded-lg text-[#EF4444] hover:bg-red-50 transition-colors"
-                >
-                  <Trash2 size={16} />
-                </button>
+
+                {/* Subcategories */}
+                {cat.subCategories?.map((sub) => (
+                  <div key={sub.id} className="p-3 pl-8 pr-4 bg-slate-50/50 flex items-center justify-between hover:bg-slate-100/60">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-slate-400">↳</span>
+                        <p className="font-medium text-sm text-slate-800">{sub.nameEn} · {sub.nameAr}</p>
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-200 text-slate-600">
+                          {isAr ? 'فرعي' : 'Sub'}
+                        </span>
+                      </div>
+                      <span className="text-xs font-mono text-slate-500 pl-4">Code: {sub.code}</span>
+                    </div>
+                    <button
+                      onClick={() => setDeleteTarget({ type: 'category', id: sub.id, name: isAr ? sub.nameAr || sub.nameEn : sub.nameEn || sub.nameAr })}
+                      className="p-1.5 rounded-lg text-red-500 hover:bg-red-100 transition-colors"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                ))}
               </div>
             ))}
           </div>
@@ -281,7 +316,7 @@ export default function AdminCatalogPage() {
       />
 
       {/* Add Category Modal */}
-      <Modal open={showAddCategory} onClose={() => setShowAddCategory(false)} title="Add Category">
+      <Modal open={showAddCategory} onClose={() => setShowAddCategory(false)} title={isAr ? 'إضافة تصنيف جديد' : 'Add Category'}>
         <form
           onSubmit={(e) => {
             e.preventDefault()
@@ -290,30 +325,61 @@ export default function AdminCatalogPage() {
           className="space-y-4"
         >
           <Input
-            label="Name (English)"
+            label={isAr ? 'الاسم بالإنجليزية' : 'Name (English)'}
             value={newCat.nameEn}
             onChange={(e) => setNewCat({ ...newCat, nameEn: e.target.value })}
+            placeholder="e.g. Cotton Fabrics"
             required
           />
           <Input
-            label="Name (Arabic)"
+            label={isAr ? 'الاسم بالعربية' : 'Name (Arabic)'}
             value={newCat.nameAr}
             onChange={(e) => setNewCat({ ...newCat, nameAr: e.target.value })}
+            placeholder="مثال: أقمشة قطنية"
             dir="rtl"
             required
           />
-          <Input
-            label="Code (unique identifier)"
-            value={newCat.code}
-            onChange={(e) => setNewCat({ ...newCat, code: e.target.value })}
-            required
-          />
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium text-[#1E293B]">
+              {isAr ? 'التصنيف الرئيسي (اختياري)' : 'Parent Category (Optional)'}
+            </label>
+            <select
+              value={newCat.parentCategoryId}
+              onChange={(e) => setNewCat({ ...newCat, parentCategoryId: e.target.value })}
+              className="h-10 px-3 rounded-lg border border-[#E2E8F0] text-sm text-[#1E293B] bg-white focus:outline-none focus:ring-2 focus:ring-[#00D9F5]"
+            >
+              <option value="">{isAr ? '(بدون - تصنيف رئيسي)' : '(None - Root Category)'}</option>
+              {categories?.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.nameEn} ({c.nameAr})
+                </option>
+              ))}
+            </select>
+            <span className="text-xs text-[#64748B]">
+              {isAr
+                ? 'اختر تصنيفاً رئيسياً (مثل Textiles أو Food أو Metals) لجعل هذا التصنيف فرعياً تحته.'
+                : 'Select an official root category to create this as a subcategory.'}
+            </span>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Input
+              label={isAr ? 'المعرّف التقني (Code) - اختياري' : 'Code Identifier (Optional)'}
+              value={newCat.code}
+              onChange={(e) => setNewCat({ ...newCat, code: e.target.value })}
+              placeholder="e.g. COTTON_FABRICS"
+            />
+            <span className="text-xs text-[#64748B]">
+              {isAr
+                ? 'اختياري — يتم توليده تلقائياً وبشكل فريد من الاسم في حال تركه فارغاً.'
+                : 'Optional — automatically generated as a safe unique identifier from the name if left empty.'}
+            </span>
+          </div>
           <div className="flex justify-end gap-3 pt-2">
             <Button variant="outline" type="button" onClick={() => setShowAddCategory(false)}>
-              Cancel
+              {isAr ? 'إلغاء' : 'Cancel'}
             </Button>
             <Button variant="primary" type="submit" loading={createCategoryMutation.isPending}>
-              Create Category
+              {isAr ? 'إنشاء التصنيف' : 'Create Category'}
             </Button>
           </div>
         </form>

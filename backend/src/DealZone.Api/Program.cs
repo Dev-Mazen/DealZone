@@ -21,7 +21,7 @@ builder.Host.UseSerilog((context, services, configuration) =>
 // Add application layers to DI
 builder.Services.AddApplicationServices();
 builder.Services.AddInfrastructureServices(builder.Configuration, builder.Environment);
-builder.Services.AddApiServices(builder.Configuration);
+builder.Services.AddApiServices(builder.Configuration, builder.Environment);
 
 var app = builder.Build();
 
@@ -63,15 +63,15 @@ if (enableSwagger)
     {
         options.SwaggerEndpoint("/openapi/v1.json", "DealZone API v1");
         options.RoutePrefix = "swagger";
-        options.DocumentTitle = "DealZone Marketplace Web API";
+        options.DocumentTitle = "DealZone Web API";
         options.DisplayRequestDuration();
         options.EnableTryItOutByDefault();
     });
 }
 
-app.UseHttpsRedirection();
-
 app.UseCors(CorsOptions.PolicyName);
+
+app.UseHttpsRedirection();
 
 app.UseRateLimiter();
 

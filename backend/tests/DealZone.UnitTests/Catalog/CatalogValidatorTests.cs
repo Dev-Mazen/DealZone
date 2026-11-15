@@ -19,9 +19,20 @@ public class CatalogValidatorTests
     [InlineData("")]
     [InlineData("   ")]
     [InlineData(null)]
-    public void CreateCategory_WithEmptyCode_ShouldFail(string? code)
+    public void CreateCategory_WithEmptyCode_ShouldPass_BecauseSystemAutoGeneratesSlug(string? code)
     {
-        var request = new CreateCategoryRequest(null, code!, "معادن", "Metals", null, null, 1);
+        var request = new CreateCategoryRequest(null, code, "معادن", "Metals", null, null, 1);
+        var result = _createCategoryValidator.Validate(request);
+
+        Assert.True(result.IsValid);
+    }
+
+    [Theory]
+    [InlineData("INVALID CODE WITH SPACES")]
+    [InlineData("INVALID@CODE!")]
+    public void CreateCategory_WithInvalidCodeFormat_ShouldFail(string code)
+    {
+        var request = new CreateCategoryRequest(null, code, "معادن", "Metals", null, null, 1);
         var result = _createCategoryValidator.Validate(request);
 
         Assert.False(result.IsValid);
@@ -145,14 +156,12 @@ public class CatalogValidatorTests
     [InlineData("PLASTICS")]
     [InlineData("CHEMICALS")]
     [InlineData("RANDOM_CAT")]
-    public void CreateCategory_WithUnsupportedCode_ShouldFail(string code)
+    public void CreateCategory_WithCustomCode_ShouldPass(string code)
     {
         var request = new CreateCategoryRequest(null, code, "اسم عربي", "English Name", null, null, 1);
         var result = _createCategoryValidator.Validate(request);
 
-        Assert.False(result.IsValid);
-        Assert.Contains(result.Errors, e => e.PropertyName == nameof(CreateCategoryRequest.Code)
-            && e.ErrorMessage.Contains("DealZone only supports three official marketplace categories"));
+        Assert.True(result.IsValid);
     }
 
     [Theory]

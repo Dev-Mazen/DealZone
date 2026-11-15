@@ -25,6 +25,7 @@ public class ShipmentsController : ApiControllerBase
     /// List all shipments linked to deals where the authenticated company is a buyer or supplier.
     /// </summary>
     [HttpGet("mine")]
+    [Authorize(Policy = "VerifiedCompany")]
     public async Task<IActionResult> GetMyShipments(
         [FromQuery] ShipmentFilter filter,
         CancellationToken cancellationToken)
@@ -38,6 +39,7 @@ public class ShipmentsController : ApiControllerBase
     /// Accessible to deal participants or system administrators.
     /// </summary>
     [HttpGet("{id:guid}")]
+    [Authorize(Policy = "VerifiedCompany")]
     public async Task<IActionResult> GetShipmentById(Guid id, CancellationToken cancellationToken)
     {
         var response = await _shippingService.GetShipmentByIdAsync(id, cancellationToken);
@@ -46,8 +48,10 @@ public class ShipmentsController : ApiControllerBase
 
     /// <summary>
     /// Update tracking number or carrier name for a shipment.
+    /// Accessible only to system administrators.
     /// </summary>
     [HttpPut("{id:guid}/tracking")]
+    [Authorize(Policy = "SystemAdmin")]
     public async Task<IActionResult> UpdateTracking(
         Guid id,
         [FromBody] UpdateTrackingRequest request,
@@ -58,9 +62,11 @@ public class ShipmentsController : ApiControllerBase
     }
 
     /// <summary>
-    /// Update status for a supplier-arranged shipment.
+    /// Update status for a shipment.
+    /// Accessible only to system administrators.
     /// </summary>
     [HttpPost("{id:guid}/status")]
+    [Authorize(Policy = "SystemAdmin")]
     public async Task<IActionResult> UpdateStatus(
         Guid id,
         [FromBody] UpdateShipmentStatusRequest request,

@@ -78,6 +78,28 @@ public class AuthController : ApiControllerBase
         return Ok(new { message = "Email confirmed successfully. You can now log in." });
     }
 
+    [HttpPost("confirm-email-code")]
+    public async Task<IActionResult> ConfirmEmailCode(
+        [FromBody] ConfirmEmailCodeRequest request,
+        [FromServices] IValidator<ConfirmEmailCodeRequest> validator,
+        CancellationToken cancellationToken)
+    {
+        await validator.ValidateAndThrowDomainAsync(request, cancellationToken);
+        await _authService.ConfirmEmailCodeAsync(request, cancellationToken);
+        return Ok(new { message = "Email confirmed successfully. You can now log in." });
+    }
+
+    [HttpPost("confirm-email-link")]
+    public async Task<IActionResult> ConfirmEmailLink(
+        [FromBody] ConfirmEmailLinkRequest request,
+        [FromServices] IValidator<ConfirmEmailLinkRequest> validator,
+        CancellationToken cancellationToken)
+    {
+        await validator.ValidateAndThrowDomainAsync(request, cancellationToken);
+        await _authService.ConfirmEmailLinkAsync(request, cancellationToken);
+        return Ok(new { message = "Email confirmed successfully. You can now log in." });
+    }
+
     [EnableRateLimiting(RateLimitPolicies.AuthResendConfirmation)]
     [HttpPost("resend-confirmation")]
     public async Task<IActionResult> ResendConfirmation(
@@ -86,7 +108,8 @@ public class AuthController : ApiControllerBase
         CancellationToken cancellationToken)
     {
         await validator.ValidateAndThrowDomainAsync(request, cancellationToken);
-        await _authService.ResendConfirmationAsync(request, cancellationToken);
+        var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
+        await _authService.ResendConfirmationAsync(request, ipAddress, cancellationToken);
         return Ok(new { message = "If the account exists and is unconfirmed, a new confirmation email has been dispatched." });
     }
 

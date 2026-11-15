@@ -10,7 +10,6 @@ using DealZone.Domain.Purchasing;
 using DealZone.Domain.Reviews;
 using DealZone.Domain.Rfqs;
 using DealZone.Domain.Shipping;
-using DealZone.Domain.Tenders;
 using Microsoft.EntityFrameworkCore;
 
 namespace DealZone.Infrastructure.Persistence;
@@ -37,6 +36,7 @@ public class DealZoneDbContext : DbContext
 
     public DbSet<User> Users => Set<User>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+    public DbSet<EmailVerification> EmailVerifications => Set<EmailVerification>();
     public DbSet<Company> Companies => Set<Company>();
     public DbSet<CompanyContactDetails> CompanyContactDetails => Set<CompanyContactDetails>();
     public DbSet<CompanyMember> CompanyMembers => Set<CompanyMember>();
@@ -55,10 +55,6 @@ public class DealZoneDbContext : DbContext
     public DbSet<OfferItem> OfferItems => Set<OfferItem>();
     public DbSet<Deal> Deals => Set<Deal>();
     public DbSet<DealDispute> DealDisputes => Set<DealDispute>();
-    public DbSet<Tender> Tenders => Set<Tender>();
-    public DbSet<TenderItem> TenderItems => Set<TenderItem>();
-    public DbSet<Bid> Bids => Set<Bid>();
-    public DbSet<BidItem> BidItems => Set<BidItem>();
     public DbSet<ShippingProvider> ShippingProviders => Set<ShippingProvider>();
     public DbSet<Shipment> Shipments => Set<Shipment>();
     public DbSet<Review> Reviews => Set<Review>();
@@ -68,12 +64,6 @@ public class DealZoneDbContext : DbContext
     {
         base.OnModelCreating(modelBuilder);
         modelBuilder.HasSequence<long>("RfqNumberSequence")
-            .StartsAt(1000)
-            .IncrementsBy(1);
-        modelBuilder.HasSequence<long>("TenderNumberSequence")
-            .StartsAt(1000)
-            .IncrementsBy(1);
-        modelBuilder.HasSequence<long>("BidNumberSequence")
             .StartsAt(1000)
             .IncrementsBy(1);
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(DealZoneDbContext).Assembly);

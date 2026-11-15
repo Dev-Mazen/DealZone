@@ -23,6 +23,10 @@ export const catalogService = {
   getProducts: (params) =>
     api.get('/catalog/products', { params }).then((r) => r.data),
 
+  // Supplier management: all own products (including inactive/archived)
+  getMyProducts: (params) =>
+    api.get('/catalog/products/mine', { params }).then((r) => r.data),
+
   getProduct: (id) =>
     api.get(`/catalog/products/${id}`).then((r) => r.data),
 
@@ -32,10 +36,7 @@ export const catalogService = {
   updateProduct: (id, data) =>
     api.put(`/catalog/products/${id}`, data).then((r) => r.data),
 
-  directPurchase: (materialId, payload) =>
-    api.post(`/catalog/materials/${materialId}/purchase`, payload).then((r) => r.data),
-
-  directPurchaseProduct: (productId, payload) =>
+  directPurchaseProduct: (payload) =>
     api.post(`/purchases/direct`, payload).then((r) => r.data),
 
   // Admin catalog

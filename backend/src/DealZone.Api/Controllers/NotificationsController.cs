@@ -8,6 +8,7 @@ namespace DealZone.Api.Controllers;
 
 [Tags("Notifications")]
 [Authorize]
+[Route("api/v1/notifications")]
 public class NotificationsController : ApiControllerBase
 {
     private readonly INotificationService _notificationService;

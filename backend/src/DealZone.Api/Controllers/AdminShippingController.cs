@@ -123,11 +123,12 @@ public class AdminShippingController : ApiControllerBase
     [HttpGet("shipments")]
     public async Task<IActionResult> GetAdminShipments(
         [FromQuery] ShipmentStatus? status,
+        [FromQuery] string? search = null,
         [FromQuery] int pageNumber = 1,
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        var response = await _shippingService.GetAdminShipmentsAsync(status, pageNumber, pageSize, cancellationToken);
+        var response = await _shippingService.GetAdminShipmentsAsync(status, pageNumber, pageSize, search, cancellationToken);
         return Ok(response);
     }
 
@@ -157,5 +158,33 @@ public class AdminShippingController : ApiControllerBase
     {
         var response = await _shippingService.AdminUpdateStatusAsync(id, request, cancellationToken);
         return Ok(response);
+    }
+
+    /// <summary>
+    /// Administratively update tracking for any shipment.
+    /// Route: PUT /api/v1/admin/shipments/{id}/tracking
+    /// </summary>
+    [HttpPut("shipments/{id:guid}/tracking")]
+    public async Task<IActionResult> AdminUpdateTracking(
+        Guid id,
+        [FromBody] UpdateTrackingRequest request,
+        CancellationToken cancellationToken)
+    {
+        var response = await _shippingService.UpdateTrackingAsync(id, request, cancellationToken);
+        return Ok(response);
+    }
+
+    /// <summary>
+    /// Administratively create a shipment for a deal.
+    /// Route: POST /api/v1/admin/deals/{dealId}/shipments
+    /// </summary>
+    [HttpPost("deals/{dealId:guid}/shipments")]
+    public async Task<IActionResult> CreateShipmentForDeal(
+        Guid dealId,
+        [FromBody] CreateShipmentRequest request,
+        CancellationToken cancellationToken)
+    {
+        var response = await _shippingService.CreateShipmentAsync(dealId, request, cancellationToken);
+        return CreatedAtAction("GetShipmentById", "Shipments", new { id = response.Id }, response);
     }
 }

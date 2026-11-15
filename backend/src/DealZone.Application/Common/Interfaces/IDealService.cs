@@ -7,7 +7,7 @@ namespace DealZone.Application.Common.Interfaces;
 public interface IDealService
 {
     Task<PagedResult<DealSummaryResponse>> GetMyDealsAsync(
-        DealStatus? status,
+        string? status,
         int pageNumber,
         int pageSize,
         CancellationToken cancellationToken = default);

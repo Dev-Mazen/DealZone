@@ -29,6 +29,7 @@ public class RfqsController : ApiControllerBase
     /// Can be saved as a Draft (default) or Published immediately if PublishImmediately is true.
     /// </summary>
     [HttpPost]
+    [Authorize(Policy = "BuyerProcurement")]
     public async Task<IActionResult> CreateRfq(
         [FromBody] CreateRfqRequest request,
         [FromServices] IValidator<CreateRfqRequest> validator,
@@ -44,6 +45,7 @@ public class RfqsController : ApiControllerBase
     /// Accessible to the owning buyer, or to verified suppliers if the RFQ is Published.
     /// </summary>
     [HttpGet("{id:guid}")]
+    [Authorize(Policy = "VerifiedCompany")]
     public async Task<IActionResult> GetRfqById(Guid id, CancellationToken cancellationToken)
     {
         var response = await _rfqService.GetRfqByIdAsync(id, cancellationToken);
@@ -55,6 +57,7 @@ public class RfqsController : ApiControllerBase
     /// Includes drafts, published, closed, and cancelled RFQs.
     /// </summary>
     [HttpGet("mine")]
+    [Authorize(Policy = "BuyerCompany")]
     public async Task<IActionResult> GetMyRfqs(
         [FromQuery] MyRfqFilter filter,
         CancellationToken cancellationToken)
@@ -68,6 +71,7 @@ public class RfqsController : ApiControllerBase
     /// Restricted to approved supplier companies. Sanitizes buyer private contact info.
     /// </summary>
     [HttpGet]
+    [Authorize(Policy = "SupplierCompany")]
     public async Task<IActionResult> DiscoverRfqs(
         [FromQuery] RfqDiscoveryFilter filter,
         CancellationToken cancellationToken)
@@ -81,6 +85,7 @@ public class RfqsController : ApiControllerBase
     /// Draft RFQs allow full editing of items and parameters; published RFQs allow updating delivery details and notes.
     /// </summary>
     [HttpPut("{id:guid}")]
+    [Authorize(Policy = "BuyerProcurement")]
     public async Task<IActionResult> UpdateRfq(
         Guid id,
         [FromBody] UpdateRfqRequest request,
@@ -96,6 +101,7 @@ public class RfqsController : ApiControllerBase
     /// Publish a draft RFQ, making it visible to verified marketplace suppliers.
     /// </summary>
     [HttpPost("{id:guid}/publish")]
+    [Authorize(Policy = "BuyerProcurement")]
     public async Task<IActionResult> PublishRfq(Guid id, CancellationToken cancellationToken)
     {
         var response = await _rfqService.PublishRfqAsync(id, cancellationToken);
@@ -106,6 +112,7 @@ public class RfqsController : ApiControllerBase
     /// Close a published RFQ. Closed RFQs cannot receive any further offers.
     /// </summary>
     [HttpPost("{id:guid}/close")]
+    [Authorize(Policy = "BuyerProcurement")]
     public async Task<IActionResult> CloseRfq(Guid id, CancellationToken cancellationToken)
     {
         var response = await _rfqService.CloseRfqAsync(id, cancellationToken);
@@ -116,29 +123,19 @@ public class RfqsController : ApiControllerBase
     /// Cancel an RFQ. Cancelled RFQs are archived and cannot receive any offers.
     /// </summary>
     [HttpPost("{id:guid}/cancel")]
+    [Authorize(Policy = "BuyerProcurement")]
     public async Task<IActionResult> CancelRfq(Guid id, CancellationToken cancellationToken)
     {
         var response = await _rfqService.CancelRfqAsync(id, cancellationToken);
         return Ok(response);
     }
 
-    /// <summary>
-    /// Award winning offer for an RFQ and atomically generate a confirmed deal.
-    /// </summary>
-    [HttpPost("{id:guid}/award")]
-    public async Task<IActionResult> AwardRfq(
-        Guid id,
-        [FromBody] AwardRfqRequest request,
-        CancellationToken cancellationToken)
-    {
-        var response = await _rfqService.AwardRfqAsync(id, request, cancellationToken);
-        return Ok(response);
-    }
 
     /// <summary>
     /// Reopen a closed or unawarded RFQ, extending deadline and allowing offers.
     /// </summary>
     [HttpPost("{id:guid}/reopen")]
+    [Authorize(Policy = "BuyerProcurement")]
     public async Task<IActionResult> ReopenRfq(Guid id, CancellationToken cancellationToken)
     {
         var response = await _rfqService.ReopenRfqAsync(id, cancellationToken);
@@ -149,6 +146,7 @@ public class RfqsController : ApiControllerBase
     /// Close an RFQ without selecting a winner (No Award).
     /// </summary>
     [HttpPost("{id:guid}/no-award")]
+    [Authorize(Policy = "BuyerProcurement")]
     public async Task<IActionResult> NoAwardRfq(
         Guid id,
         [FromBody] NoAwardRfqRequest? request,

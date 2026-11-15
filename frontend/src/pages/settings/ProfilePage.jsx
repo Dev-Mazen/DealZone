@@ -19,6 +19,7 @@ import Badge from '../../components/ui/Badge'
 import Button from '../../components/ui/Button'
 import Input from '../../components/ui/Input'
 import { verificationStatusVariant } from '../../utils/format'
+import { EGYPT_PHONE_REGEX } from '../../shared/validation/formSchemas'
 
 export default function ProfilePage() {
   const { language } = useTranslation()
@@ -63,10 +64,17 @@ export default function ProfilePage() {
         : 'Full name must be between 2 and 150 characters'
     }
 
-    if (phoneNumber && phoneNumber.trim().length > 30) {
-      errs.phoneNumber = isAr
-        ? 'رقم الهاتف يجب ألا يتجاوز 30 حرفاً'
-        : 'Phone number must not exceed 30 characters'
+    if (phoneNumber && phoneNumber.trim()) {
+      const cleanPhone = phoneNumber.replace(/\s+/g, '')
+      if (phoneNumber.trim().length > 30) {
+        errs.phoneNumber = isAr
+          ? 'رقم الهاتف يجب ألا يتجاوز 30 حرفاً'
+          : 'Phone number must not exceed 30 characters'
+      } else if (!EGYPT_PHONE_REGEX.test(cleanPhone)) {
+        errs.phoneNumber = isAr
+          ? 'يجب إدخال رقم هاتف مصري صحيح (مثال: 01012345678)'
+          : 'Must be a valid Egyptian mobile number (e.g. 01012345678)'
+      }
     }
 
     setErrors(errs)
@@ -308,7 +316,7 @@ export default function ProfilePage() {
         </Card>
       )}
 
-      {!company && (
+      {!company && !user.isSystemAdmin && (
         <Card>
           <div className="text-center py-6">
             <Building2 size={40} className="text-[#CBD5E1] mx-auto mb-3" />
@@ -321,6 +329,26 @@ export default function ProfilePage() {
             >
               {isAr ? 'تسجيل الشركة الآن ←' : 'Register your company →'}
             </a>
+          </div>
+        </Card>
+      )}
+
+      {user.isSystemAdmin && (
+        <Card>
+          <div className="flex items-center gap-3 py-2">
+            <div className="w-10 h-10 rounded-xl bg-[#06245B] flex items-center justify-center text-[#00D9F5]">
+              <Shield size={20} />
+            </div>
+            <div>
+              <p className="font-bold text-[#06245B]">
+                {isAr ? 'حساب مدير المنصة' : 'Platform Administrator Account'}
+              </p>
+              <p className="text-xs text-[#64748B]">
+                {isAr
+                  ? 'هذا الحساب يتمتع بصلاحيات رقابية وإدارية عليا لإدارة المنصة ولا يتطلب تسجيل كيان تجاري.'
+                  : 'This account possesses platform-wide governance authority and does not require commercial enterprise registration.'}
+              </p>
+            </div>
           </div>
         </Card>
       )}

@@ -39,7 +39,8 @@ public class OfferIntegrationTests
         HttpClient client,
         string email,
         string legalName,
-        string tradeName)
+        string tradeName,
+        string companyType = "Buyer")
     {
         var token = await RegisterAndLoginAsync(client, email);
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
@@ -59,7 +60,8 @@ public class OfferIntegrationTests
             "+201011112222",
             "Industrial Area",
             null,
-            "44629");
+            "44629",
+            companyType);
 
         var compRes = await client.PostAsJsonAsync("/api/v1/companies", compReq);
         Assert.Equal(HttpStatusCode.Created, compRes.StatusCode);
@@ -120,7 +122,7 @@ public class OfferIntegrationTests
         await using var factory = new DealZoneWebApplicationFactory();
         var client = factory.CreateClient();
 
-        var (buyerToken, _) = await CreateVerifiedCompanyAsync(factory, client, "buyer.unv@dealzone.eg", "Buyer Corp", "BuyerCorp");
+        var (buyerToken, _) = await CreateVerifiedCompanyAsync(factory, client, "buyer.unv@dealzone.eg", "Buyer Corp", "BuyerCorp", "Buyer");
         var rfq = await CreateAndPublishRfqAsync(client, buyerToken);
 
         // Create an unverified company
@@ -142,7 +144,8 @@ public class OfferIntegrationTests
             "+201000000000",
             "Street 1",
             null,
-            null);
+            null,
+            "Supplier");
         await client.PostAsJsonAsync("/api/v1/companies", compReq);
 
         var offerReq = new CreateOfferRequest(
@@ -167,7 +170,7 @@ public class OfferIntegrationTests
         await using var factory = new DealZoneWebApplicationFactory();
         var client = factory.CreateClient();
 
-        var (buyerToken, _) = await CreateVerifiedCompanyAsync(factory, client, "buyer.own@dealzone.eg", "Self Supplier SAE", "SelfSupp");
+        var (buyerToken, _) = await CreateVerifiedCompanyAsync(factory, client, "buyer.own@dealzone.eg", "Self Supplier SAE", "SelfSupp", "Buyer");
         var rfq = await CreateAndPublishRfqAsync(client, buyerToken);
 
         var offerReq = new CreateOfferRequest(
@@ -182,9 +185,9 @@ public class OfferIntegrationTests
                 new(rfq.Items.First().Id, 39000, 20, null, null)
             });
 
-        // Calling with the same buyer's token
+        // Calling with the same buyer's token (rejected with Forbidden since buyer cannot operate as supplier, or Conflict for self-offering)
         var offerRes = await client.PostAsJsonAsync($"/api/v1/rfqs/{rfq.Id}/offers", offerReq);
-        Assert.Equal(HttpStatusCode.Conflict, offerRes.StatusCode);
+        Assert.True(offerRes.StatusCode is HttpStatusCode.Conflict or HttpStatusCode.Forbidden);
     }
 
     [Fact]
@@ -193,7 +196,7 @@ public class OfferIntegrationTests
         await using var factory = new DealZoneWebApplicationFactory();
         var client = factory.CreateClient();
 
-        var (buyerToken, _) = await CreateVerifiedCompanyAsync(factory, client, "buyer.closed@dealzone.eg", "Buyer Closed SAE", "BuyerClosed");
+        var (buyerToken, _) = await CreateVerifiedCompanyAsync(factory, client, "buyer.closed@dealzone.eg", "Buyer Closed SAE", "BuyerClosed", "Buyer");
         var rfq = await CreateAndPublishRfqAsync(client, buyerToken);
 
         // Buyer closes the RFQ
@@ -202,7 +205,7 @@ public class OfferIntegrationTests
         Assert.Equal(HttpStatusCode.OK, closeRes.StatusCode);
 
         // Supplier attempts to submit offer
-        var (suppToken, _) = await CreateVerifiedCompanyAsync(factory, client, "supp.closed@dealzone.eg", "Supplier Closed SAE", "SuppClosed");
+        var (suppToken, _) = await CreateVerifiedCompanyAsync(factory, client, "supp.closed@dealzone.eg", "Supplier Closed SAE", "SuppClosed", "Supplier");
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", suppToken);
 
         var offerReq = new CreateOfferRequest(
@@ -227,10 +230,10 @@ public class OfferIntegrationTests
         await using var factory = new DealZoneWebApplicationFactory();
         var client = factory.CreateClient();
 
-        var (buyerToken, _) = await CreateVerifiedCompanyAsync(factory, client, "buyer.match@dealzone.eg", "Buyer Match SAE", "BuyerMatch");
+        var (buyerToken, _) = await CreateVerifiedCompanyAsync(factory, client, "buyer.match@dealzone.eg", "Buyer Match SAE", "BuyerMatch", "Buyer");
         var rfq = await CreateAndPublishRfqAsync(client, buyerToken);
 
-        var (suppToken, _) = await CreateVerifiedCompanyAsync(factory, client, "supp.match@dealzone.eg", "Supplier Match SAE", "SuppMatch");
+        var (suppToken, _) = await CreateVerifiedCompanyAsync(factory, client, "supp.match@dealzone.eg", "Supplier Match SAE", "SuppMatch", "Supplier");
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", suppToken);
 
         // Offer contains a nonexistent RfqItemId
@@ -256,11 +259,11 @@ public class OfferIntegrationTests
         await using var factory = new DealZoneWebApplicationFactory();
         var client = factory.CreateClient();
 
-        var (buyerToken, _) = await CreateVerifiedCompanyAsync(factory, client, "buyer.idor@dealzone.eg", "Buyer Idor SAE", "BuyerIdor");
+        var (buyerToken, _) = await CreateVerifiedCompanyAsync(factory, client, "buyer.idor@dealzone.eg", "Buyer Idor SAE", "BuyerIdor", "Buyer");
         var rfq = await CreateAndPublishRfqAsync(client, buyerToken);
 
         // Supplier 1 submits offer
-        var (supp1Token, _) = await CreateVerifiedCompanyAsync(factory, client, "supp1.idor@dealzone.eg", "Supplier 1 SAE", "Supp1");
+        var (supp1Token, _) = await CreateVerifiedCompanyAsync(factory, client, "supp1.idor@dealzone.eg", "Supplier 1 SAE", "Supp1", "Supplier");
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", supp1Token);
 
         var offerReq = new CreateOfferRequest(
@@ -280,7 +283,7 @@ public class OfferIntegrationTests
         var createdOffer = await offerRes.Content.ReadFromJsonAsync<OfferDetailResponse>(JsonOptions);
 
         // Supplier 2 attempts to revise Supplier 1's offer
-        var (supp2Token, _) = await CreateVerifiedCompanyAsync(factory, client, "supp2.idor@dealzone.eg", "Supplier 2 SAE", "Supp2");
+        var (supp2Token, _) = await CreateVerifiedCompanyAsync(factory, client, "supp2.idor@dealzone.eg", "Supplier 2 SAE", "Supp2", "Supplier");
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", supp2Token);
 
         var reviseReq = new ReviseOfferRequest(
@@ -306,10 +309,10 @@ public class OfferIntegrationTests
         await using var factory = new DealZoneWebApplicationFactory();
         var client = factory.CreateClient();
 
-        var (buyerToken, _) = await CreateVerifiedCompanyAsync(factory, client, "buyer.rev@dealzone.eg", "Buyer Rev SAE", "BuyerRev");
+        var (buyerToken, _) = await CreateVerifiedCompanyAsync(factory, client, "buyer.rev@dealzone.eg", "Buyer Rev SAE", "BuyerRev", "Buyer");
         var rfq = await CreateAndPublishRfqAsync(client, buyerToken);
 
-        var (suppToken, _) = await CreateVerifiedCompanyAsync(factory, client, "supp.rev@dealzone.eg", "Supplier Rev SAE", "SuppRev");
+        var (suppToken, _) = await CreateVerifiedCompanyAsync(factory, client, "supp.rev@dealzone.eg", "Supplier Rev SAE", "SuppRev", "Supplier");
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", suppToken);
 
         // 1. Initial Offer
@@ -382,10 +385,10 @@ public class OfferIntegrationTests
         await using var factory = new DealZoneWebApplicationFactory();
         var client = factory.CreateClient();
 
-        var (buyerA, _) = await CreateVerifiedCompanyAsync(factory, client, "buyer.a.view@dealzone.eg", "Buyer A SAE", "BuyerA");
+        var (buyerA, _) = await CreateVerifiedCompanyAsync(factory, client, "buyer.a.view@dealzone.eg", "Buyer A SAE", "BuyerA", "Buyer");
         var rfq = await CreateAndPublishRfqAsync(client, buyerA);
 
-        var (buyerB, _) = await CreateVerifiedCompanyAsync(factory, client, "buyer.b.view@dealzone.eg", "Buyer B SAE", "BuyerB");
+        var (buyerB, _) = await CreateVerifiedCompanyAsync(factory, client, "buyer.b.view@dealzone.eg", "Buyer B SAE", "BuyerB", "Buyer");
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", buyerB);
 
         var offersRes = await client.GetAsync($"/api/v1/rfqs/{rfq.Id}/offers");
@@ -398,11 +401,11 @@ public class OfferIntegrationTests
         await using var factory = new DealZoneWebApplicationFactory();
         var client = factory.CreateClient();
 
-        var (buyerToken, _) = await CreateVerifiedCompanyAsync(factory, client, "buyer.accept@dealzone.eg", "Buyer Accept SAE", "BuyerAccept");
+        var (buyerToken, _) = await CreateVerifiedCompanyAsync(factory, client, "buyer.accept@dealzone.eg", "Buyer Accept SAE", "BuyerAccept", "Buyer");
         var rfq = await CreateAndPublishRfqAsync(client, buyerToken);
 
         // Supplier 1 submits Offer 1
-        var (supp1Token, _) = await CreateVerifiedCompanyAsync(factory, client, "supp1.comp@dealzone.eg", "Supplier 1 Comp SAE", "Supp1Comp");
+        var (supp1Token, _) = await CreateVerifiedCompanyAsync(factory, client, "supp1.comp@dealzone.eg", "Supplier 1 Comp SAE", "Supp1Comp", "Supplier");
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", supp1Token);
 
         var offer1Req = new CreateOfferRequest(
@@ -422,7 +425,7 @@ public class OfferIntegrationTests
         var offer1 = await o1Res.Content.ReadFromJsonAsync<OfferDetailResponse>(JsonOptions);
 
         // Supplier 2 submits Offer 2
-        var (supp2Token, _) = await CreateVerifiedCompanyAsync(factory, client, "supp2.comp@dealzone.eg", "Supplier 2 Comp SAE", "Supp2Comp");
+        var (supp2Token, _) = await CreateVerifiedCompanyAsync(factory, client, "supp2.comp@dealzone.eg", "Supplier 2 Comp SAE", "Supp2Comp", "Supplier");
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", supp2Token);
 
         var offer2Req = new CreateOfferRequest(
@@ -442,7 +445,7 @@ public class OfferIntegrationTests
         var offer2 = await o2Res.Content.ReadFromJsonAsync<OfferDetailResponse>(JsonOptions);
 
         // Third-party buyer attempts to accept Offer 2 -> Forbidden
-        var (thirdPartyToken, _) = await CreateVerifiedCompanyAsync(factory, client, "third.party@dealzone.eg", "Third Party SAE", "ThirdParty");
+        var (thirdPartyToken, _) = await CreateVerifiedCompanyAsync(factory, client, "third.party@dealzone.eg", "Third Party SAE", "ThirdParty", "Buyer");
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", thirdPartyToken);
         var unauthAcceptRes = await client.PostAsync($"/api/v1/offers/{offer2!.Id}/accept", null);
         Assert.Equal(HttpStatusCode.Forbidden, unauthAcceptRes.StatusCode);
@@ -475,10 +478,10 @@ public class OfferIntegrationTests
         var factory = new DealZoneWebApplicationFactory();
         var client = factory.CreateClient();
 
-        var (buyerToken, _) = await CreateVerifiedCompanyAsync(factory, client, "buyer.wth@dealzone.eg", "Buyer WTH SAE", "BuyerWth");
+        var (buyerToken, _) = await CreateVerifiedCompanyAsync(factory, client, "buyer.wth@dealzone.eg", "Buyer WTH SAE", "BuyerWth", "Buyer");
         var rfq = await CreateAndPublishRfqAsync(client, buyerToken);
 
-        var (suppToken, _) = await CreateVerifiedCompanyAsync(factory, client, "supp.wth@dealzone.eg", "Supplier WTH SAE", "SuppWth");
+        var (suppToken, _) = await CreateVerifiedCompanyAsync(factory, client, "supp.wth@dealzone.eg", "Supplier WTH SAE", "SuppWth", "Supplier");
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", suppToken);
 
         var offerReq = new CreateOfferRequest(
@@ -499,7 +502,7 @@ public class OfferIntegrationTests
         Assert.NotNull(createdOffer);
 
         // 1. Unauthorized supplier cannot withdraw another supplier's offer
-        var (otherSuppToken, _) = await CreateVerifiedCompanyAsync(factory, client, "other.wth@dealzone.eg", "Other WTH SAE", "OtherWth");
+        var (otherSuppToken, _) = await CreateVerifiedCompanyAsync(factory, client, "other.wth@dealzone.eg", "Other WTH SAE", "OtherWth", "Supplier");
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", otherSuppToken);
 
         var unauthWithdraw = await client.PostAsJsonAsync($"/api/v1/offers/{createdOffer.Id}/withdraw", new WithdrawOfferRequest("Illegitimate"));
@@ -532,10 +535,10 @@ public class OfferIntegrationTests
         var factory = new DealZoneWebApplicationFactory();
         var client = factory.CreateClient();
 
-        var (buyerToken, _) = await CreateVerifiedCompanyAsync(factory, client, "buyer.supwth@dealzone.eg", "Buyer SupWth SAE", "BuyerSupWth");
+        var (buyerToken, _) = await CreateVerifiedCompanyAsync(factory, client, "buyer.supwth@dealzone.eg", "Buyer SupWth SAE", "BuyerSupWth", "Buyer");
         var rfq = await CreateAndPublishRfqAsync(client, buyerToken);
 
-        var (suppToken, _) = await CreateVerifiedCompanyAsync(factory, client, "supp.supwth@dealzone.eg", "Supplier SupWth SAE", "SuppSupWth");
+        var (suppToken, _) = await CreateVerifiedCompanyAsync(factory, client, "supp.supwth@dealzone.eg", "Supplier SupWth SAE", "SuppSupWth", "Supplier");
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", suppToken);
 
         var offerReq = new CreateOfferRequest(
@@ -592,10 +595,10 @@ public class OfferIntegrationTests
         var factory = new DealZoneWebApplicationFactory();
         var client = factory.CreateClient();
 
-        var (buyerToken, _) = await CreateVerifiedCompanyAsync(factory, client, "buyer.exp@dealzone.eg", "Buyer Exp SAE", "BuyerExp");
+        var (buyerToken, _) = await CreateVerifiedCompanyAsync(factory, client, "buyer.exp@dealzone.eg", "Buyer Exp SAE", "BuyerExp", "Buyer");
         var rfq = await CreateAndPublishRfqAsync(client, buyerToken);
 
-        var (suppToken, _) = await CreateVerifiedCompanyAsync(factory, client, "supp.exp@dealzone.eg", "Supplier Exp SAE", "SuppExp");
+        var (suppToken, _) = await CreateVerifiedCompanyAsync(factory, client, "supp.exp@dealzone.eg", "Supplier Exp SAE", "SuppExp", "Supplier");
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", suppToken);
 
         var offerReq = new CreateOfferRequest(
@@ -642,10 +645,10 @@ public class OfferIntegrationTests
         var factory = new DealZoneWebApplicationFactory();
         var client = factory.CreateClient();
 
-        var (buyerToken, _) = await CreateVerifiedCompanyAsync(factory, client, "buyer.batch@dealzone.eg", "Buyer Batch SAE", "BuyerBatch");
+        var (buyerToken, _) = await CreateVerifiedCompanyAsync(factory, client, "buyer.batch@dealzone.eg", "Buyer Batch SAE", "BuyerBatch", "Buyer");
         var rfq = await CreateAndPublishRfqAsync(client, buyerToken);
 
-        var (suppToken, _) = await CreateVerifiedCompanyAsync(factory, client, "supp.batch@dealzone.eg", "Supplier Batch SAE", "SuppBatch");
+        var (suppToken, _) = await CreateVerifiedCompanyAsync(factory, client, "supp.batch@dealzone.eg", "Supplier Batch SAE", "SuppBatch", "Supplier");
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", suppToken);
 
         // Create 2 offers
@@ -654,7 +657,7 @@ public class OfferIntegrationTests
         var res1 = await client.PostAsJsonAsync($"/api/v1/rfqs/{rfq.Id}/offers", req1);
         var offer1 = await res1.Content.ReadFromJsonAsync<OfferDetailResponse>(JsonOptions);
 
-        var (suppToken2, _) = await CreateVerifiedCompanyAsync(factory, client, "supp.batch2@dealzone.eg", "Supplier Batch 2 SAE", "SuppBatch2");
+        var (suppToken2, _) = await CreateVerifiedCompanyAsync(factory, client, "supp.batch2@dealzone.eg", "Supplier Batch 2 SAE", "SuppBatch2", "Supplier");
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", suppToken2);
 
         var req2 = new CreateOfferRequest(7, true, "Cash", DateTimeOffset.UtcNow.AddDays(14), "EGP", "Offer 2",

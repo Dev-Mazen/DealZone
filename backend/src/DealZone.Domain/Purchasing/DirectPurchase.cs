@@ -15,6 +15,9 @@ public class DirectPurchase : AuditableEntity, IConcurrencyToken
 {
     public string PurchaseNumber { get; set; } = string.Empty;
 
+    /// <summary>Client-supplied idempotency key per buyer company to prevent accidental double submission.</summary>
+    public string? ClientRequestId { get; set; }
+
     public Guid BuyerCompanyId { get; set; }
     public Company BuyerCompany { get; set; } = null!;
 
@@ -32,7 +35,16 @@ public class DirectPurchase : AuditableEntity, IConcurrencyToken
     /// <summary>Frozen unit price at the exact moment of purchase.</summary>
     public decimal UnitPrice { get; set; }
 
-    /// <summary>Server-calculated total (Quantity * UnitPrice).</summary>
+    /// <summary>Server-calculated subtotal (Quantity * UnitPrice) before VAT.</summary>
+    public decimal Subtotal { get; set; }
+
+    /// <summary>Configured VAT rate applied (e.g. 0.14 for 14%).</summary>
+    public decimal VatRate { get; set; } = 0.14m;
+
+    /// <summary>Server-calculated VAT amount (Subtotal * VatRate).</summary>
+    public decimal VatAmount { get; set; }
+
+    /// <summary>Server-calculated final total (Subtotal + VatAmount).</summary>
     public decimal TotalPrice { get; set; }
 
     public string Currency { get; set; } = "EGP";

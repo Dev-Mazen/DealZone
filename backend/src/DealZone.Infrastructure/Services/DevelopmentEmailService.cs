@@ -9,6 +9,8 @@ public class SentEmailRecord
     public string Email { get; set; } = string.Empty;
     public string Purpose { get; set; } = string.Empty;
     public string Token { get; set; } = string.Empty;
+    public string? Code { get; set; }
+    public string? LinkToken { get; set; }
     public string? Link { get; set; }
     public DateTimeOffset SentAtUtc { get; set; } = DateTimeOffset.UtcNow;
 }
@@ -29,20 +31,28 @@ public class DevelopmentEmailService : IEmailService
 
     public Task SendEmailConfirmationAsync(string email, string token, CancellationToken cancellationToken = default)
     {
-        var link = $"http://localhost:5173/confirm-email?email={Uri.EscapeDataString(email)}&token={Uri.EscapeDataString(token)}";
+        return SendEmailConfirmationAsync(email, token, token, "ar", cancellationToken);
+    }
+
+    public Task SendEmailConfirmationAsync(string email, string code, string linkToken, string language = "ar", CancellationToken cancellationToken = default)
+    {
+        var link = $"http://localhost:5173/confirm-email?token={Uri.EscapeDataString(linkToken)}";
 
         _sentEmails.Enqueue(new SentEmailRecord
         {
             Email = email,
             Purpose = "EmailConfirmation",
-            Token = token,
+            Token = linkToken,
+            Code = code,
+            LinkToken = linkToken,
             Link = link
         });
 
         _logger.LogInformation(
-            "[DEV EMAIL] Confirmation link for {Email}: {ConfirmationLink}",
-            email,
-            link);
+            "[DEV EMAIL] Confirmation code: {Code}, link: {ConfirmationLink} for {Email}",
+            code,
+            link,
+            email);
 
         return Task.CompletedTask;
     }

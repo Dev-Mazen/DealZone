@@ -30,9 +30,15 @@ public class CatalogController : ApiControllerBase
     /// </summary>
     [AllowAnonymous]
     [HttpGet("categories")]
-    public async Task<IActionResult> GetCategories(CancellationToken cancellationToken)
+    public async Task<IActionResult> GetCategories(
+        [FromQuery] bool? marketplaceOnly,
+        CancellationToken cancellationToken)
     {
         var result = await _catalogService.GetCategoriesAsync(includeInactive: false, cancellationToken);
+        if (marketplaceOnly == true)
+        {
+            result = result.Where(c => c.IsMarketplaceAllowed).ToList();
+        }
         return Ok(result);
     }
 
@@ -98,6 +104,21 @@ public class CatalogController : ApiControllerBase
     // -------------------------------------------------------------------------
 
     /// <summary>
+    /// Get all products listed by the authenticated supplier company (including inactive/archived).
+    /// For the supplier's own management screen — no marketplace filters applied.
+    /// </summary>
+    [Authorize(Policy = "SupplierSales")]
+    [HttpGet("products/mine")]
+    public async Task<IActionResult> GetMyProducts(
+        [FromQuery] int pageNumber = 1,
+        [FromQuery] int pageSize = 100,
+        CancellationToken cancellationToken = default)
+    {
+        var result = await _catalogService.GetMyProductsAsync(pageNumber, pageSize, cancellationToken);
+        return Ok(result);
+    }
+
+    /// <summary>
     /// Search and filter eligible purchasable catalog products with prices and stock.
     /// Restricted to the three official marketplace categories (Textiles, Food, Metals).
     /// </summary>
@@ -125,7 +146,7 @@ public class CatalogController : ApiControllerBase
     /// <summary>
     /// List a new catalog product available for direct purchasing (verified suppliers only).
     /// </summary>
-    [Authorize]
+    [Authorize(Policy = "SupplierSales")]
     [HttpPost("products")]
     public async Task<IActionResult> CreateProduct(
         [FromBody] CreateCatalogProductRequest request,
@@ -140,7 +161,7 @@ public class CatalogController : ApiControllerBase
     /// <summary>
     /// Update catalog product pricing, MOQ, or availability (supplier owner/sales only).
     /// </summary>
-    [Authorize]
+    [Authorize(Policy = "SupplierSales")]
     [HttpPut("products/{id:guid}")]
     public async Task<IActionResult> UpdateProduct(
         Guid id,
@@ -156,7 +177,7 @@ public class CatalogController : ApiControllerBase
     /// <summary>
     /// Archive a catalog product.
     /// </summary>
-    [Authorize]
+    [Authorize(Policy = "SupplierSales")]
     [HttpDelete("products/{id:guid}")]
     public async Task<IActionResult> DeleteProduct(Guid id, CancellationToken cancellationToken)
     {
@@ -167,7 +188,7 @@ public class CatalogController : ApiControllerBase
     /// <summary>
     /// Place a direct purchase order for this specific catalog product (convenience route).
     /// </summary>
-    [Authorize]
+    [Authorize(Policy = "BuyerProcurement")]
     [HttpPost("products/{id:guid}/direct-purchase")]
     public async Task<IActionResult> DirectPurchaseProduct(
         Guid id,
@@ -184,58 +205,6 @@ public class CatalogController : ApiControllerBase
         var normalizedRequest = request with { CatalogProductId = id };
         await DealZone.Application.Common.Validation.ValidationExtensions.ValidateAndThrowDomainAsync(validator, normalizedRequest, cancellationToken);
         var result = await purchasingService.CreateDirectPurchaseAsync(normalizedRequest, cancellationToken);
-        return CreatedAtAction("GetPurchaseById", "Purchases", new { id = result.Id }, result);
-    }
-
-    /// <summary>
-    /// Direct purchase of an industrial raw material from the catalog.
-    /// Finds the active supplier catalog product offering this material and issues an atomic direct purchase deal.
-    /// Route: POST /api/v1/catalog/materials/{id}/purchase
-    /// </summary>
-    [Authorize]
-    [HttpPost("materials/{id:guid}/purchase")]
-    public async Task<IActionResult> DirectPurchaseMaterial(
-        Guid id,
-        [FromBody] MaterialPurchaseRequest request,
-        [FromServices] IPurchasingService purchasingService,
-        [FromServices] DealZoneDbContext dbContext,
-        CancellationToken cancellationToken)
-    {
-        var product = await dbContext.CatalogProducts
-            .Include(p => p.SupplierCompany)
-            .Include(p => p.Material)
-            .Where(p => p.MaterialId == id && p.IsActive && !p.IsArchived)
-            .OrderByDescending(p => p.AvailableQuantity >= request.Quantity)
-            .ThenBy(p => p.UnitPrice)
-            .FirstOrDefaultAsync(cancellationToken);
-
-        if (product == null && !string.IsNullOrWhiteSpace(request.MaterialCode))
-        {
-            product = await dbContext.CatalogProducts
-                .Include(p => p.SupplierCompany)
-                .Include(p => p.Material)
-                .Where(p => p.Material.Code == request.MaterialCode && p.IsActive && !p.IsArchived)
-                .OrderByDescending(p => p.AvailableQuantity >= request.Quantity)
-                .ThenBy(p => p.UnitPrice)
-                .FirstOrDefaultAsync(cancellationToken);
-        }
-
-        if (product == null)
-        {
-            throw new NotFoundException($"No active supplier catalog offering was found for material {id}.");
-        }
-
-        var fullDeliveryAddress = string.IsNullOrWhiteSpace(request.DeliveryIndustrialZone)
-            ? request.DeliveryAddress ?? "Factory Gate"
-            : $"{request.DeliveryIndustrialZone} - {request.DeliveryAddress ?? ""}".Trim(' ', '-');
-
-        var directPurchaseRequest = new CreateDirectPurchaseRequest(
-            CatalogProductId: product.Id,
-            Quantity: request.Quantity,
-            DeliveryAddress: fullDeliveryAddress,
-            Notes: request.SpecialInstructions);
-
-        var result = await purchasingService.CreateDirectPurchaseAsync(directPurchaseRequest, cancellationToken);
         return CreatedAtAction("GetPurchaseById", "Purchases", new { id = result.Id }, result);
     }
 }

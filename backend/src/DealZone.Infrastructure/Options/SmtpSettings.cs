@@ -10,7 +10,7 @@ public class SmtpSettings
     public string? Password { get; set; }
     public bool EnableSsl { get; set; } = true;
     public string FromEmail { get; set; } = "noreply@dealzone.eg";
-    public string FromName { get; set; } = "DealZone Marketplace";
+    public string FromName { get; set; } = "DealZone";
     public string FrontendBaseUrl { get; set; } = "http://localhost:5173";
     public int TimeoutSeconds { get; set; } = 15;
     public int MaxRetries { get; set; } = 2;

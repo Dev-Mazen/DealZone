@@ -19,6 +19,13 @@ public class DirectPurchaseConfiguration : IEntityTypeConfiguration<DirectPurcha
         builder.HasIndex(p => p.PurchaseNumber)
             .IsUnique();
 
+        builder.Property(p => p.ClientRequestId)
+            .HasMaxLength(100);
+
+        builder.HasIndex(p => new { p.BuyerCompanyId, p.ClientRequestId })
+            .IsUnique()
+            .HasFilter("[ClientRequestId] IS NOT NULL");
+
         builder.Property(p => p.Quantity)
             .HasPrecision(18, 2)
             .IsRequired();
@@ -26,6 +33,18 @@ public class DirectPurchaseConfiguration : IEntityTypeConfiguration<DirectPurcha
         builder.Property(p => p.UnitPrice)
             .HasPrecision(18, 2)
             .IsRequired();
+
+        builder.Property(p => p.Subtotal)
+            .HasPrecision(18, 2)
+            .HasDefaultValue(0m);
+
+        builder.Property(p => p.VatRate)
+            .HasPrecision(5, 4)
+            .HasDefaultValue(0.14m);
+
+        builder.Property(p => p.VatAmount)
+            .HasPrecision(18, 2)
+            .HasDefaultValue(0m);
 
         builder.Property(p => p.TotalPrice)
             .HasPrecision(18, 2)
@@ -58,6 +77,8 @@ public class DirectPurchaseConfiguration : IEntityTypeConfiguration<DirectPurcha
         builder.HasIndex(p => p.SupplierCompanyId);
         builder.HasIndex(p => p.CatalogProductId);
         builder.HasIndex(p => p.Status);
+
+        builder.HasQueryFilter(p => !p.BuyerCompany.IsDeleted && !p.SupplierCompany.IsDeleted);
 
         builder.HasOne(p => p.BuyerCompany)
             .WithMany()
@@ -96,6 +117,8 @@ public class ProductNegotiationConfiguration : IEntityTypeConfiguration<ProductN
 
         builder.HasIndex(n => n.NegotiationNumber)
             .IsUnique();
+
+        builder.HasQueryFilter(n => !n.BuyerCompany.IsDeleted && !n.SupplierCompany.IsDeleted);
 
         builder.Property(n => n.CurrentUnitPrice)
             .HasPrecision(18, 2)
@@ -186,6 +209,8 @@ public class ProductNegotiationRevisionConfiguration : IEntityTypeConfiguration<
 
         builder.Property(r => r.Notes)
             .HasMaxLength(1000);
+
+        builder.HasQueryFilter(r => !r.Negotiation.BuyerCompany.IsDeleted && !r.Negotiation.SupplierCompany.IsDeleted);
 
         builder.HasIndex(r => r.NegotiationId);
     }

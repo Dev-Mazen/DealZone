@@ -7,6 +7,13 @@ public interface IEmailService
         string token,
         CancellationToken cancellationToken = default);
 
+    Task SendEmailConfirmationAsync(
+        string email,
+        string code,
+        string linkToken,
+        string language = "ar",
+        CancellationToken cancellationToken = default);
+
     Task SendPasswordResetAsync(
         string email,
         string token,

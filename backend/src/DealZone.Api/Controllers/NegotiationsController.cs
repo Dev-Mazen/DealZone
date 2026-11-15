@@ -9,6 +9,7 @@ namespace DealZone.Api.Controllers;
 /// Product price negotiations between buyers and suppliers.
 /// </summary>
 [Authorize]
+[Route("api/v1/negotiations")]
 public class NegotiationsController : ApiControllerBase
 {
     private readonly INegotiationService _negotiationService;
@@ -22,6 +23,7 @@ public class NegotiationsController : ApiControllerBase
     /// Buyer initiates a "Make an Offer" negotiation on a marketplace product.
     /// </summary>
     [HttpPost]
+    [Authorize(Policy = "BuyerProcurement")]
     public async Task<IActionResult> Create(
         [FromBody] CreateProductNegotiationRequest request,
         CancellationToken cancellationToken)
@@ -34,6 +36,8 @@ public class NegotiationsController : ApiControllerBase
     /// Get paginated list of negotiations for the caller's company (buyer or supplier).
     /// </summary>
     [HttpGet("mine")]
+    [HttpGet]
+    [Authorize(Policy = "VerifiedCompany")]
     public async Task<IActionResult> GetMine(
         [FromQuery] ProductNegotiationFilter filter,
         CancellationToken cancellationToken)
@@ -46,6 +50,7 @@ public class NegotiationsController : ApiControllerBase
     /// Get a single negotiation by ID (accessible to both parties).
     /// </summary>
     [HttpGet("{id:guid}")]
+    [Authorize(Policy = "VerifiedCompany")]
     public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken)
     {
         var result = await _negotiationService.GetNegotiationByIdAsync(id, cancellationToken);
@@ -56,6 +61,7 @@ public class NegotiationsController : ApiControllerBase
     /// Submit a counter-offer on a negotiation (buyer or supplier depending on whose turn it is).
     /// </summary>
     [HttpPost("{id:guid}/counter")]
+    [Authorize(Policy = "VerifiedCompany")]
     public async Task<IActionResult> Counter(
         Guid id,
         [FromBody] CounterNegotiationRequest request,
@@ -69,6 +75,7 @@ public class NegotiationsController : ApiControllerBase
     /// Accept the current terms — creates a Deal atomically in AwaitingConfirmation status.
     /// </summary>
     [HttpPost("{id:guid}/accept")]
+    [Authorize(Policy = "VerifiedCompany")]
     public async Task<IActionResult> Accept(Guid id, CancellationToken cancellationToken)
     {
         var result = await _negotiationService.AcceptNegotiationAsync(id, cancellationToken);
@@ -79,6 +86,7 @@ public class NegotiationsController : ApiControllerBase
     /// Reject the negotiation (buyer or supplier).
     /// </summary>
     [HttpPost("{id:guid}/reject")]
+    [Authorize(Policy = "VerifiedCompany")]
     public async Task<IActionResult> Reject(
         Guid id,
         [FromBody] RejectNegotiationRequest request,
@@ -92,6 +100,7 @@ public class NegotiationsController : ApiControllerBase
     /// Buyer cancels an open negotiation they initiated.
     /// </summary>
     [HttpPost("{id:guid}/cancel")]
+    [Authorize(Policy = "BuyerProcurement")]
     public async Task<IActionResult> Cancel(Guid id, CancellationToken cancellationToken)
     {
         var result = await _negotiationService.CancelNegotiationAsync(id, cancellationToken);

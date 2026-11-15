@@ -1,6 +1,8 @@
+using DealZone.Application.Common.Exceptions;
 using DealZone.Application.Common.Interfaces;
 using DealZone.Application.Common.Models;
 using DealZone.Application.Companies.DTOs;
+using DealZone.Domain.Common;
 using DealZone.Domain.Companies;
 using DealZone.Domain.Exceptions;
 using DealZone.Infrastructure.Persistence;
@@ -13,15 +15,18 @@ public class CompanyService : ICompanyService
     private readonly DealZoneDbContext _context;
     private readonly ICurrentUser _currentUser;
     private readonly IDateTimeProvider _dateTimeProvider;
+    private readonly ICurrentCompanyContext _currentCompany;
 
     public CompanyService(
         DealZoneDbContext context,
         ICurrentUser currentUser,
-        IDateTimeProvider dateTimeProvider)
+        IDateTimeProvider dateTimeProvider,
+        ICurrentCompanyContext currentCompany)
     {
         _context = context;
         _currentUser = currentUser;
         _dateTimeProvider = dateTimeProvider;
+        _currentCompany = currentCompany;
     }
 
     public async Task<CompanyResponse> CreateCompanyAsync(CreateCompanyRequest request, CancellationToken cancellationToken = default)
@@ -51,11 +56,10 @@ public class CompanyService : ICompanyService
             throw new ConflictException("A company with this Commercial Registration or Tax ID already exists.");
         }
 
-        var companyType = CompanyType.Both;
-        if (!string.IsNullOrWhiteSpace(request.CompanyType) &&
-            Enum.TryParse<CompanyType>(request.CompanyType, true, out var parsedType))
+        if (string.IsNullOrWhiteSpace(request.CompanyType) ||
+            !Enum.TryParse<CompanyType>(request.CompanyType, true, out var companyType))
         {
-            companyType = parsedType;
+            throw new ValidationException("CompanyType", "An explicit company type ('Buyer' or 'Supplier') is required.");
         }
 
         var company = new Company
@@ -484,7 +488,7 @@ public class CompanyService : ICompanyService
         var query = _context.Companies
             .AsNoTracking()
             .Where(c => !c.IsDeleted && c.IsActive && c.VerificationStatus == CompanyVerificationStatus.Approved &&
-                        (c.CompanyType == CompanyType.Supplier || c.CompanyType == CompanyType.Both));
+                        c.CompanyType == CompanyType.Supplier);
 
         if (!string.IsNullOrWhiteSpace(filter.Search))
         {
@@ -509,7 +513,9 @@ public class CompanyService : ICompanyService
         if (!string.IsNullOrWhiteSpace(filter.Governorate))
         {
             var gov = filter.Governorate.Trim();
-            query = query.Where(c => c.Governorate == gov);
+            var canonical = EgyptGovernorates.NormalizeToCanonicalArabic(gov);
+            var engMatch = EgyptGovernorates.All.FirstOrDefault(g => g.NameAr == canonical || g.NameEn.Equals(gov, StringComparison.OrdinalIgnoreCase))?.NameEn;
+            query = query.Where(c => c.Governorate == gov || (canonical != null && c.Governorate == canonical) || (engMatch != null && c.Governorate == engMatch));
         }
 
         var totalCount = await query.CountAsync(cancellationToken);
@@ -570,6 +576,21 @@ public class CompanyService : ICompanyService
             throw new NotFoundException("Company not found or not eligible for public profile display.");
         }
 
+        if (company.CompanyType == CompanyType.Buyer)
+        {
+            var isEligibleViewer = _currentCompany.IsSystemAdmin ||
+                (_currentCompany.IsAuthenticated &&
+                 _currentCompany.IsSupplier &&
+                 _currentCompany.VerificationStatus == CompanyVerificationStatus.Approved &&
+                 _currentCompany.IsCompanyActive &&
+                 !_currentCompany.IsCompanyDeleted);
+
+            if (!isEligibleViewer)
+            {
+                throw new NotFoundException("Company not found or not eligible for public profile display.");
+            }
+        }
+
         var reviewCount = await _context.Reviews
             .AsNoTracking()
             .CountAsync(r => r.TargetCompanyId == companyId && !r.IsDeleted, cancellationToken);
@@ -580,6 +601,53 @@ public class CompanyService : ICompanyService
                 .Where(r => r.TargetCompanyId == companyId && !r.IsDeleted)
                 .AverageAsync(r => (decimal)r.Rating, cancellationToken)
             : (decimal?)null;
+
+        var publishedRfqCount = await _context.Rfqs
+            .AsNoTracking()
+            .CountAsync(r => r.BuyerCompanyId == companyId && !r.IsDeleted && r.Status == Domain.Rfqs.RfqStatus.Published, cancellationToken);
+
+        var completedDealCount = await _context.Deals
+            .AsNoTracking()
+            .CountAsync(d => (d.BuyerCompanyId == companyId || d.SupplierCompanyId == companyId) && d.Status == Domain.Deals.DealStatus.Completed, cancellationToken);
+
+        int activeProductCount = 0;
+        List<string>? sectorsSourced = null;
+        List<PublicRfqSummaryDto>? openPublicRfqs = null;
+
+        if (company.CompanyType == CompanyType.Supplier)
+        {
+            activeProductCount = await _context.CatalogProducts
+                .AsNoTracking()
+                .CountAsync(p => p.SupplierCompanyId == companyId && p.IsActive && !p.IsArchived, cancellationToken);
+        }
+        else if (company.CompanyType == CompanyType.Buyer)
+        {
+            sectorsSourced = await _context.Rfqs
+                .AsNoTracking()
+                .Where(r => r.BuyerCompanyId == companyId && !r.IsDeleted && r.TargetCategory != null)
+                .Select(r => r.TargetCategory!.NameEn)
+                .Distinct()
+                .ToListAsync(cancellationToken);
+
+            var now = _dateTimeProvider.UtcNow;
+            openPublicRfqs = await _context.Rfqs
+                .AsNoTracking()
+                .Where(r => r.BuyerCompanyId == companyId &&
+                            !r.IsDeleted &&
+                            r.Status == Domain.Rfqs.RfqStatus.Published &&
+                            r.TargetSupplierCompanyId == null &&
+                            r.ClosingDateUtc > now)
+                .OrderByDescending(r => r.CreatedAtUtc)
+                .Select(r => new PublicRfqSummaryDto(
+                    r.Id,
+                    r.RfqNumber,
+                    r.Title,
+                    r.TargetCategory != null ? r.TargetCategory.NameEn : null,
+                    r.Items.Count,
+                    r.ClosingDateUtc,
+                    r.CreatedAtUtc))
+                .ToListAsync(cancellationToken);
+        }
 
         return new PublicCompanyProfileResponse(
             company.Id,
@@ -595,7 +663,12 @@ public class CompanyService : ICompanyService
             company.VerificationStatus.ToString(),
             avgRating.HasValue ? Math.Round(avgRating.Value, 1) : null,
             reviewCount,
-            company.CreatedAtUtc
+            company.CreatedAtUtc,
+            publishedRfqCount,
+            completedDealCount,
+            activeProductCount,
+            sectorsSourced,
+            openPublicRfqs
         );
     }
 }

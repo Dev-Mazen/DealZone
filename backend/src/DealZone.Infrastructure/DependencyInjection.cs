@@ -1,10 +1,13 @@
 using System.Text;
 using DealZone.Application.Common.Interfaces;
+using DealZone.Domain.Companies;
+using DealZone.Infrastructure.Authorization;
 using DealZone.Infrastructure.BackgroundJobs;
 using DealZone.Infrastructure.Options;
 using DealZone.Infrastructure.Persistence;
 using DealZone.Infrastructure.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -21,6 +24,7 @@ public static class DependencyInjection
         IHostEnvironment? environment = null)
     {
         services.AddHttpContextAccessor();
+        services.AddScoped<ICurrentCompanyContext, CurrentCompanyContext>();
         services.AddScoped<ICurrentUser, CurrentUser>();
         services.AddSingleton<IDateTimeProvider, DateTimeProvider>();
 
@@ -73,12 +77,47 @@ public static class DependencyInjection
             };
         });
 
+        // Authorization Handlers (evaluating DB-backed ICurrentCompanyContext)
+        services.AddScoped<IAuthorizationHandler, SystemAdminAuthorizationHandler>();
+        services.AddScoped<IAuthorizationHandler, CompanyTypeAuthorizationHandler>();
+        services.AddScoped<IAuthorizationHandler, VerifiedCompanyAuthorizationHandler>();
+        services.AddScoped<IAuthorizationHandler, CompanyRoleAuthorizationHandler>();
+
         services.AddAuthorization(opts =>
         {
             opts.AddPolicy("SystemAdmin", policy =>
-                policy.RequireAssertion(ctx =>
-                    ctx.User.IsInRole("SystemAdmin") ||
-                    ctx.User.HasClaim("is_system_admin", "true")));
+                policy.Requirements.Add(new SystemAdminRequirement()));
+
+            opts.AddPolicy("SystemAdminOnly", policy =>
+                policy.Requirements.Add(new SystemAdminRequirement()));
+
+            opts.AddPolicy("BuyerCompany", policy =>
+                policy.Requirements.Add(new CompanyTypeRequirement(CompanyType.Buyer)));
+
+            opts.AddPolicy("SupplierCompany", policy =>
+                policy.Requirements.Add(new CompanyTypeRequirement(CompanyType.Supplier)));
+
+            opts.AddPolicy("VerifiedCompany", policy =>
+                policy.Requirements.Add(new VerifiedCompanyRequirement()));
+
+            opts.AddPolicy("BuyerProcurement", policy =>
+            {
+                policy.Requirements.Add(new CompanyTypeRequirement(CompanyType.Buyer));
+                policy.Requirements.Add(new VerifiedCompanyRequirement());
+                policy.Requirements.Add(new CompanyRoleRequirement(CompanyActionRoleMap.BuyerProcurement.ToArray()));
+            });
+
+            opts.AddPolicy("SupplierSales", policy =>
+            {
+                policy.Requirements.Add(new CompanyTypeRequirement(CompanyType.Supplier));
+                policy.Requirements.Add(new VerifiedCompanyRequirement());
+                policy.Requirements.Add(new CompanyRoleRequirement(CompanyActionRoleMap.SupplierSales.ToArray()));
+            });
+
+            opts.AddPolicy("CompanyAdmin", policy =>
+            {
+                policy.Requirements.Add(new CompanyRoleRequirement(CompanyActionRoleMap.CompanyManagement.ToArray()));
+            });
         });
 
         // File storage
@@ -87,6 +126,7 @@ public static class DependencyInjection
 
         // Admin settings
         services.Configure<AdminSettings>(configuration.GetSection(AdminSettings.SectionName));
+        services.Configure<PricingSettings>(configuration.GetSection(PricingSettings.SectionName));
 
         // SMTP settings
         services.Configure<SmtpSettings>(configuration.GetSection(SmtpSettings.SectionName));
@@ -128,8 +168,6 @@ public static class DependencyInjection
         services.AddScoped<IReviewService, ReviewService>();
         services.AddScoped<INotificationService, NotificationService>();
         services.AddScoped<IRfqNumberGenerator, RfqNumberGenerator>();
-        services.AddScoped<ITenderService, TenderService>();
-        services.AddScoped<ITenderNumberGenerator, TenderNumberGenerator>();
         services.AddScoped<IPurchasingService, PurchasingService>();
         services.AddScoped<INegotiationService, NegotiationService>();
 
@@ -138,10 +176,8 @@ public static class DependencyInjection
             configuration.GetSection(BackgroundJobOptions.SectionName));
         services.AddScoped<IOfferExpiryProcessor, OfferExpiryProcessor>();
         services.AddScoped<ITokenCleanupProcessor, TokenCleanupProcessor>();
-        services.AddScoped<ITenderClosingProcessor, TenderClosingProcessor>();
         services.AddHostedService<OfferExpiryBackgroundService>();
         services.AddHostedService<TokenCleanupBackgroundService>();
-        services.AddHostedService<TenderClosingBackgroundService>();
 
         var connectionString = configuration.GetConnectionString("DefaultConnection");
 

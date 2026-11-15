@@ -25,10 +25,7 @@ export const dealService = {
   getDisputes: (id) =>
     api.get(`/deals/${id}/disputes`).then((r) => r.data),
 
-  // Shipments
-  createShipment: (dealId, data) =>
-    api.post(`/deals/${dealId}/shipments`, data).then((r) => r.data),
-
+  // Shipments (Read-only for deal participants)
   getDealShipments: (dealId) =>
     api.get(`/deals/${dealId}/shipments`).then((r) => r.data),
 

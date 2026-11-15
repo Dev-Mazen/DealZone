@@ -4,22 +4,8 @@ public record CreateDirectPurchaseRequest(
     Guid CatalogProductId,
     decimal Quantity,
     string? DeliveryAddress = null,
-    string? Notes = null);
-
-public record MaterialPurchaseRequest(
-    Guid? MaterialId = null,
-    string? MaterialCode = null,
-    decimal Quantity = 0,
-    string? UnitCode = null,
-    decimal? UnitPrice = null,
-    decimal? Subtotal = null,
-    decimal? Vat = null,
-    decimal? Total = null,
-    string? Currency = null,
-    string? DeliveryIndustrialZone = null,
-    string? DeliveryAddress = null,
-    string? TargetDeliveryDate = null,
-    string? SpecialInstructions = null);
+    string? Notes = null,
+    string? ClientRequestId = null);
 
 public record DirectPurchaseResponse(
     Guid Id,
@@ -40,6 +26,9 @@ public record DirectPurchaseResponse(
     string UnitNameEn,
     decimal Quantity,
     decimal UnitPrice,
+    decimal Subtotal,
+    decimal VatRate,
+    decimal VatAmount,
     decimal TotalPrice,
     string Currency,
     int DeliveryLeadTimeDays,
@@ -61,7 +50,7 @@ public record DirectPurchaseItemSnapshot(
     string Sku,
     string ProductNameAr,
     string ProductNameEn,
-    Guid MaterialId,
+    Guid? MaterialId,
     string MaterialCode,
     string MaterialNameAr,
     string MaterialNameEn,
@@ -71,8 +60,10 @@ public record DirectPurchaseItemSnapshot(
     string CategoryCode,
     decimal Quantity,
     decimal UnitPrice,
+    decimal Subtotal,
+    decimal VatRate,
+    decimal VatAmount,
     decimal TotalPrice,
     string Currency,
     int DeliveryLeadTimeDays,
     DateTimeOffset CreatedAtUtc);
-

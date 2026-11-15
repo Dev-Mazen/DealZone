@@ -2030,32 +2030,6 @@ GO
 BEGIN TRANSACTION;
 IF NOT EXISTS (
     SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20261110015941_Tenders'
-)
-BEGIN
-    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
-    VALUES (N'20261110015941_Tenders', N'10.0.3');
-END;
-
-COMMIT;
-GO
-
-BEGIN TRANSACTION;
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20261110020729_Tenders2'
-)
-BEGIN
-    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
-    VALUES (N'20261110020729_Tenders2', N'10.0.3');
-END;
-
-COMMIT;
-GO
-
-BEGIN TRANSACTION;
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
     WHERE [MigrationId] = N'20261110180936_AddDirectCatalogPurchasingAndRestrictedCategories'
 )
 BEGIN
@@ -2546,6 +2520,510 @@ IF NOT EXISTS (
 BEGIN
     INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
     VALUES (N'20261111180118_UnifiedMarketplaceAndProcurementRefactor', N'10.0.3');
+END;
+
+COMMIT;
+GO
+
+BEGIN TRANSACTION;
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261114232341_RemoveTendersAndSyncModel'
+)
+BEGIN
+
+                    IF OBJECT_ID(N'[FK_Deals_Bids_BidId]', 'F') IS NOT NULL ALTER TABLE [Deals] DROP CONSTRAINT [FK_Deals_Bids_BidId];
+                    IF OBJECT_ID(N'[FK_Deals_Tenders_TenderId]', 'F') IS NOT NULL ALTER TABLE [Deals] DROP CONSTRAINT [FK_Deals_Tenders_TenderId];
+                    IF OBJECT_ID(N'[FK_Tenders_Bids_AwardedBidId]', 'F') IS NOT NULL ALTER TABLE [Tenders] DROP CONSTRAINT [FK_Tenders_Bids_AwardedBidId];
+
+                    DROP TABLE IF EXISTS [BidItems];
+                    DROP TABLE IF EXISTS [TenderItems];
+                    DROP TABLE IF EXISTS [Bids];
+                    DROP TABLE IF EXISTS [Tenders];
+
+                    IF EXISTS (SELECT * FROM sys.indexes WHERE name = N'IX_Deals_BidId' AND object_id = OBJECT_ID(N'[Deals]'))
+                        DROP INDEX [IX_Deals_BidId] ON [Deals];
+
+                    IF EXISTS (SELECT * FROM sys.indexes WHERE name = N'IX_Deals_TenderId' AND object_id = OBJECT_ID(N'[Deals]'))
+                        DROP INDEX [IX_Deals_TenderId] ON [Deals];
+
+                    IF COL_LENGTH(N'Deals', N'BidId') IS NOT NULL
+                        ALTER TABLE [Deals] DROP COLUMN [BidId];
+
+                    IF COL_LENGTH(N'Deals', N'BidRevisionNumber') IS NOT NULL
+                        ALTER TABLE [Deals] DROP COLUMN [BidRevisionNumber];
+
+                    IF COL_LENGTH(N'Deals', N'TenderId') IS NOT NULL
+                        ALTER TABLE [Deals] DROP COLUMN [TenderId];
+
+                    DROP SEQUENCE IF EXISTS [BidNumberSequence];
+                    DROP SEQUENCE IF EXISTS [TenderNumberSequence];
+
+                    IF COL_LENGTH(N'Rfqs', N'TargetSupplierCompanyId') IS NULL
+                    BEGIN
+                        ALTER TABLE [Rfqs] ADD [TargetSupplierCompanyId] uniqueidentifier NULL;
+                    END
+
+                    IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = N'IX_Rfqs_TargetSupplierCompanyId' AND object_id = OBJECT_ID(N'[Rfqs]'))
+                    BEGIN
+                        CREATE INDEX [IX_Rfqs_TargetSupplierCompanyId] ON [Rfqs] ([TargetSupplierCompanyId]);
+                    END
+
+                    IF OBJECT_ID(N'[FK_Rfqs_Companies_TargetSupplierCompanyId]', 'F') IS NULL
+                    BEGIN
+                        ALTER TABLE [Rfqs] ADD CONSTRAINT [FK_Rfqs_Companies_TargetSupplierCompanyId] 
+                        FOREIGN KEY ([TargetSupplierCompanyId]) REFERENCES [Companies] ([Id]);
+                    END
+                
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261114232341_RemoveTendersAndSyncModel'
+)
+BEGIN
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+    VALUES (N'20261114232341_RemoveTendersAndSyncModel', N'10.0.3');
+END;
+
+COMMIT;
+GO
+
+BEGIN TRANSACTION;
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261114234814_CompanyTypeBuyerOrSupplierOnly'
+)
+BEGIN
+    UPDATE [Companies] SET [CompanyType] = 'Supplier' WHERE [CompanyType] = 'Both';
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261114234814_CompanyTypeBuyerOrSupplierOnly'
+)
+BEGIN
+    DECLARE @var4 nvarchar(max);
+    SELECT @var4 = QUOTENAME([d].[name])
+    FROM [sys].[default_constraints] [d]
+    INNER JOIN [sys].[columns] [c] ON [d].[parent_column_id] = [c].[column_id] AND [d].[parent_object_id] = [c].[object_id]
+    WHERE ([d].[parent_object_id] = OBJECT_ID(N'[Companies]') AND [c].[name] = N'CompanyType');
+    IF @var4 IS NOT NULL EXEC(N'ALTER TABLE [Companies] DROP CONSTRAINT ' + @var4 + ';');
+    ALTER TABLE [Companies] ADD DEFAULT N'Buyer' FOR [CompanyType];
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261114234814_CompanyTypeBuyerOrSupplierOnly'
+)
+BEGIN
+
+                    IF NOT EXISTS (SELECT 1 FROM sys.check_constraints WHERE name = 'CK_Companies_CompanyType')
+                    BEGIN
+                        ALTER TABLE [Companies] ADD CONSTRAINT [CK_Companies_CompanyType] CHECK ([CompanyType] IN ('Buyer', 'Supplier'));
+                    END
+                
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261114234814_CompanyTypeBuyerOrSupplierOnly'
+)
+BEGIN
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+    VALUES (N'20261114234814_CompanyTypeBuyerOrSupplierOnly', N'10.0.3');
+END;
+
+COMMIT;
+GO
+
+BEGIN TRANSACTION;
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261115003839_CompanyTypeStrictRequiredAndDataCorrection'
+)
+BEGIN
+
+                    IF EXISTS (SELECT 1 FROM [OfferItems] WHERE [OfferId] = '00DACFE9-F431-4836-A287-4CEBE296BEEB')
+                    BEGIN
+                        DELETE FROM [OfferItems] WHERE [OfferId] = '00DACFE9-F431-4836-A287-4CEBE296BEEB';
+                    END
+
+                    IF EXISTS (SELECT 1 FROM [Offers] WHERE [Id] = '00DACFE9-F431-4836-A287-4CEBE296BEEB')
+                    BEGIN
+                        DELETE FROM [Offers] WHERE [Id] = '00DACFE9-F431-4836-A287-4CEBE296BEEB';
+                    END
+
+                    IF EXISTS (SELECT 1 FROM [Companies] WHERE [Id] = '20000000-0000-0000-0000-000000000006')
+                    BEGIN
+                        UPDATE [Companies] SET [CompanyType] = 'Buyer' WHERE [Id] = '20000000-0000-0000-0000-000000000006';
+                    END
+                
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261115003839_CompanyTypeStrictRequiredAndDataCorrection'
+)
+BEGIN
+    DECLARE @var5 nvarchar(max);
+    SELECT @var5 = QUOTENAME([d].[name])
+    FROM [sys].[default_constraints] [d]
+    INNER JOIN [sys].[columns] [c] ON [d].[parent_column_id] = [c].[column_id] AND [d].[parent_object_id] = [c].[object_id]
+    WHERE ([d].[parent_object_id] = OBJECT_ID(N'[Companies]') AND [c].[name] = N'CompanyType');
+    IF @var5 IS NOT NULL EXEC(N'ALTER TABLE [Companies] DROP CONSTRAINT ' + @var5 + ';');
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261115003839_CompanyTypeStrictRequiredAndDataCorrection'
+)
+BEGIN
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+    VALUES (N'20261115003839_CompanyTypeStrictRequiredAndDataCorrection', N'10.0.3');
+END;
+
+COMMIT;
+GO
+
+BEGIN TRANSACTION;
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261115111551_MarketplaceRealProductsAndSchemaIntegrity'
+)
+BEGIN
+    DECLARE @var6 nvarchar(max);
+    SELECT @var6 = QUOTENAME([d].[name])
+    FROM [sys].[default_constraints] [d]
+    INNER JOIN [sys].[columns] [c] ON [d].[parent_column_id] = [c].[column_id] AND [d].[parent_object_id] = [c].[object_id]
+    WHERE ([d].[parent_object_id] = OBJECT_ID(N'[CatalogProducts]') AND [c].[name] = N'Unit');
+    IF @var6 IS NOT NULL EXEC(N'ALTER TABLE [CatalogProducts] DROP CONSTRAINT ' + @var6 + ';');
+    ALTER TABLE [CatalogProducts] DROP COLUMN [Unit];
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261115111551_MarketplaceRealProductsAndSchemaIntegrity'
+)
+BEGIN
+    ALTER TABLE [DirectPurchases] ADD [ClientRequestId] nvarchar(100) NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261115111551_MarketplaceRealProductsAndSchemaIntegrity'
+)
+BEGIN
+    ALTER TABLE [DirectPurchases] ADD [Subtotal] decimal(18,2) NOT NULL DEFAULT 0.0;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261115111551_MarketplaceRealProductsAndSchemaIntegrity'
+)
+BEGIN
+    ALTER TABLE [DirectPurchases] ADD [VatAmount] decimal(18,2) NOT NULL DEFAULT 0.0;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261115111551_MarketplaceRealProductsAndSchemaIntegrity'
+)
+BEGIN
+    ALTER TABLE [DirectPurchases] ADD [VatRate] decimal(5,4) NOT NULL DEFAULT 0.14;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261115111551_MarketplaceRealProductsAndSchemaIntegrity'
+)
+BEGIN
+
+                    DECLARE @DefaultMaterialId uniqueidentifier = (SELECT TOP 1 Id FROM Materials WHERE Code = 'STEEL-REBAR-B500D');
+                    IF @DefaultMaterialId IS NULL
+                        SET @DefaultMaterialId = (SELECT TOP 1 Id FROM Materials);
+                    IF @DefaultMaterialId IS NOT NULL
+                        UPDATE CatalogProducts SET MaterialId = @DefaultMaterialId WHERE MaterialId IS NULL;
+                
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261115111551_MarketplaceRealProductsAndSchemaIntegrity'
+)
+BEGIN
+    DROP INDEX [IX_CatalogProducts_MaterialId] ON [CatalogProducts];
+    DECLARE @var7 nvarchar(max);
+    SELECT @var7 = QUOTENAME([d].[name])
+    FROM [sys].[default_constraints] [d]
+    INNER JOIN [sys].[columns] [c] ON [d].[parent_column_id] = [c].[column_id] AND [d].[parent_object_id] = [c].[object_id]
+    WHERE ([d].[parent_object_id] = OBJECT_ID(N'[CatalogProducts]') AND [c].[name] = N'MaterialId');
+    IF @var7 IS NOT NULL EXEC(N'ALTER TABLE [CatalogProducts] DROP CONSTRAINT ' + @var7 + ';');
+    EXEC(N'UPDATE [CatalogProducts] SET [MaterialId] = ''00000000-0000-0000-0000-000000000000'' WHERE [MaterialId] IS NULL');
+    ALTER TABLE [CatalogProducts] ALTER COLUMN [MaterialId] uniqueidentifier NOT NULL;
+    ALTER TABLE [CatalogProducts] ADD DEFAULT '00000000-0000-0000-0000-000000000000' FOR [MaterialId];
+    CREATE INDEX [IX_CatalogProducts_MaterialId] ON [CatalogProducts] ([MaterialId]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261115111551_MarketplaceRealProductsAndSchemaIntegrity'
+)
+BEGIN
+    ALTER TABLE [CatalogProducts] ADD [UnitId] uniqueidentifier NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000';
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261115111551_MarketplaceRealProductsAndSchemaIntegrity'
+)
+BEGIN
+
+                    DECLARE @DefaultUnitId uniqueidentifier = (SELECT TOP 1 Id FROM UnitsOfMeasure WHERE Code = 'ton');
+                    IF @DefaultUnitId IS NULL
+                        SET @DefaultUnitId = (SELECT TOP 1 Id FROM UnitsOfMeasure);
+                    IF @DefaultUnitId IS NOT NULL
+                        UPDATE CatalogProducts SET UnitId = @DefaultUnitId WHERE UnitId IS NULL OR UnitId = '00000000-0000-0000-0000-000000000000';
+
+                    -- Backfill existing DirectPurchases subtotal and VAT
+                    UPDATE DirectPurchases
+                    SET VatRate = 0.14,
+                        Subtotal = ROUND(TotalPrice / 1.14, 2),
+                        VatAmount = ROUND(TotalPrice - (TotalPrice / 1.14), 2)
+                    WHERE Subtotal = 0 AND TotalPrice > 0;
+                
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261115111551_MarketplaceRealProductsAndSchemaIntegrity'
+)
+BEGIN
+    EXEC(N'CREATE UNIQUE INDEX [IX_DirectPurchases_BuyerCompanyId_ClientRequestId] ON [DirectPurchases] ([BuyerCompanyId], [ClientRequestId]) WHERE [ClientRequestId] IS NOT NULL');
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261115111551_MarketplaceRealProductsAndSchemaIntegrity'
+)
+BEGIN
+    CREATE INDEX [IX_CatalogProducts_IsActive_MaterialId_SupplierCompanyId] ON [CatalogProducts] ([IsActive], [MaterialId], [SupplierCompanyId]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261115111551_MarketplaceRealProductsAndSchemaIntegrity'
+)
+BEGIN
+    CREATE INDEX [IX_CatalogProducts_UnitId] ON [CatalogProducts] ([UnitId]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261115111551_MarketplaceRealProductsAndSchemaIntegrity'
+)
+BEGIN
+    EXEC(N'ALTER TABLE [CatalogProducts] ADD CONSTRAINT [CK_CatalogProducts_MinOrderQty] CHECK ([MinimumOrderQuantity] > 0)');
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261115111551_MarketplaceRealProductsAndSchemaIntegrity'
+)
+BEGIN
+    EXEC(N'ALTER TABLE [CatalogProducts] ADD CONSTRAINT [CK_CatalogProducts_UnitPrice] CHECK ([UnitPrice] IS NULL OR [UnitPrice] > 0)');
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261115111551_MarketplaceRealProductsAndSchemaIntegrity'
+)
+BEGIN
+    ALTER TABLE [CatalogProducts] ADD CONSTRAINT [FK_CatalogProducts_UnitsOfMeasure_UnitId] FOREIGN KEY ([UnitId]) REFERENCES [UnitsOfMeasure] ([Id]) ON DELETE NO ACTION;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261115111551_MarketplaceRealProductsAndSchemaIntegrity'
+)
+BEGIN
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+    VALUES (N'20261115111551_MarketplaceRealProductsAndSchemaIntegrity', N'10.0.3');
+END;
+
+COMMIT;
+GO
+
+BEGIN TRANSACTION;
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261115132530_MakeProductMaterialIdOptionalAndRestoreData'
+)
+BEGIN
+    DECLARE @var8 nvarchar(max);
+    SELECT @var8 = QUOTENAME([d].[name])
+    FROM [sys].[default_constraints] [d]
+    INNER JOIN [sys].[columns] [c] ON [d].[parent_column_id] = [c].[column_id] AND [d].[parent_object_id] = [c].[object_id]
+    WHERE ([d].[parent_object_id] = OBJECT_ID(N'[CatalogProducts]') AND [c].[name] = N'MaterialId');
+    IF @var8 IS NOT NULL EXEC(N'ALTER TABLE [CatalogProducts] DROP CONSTRAINT ' + @var8 + ';');
+    ALTER TABLE [CatalogProducts] ALTER COLUMN [MaterialId] uniqueidentifier NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261115132530_MakeProductMaterialIdOptionalAndRestoreData'
+)
+BEGIN
+
+                    IF EXISTS (SELECT 1 FROM CatalogProducts WHERE Id = '6F6470C1-3C2F-4355-8B12-1504211AA560')
+                    BEGIN
+                        UPDATE CatalogProducts SET MaterialId = NULL WHERE Id = '6F6470C1-3C2F-4355-8B12-1504211AA560';
+                    END
+                
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261115132530_MakeProductMaterialIdOptionalAndRestoreData'
+)
+BEGIN
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+    VALUES (N'20261115132530_MakeProductMaterialIdOptionalAndRestoreData', N'10.0.3');
+END;
+
+COMMIT;
+GO
+
+BEGIN TRANSACTION;
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261115135730_MakeCatalogProductFieldsOptional'
+)
+BEGIN
+    DECLARE @var9 nvarchar(max);
+    SELECT @var9 = QUOTENAME([d].[name])
+    FROM [sys].[default_constraints] [d]
+    INNER JOIN [sys].[columns] [c] ON [d].[parent_column_id] = [c].[column_id] AND [d].[parent_object_id] = [c].[object_id]
+    WHERE ([d].[parent_object_id] = OBJECT_ID(N'[CatalogProducts]') AND [c].[name] = N'UnitPrice');
+    IF @var9 IS NOT NULL EXEC(N'ALTER TABLE [CatalogProducts] DROP CONSTRAINT ' + @var9 + ';');
+    ALTER TABLE [CatalogProducts] ALTER COLUMN [UnitPrice] decimal(18,2) NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261115135730_MakeCatalogProductFieldsOptional'
+)
+BEGIN
+    DECLARE @var10 nvarchar(max);
+    SELECT @var10 = QUOTENAME([d].[name])
+    FROM [sys].[default_constraints] [d]
+    INNER JOIN [sys].[columns] [c] ON [d].[parent_column_id] = [c].[column_id] AND [d].[parent_object_id] = [c].[object_id]
+    WHERE ([d].[parent_object_id] = OBJECT_ID(N'[CatalogProducts]') AND [c].[name] = N'Sku');
+    IF @var10 IS NOT NULL EXEC(N'ALTER TABLE [CatalogProducts] DROP CONSTRAINT ' + @var10 + ';');
+    ALTER TABLE [CatalogProducts] ALTER COLUMN [Sku] nvarchar(50) NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261115135730_MakeCatalogProductFieldsOptional'
+)
+BEGIN
+    DECLARE @var11 nvarchar(max);
+    SELECT @var11 = QUOTENAME([d].[name])
+    FROM [sys].[default_constraints] [d]
+    INNER JOIN [sys].[columns] [c] ON [d].[parent_column_id] = [c].[column_id] AND [d].[parent_object_id] = [c].[object_id]
+    WHERE ([d].[parent_object_id] = OBJECT_ID(N'[CatalogProducts]') AND [c].[name] = N'NameEn');
+    IF @var11 IS NOT NULL EXEC(N'ALTER TABLE [CatalogProducts] DROP CONSTRAINT ' + @var11 + ';');
+    ALTER TABLE [CatalogProducts] ALTER COLUMN [NameEn] nvarchar(200) NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261115135730_MakeCatalogProductFieldsOptional'
+)
+BEGIN
+    DECLARE @var12 nvarchar(max);
+    SELECT @var12 = QUOTENAME([d].[name])
+    FROM [sys].[default_constraints] [d]
+    INNER JOIN [sys].[columns] [c] ON [d].[parent_column_id] = [c].[column_id] AND [d].[parent_object_id] = [c].[object_id]
+    WHERE ([d].[parent_object_id] = OBJECT_ID(N'[CatalogProducts]') AND [c].[name] = N'AvailableQuantity');
+    IF @var12 IS NOT NULL EXEC(N'ALTER TABLE [CatalogProducts] DROP CONSTRAINT ' + @var12 + ';');
+    ALTER TABLE [CatalogProducts] ALTER COLUMN [AvailableQuantity] decimal(18,2) NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261115135730_MakeCatalogProductFieldsOptional'
+)
+BEGIN
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+    VALUES (N'20261115135730_MakeCatalogProductFieldsOptional', N'10.0.3');
+END;
+
+COMMIT;
+GO
+
+BEGIN TRANSACTION;
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261115145251_AddEmailVerificationTableAndPreferredLanguage'
+)
+BEGIN
+    ALTER TABLE [Users] ADD [PreferredLanguage] nvarchar(10) NOT NULL DEFAULT N'ar';
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261115145251_AddEmailVerificationTableAndPreferredLanguage'
+)
+BEGIN
+    CREATE TABLE [EmailVerifications] (
+        [Id] uniqueidentifier NOT NULL,
+        [UserId] uniqueidentifier NOT NULL,
+        [CodeHash] nvarchar(128) NOT NULL,
+        [LinkTokenHash] nvarchar(128) NOT NULL,
+        [ExpiresAtUtc] datetimeoffset NOT NULL,
+        [CodeExpiresAtUtc] datetimeoffset NOT NULL,
+        [Attempts] int NOT NULL,
+        [ConsumedAtUtc] datetimeoffset NULL,
+        [CreatedAtUtc] datetimeoffset NOT NULL,
+        [IpAddress] nvarchar(45) NULL,
+        CONSTRAINT [PK_EmailVerifications] PRIMARY KEY ([Id]),
+        CONSTRAINT [FK_EmailVerifications_Users_UserId] FOREIGN KEY ([UserId]) REFERENCES [Users] ([Id]) ON DELETE CASCADE
+    );
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261115145251_AddEmailVerificationTableAndPreferredLanguage'
+)
+BEGIN
+    CREATE INDEX [IX_EmailVerifications_LinkTokenHash] ON [EmailVerifications] ([LinkTokenHash]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261115145251_AddEmailVerificationTableAndPreferredLanguage'
+)
+BEGIN
+    CREATE INDEX [IX_EmailVerifications_UserId] ON [EmailVerifications] ([UserId]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261115145251_AddEmailVerificationTableAndPreferredLanguage'
+)
+BEGIN
+    CREATE INDEX [IX_EmailVerifications_UserId_CreatedAtUtc] ON [EmailVerifications] ([UserId], [CreatedAtUtc]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261115145251_AddEmailVerificationTableAndPreferredLanguage'
+)
+BEGIN
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+    VALUES (N'20261115145251_AddEmailVerificationTableAndPreferredLanguage', N'10.0.3');
 END;
 
 COMMIT;

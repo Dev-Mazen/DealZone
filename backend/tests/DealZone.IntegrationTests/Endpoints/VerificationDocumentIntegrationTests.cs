@@ -43,7 +43,8 @@ public class VerificationDocumentIntegrationTests
             CorporatePhone: "+2033700100",
             AddressLine1: "Industrial Zone B4",
             AddressLine2: null,
-            PostalCode: "21500");
+            PostalCode: "21500",
+            CompanyType: "Buyer");
 
         var response = await client.PostAsJsonAsync("/api/v1/companies", createRequest);
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);

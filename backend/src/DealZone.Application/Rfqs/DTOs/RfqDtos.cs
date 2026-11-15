@@ -23,7 +23,8 @@ public record CreateRfqRequest(
     string? Currency,
     string? Notes,
     bool PublishImmediately,
-    IReadOnlyList<CreateRfqItemRequest> Items);
+    IReadOnlyList<CreateRfqItemRequest> Items,
+    Guid? TargetSupplierCompanyId = null);
 
 public record UpdateRfqItemRequest(
     Guid? Id,
@@ -96,7 +97,9 @@ public record RfqDetailResponse(
     decimal? LowestActiveOfferAmount = null,
     int ActiveOffersCount = 0,
     Guid? AwardedOfferId = null,
-    string? AwardRationale = null);
+    string? AwardRationale = null,
+    Guid? TargetSupplierCompanyId = null,
+    string? TargetSupplierCompanyName = null);
 
 public record RfqSummaryResponse(
     Guid Id,
@@ -115,7 +118,8 @@ public record RfqSummaryResponse(
     int ItemCount,
     DateTimeOffset ClosingDateUtc,
     DateTimeOffset? PublishedAtUtc,
-    DateTimeOffset CreatedAtUtc);
+    DateTimeOffset CreatedAtUtc,
+    Guid? TargetSupplierCompanyId = null);
 
 public record RfqDiscoveryFilter(
     Guid? CategoryId = null,
@@ -138,21 +142,5 @@ public record MyRfqFilter(
     string? SortBy = null,
     bool SortDescending = false);
 
-public record AwardRfqRequest(
-    Guid WinningOfferId,
-    string? Rationale = null);
-
-public record RfqAwardResponse(
-    Guid RfqId,
-    string RfqNumber,
-    Guid WinningOfferId,
-    string WinningOfferNumber,
-    Guid SupplierCompanyId,
-    string SupplierCompanyName,
-    decimal AwardedTotalAmount,
-    string Currency,
-    string DealNumber,
-    Guid DealId,
-    DateTimeOffset AwardedAtUtc);
 
 public record NoAwardRfqRequest(string? Reason = null);

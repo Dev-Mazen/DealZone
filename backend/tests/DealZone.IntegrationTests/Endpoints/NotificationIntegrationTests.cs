@@ -178,7 +178,19 @@ public class NotificationIntegrationTests
         var notifService = scope.ServiceProvider.GetRequiredService<INotificationService>();
         var db = scope.ServiceProvider.GetRequiredService<DealZoneDbContext>();
 
-        var userId = Guid.NewGuid();
+        var user = await db.Users.FirstOrDefaultAsync();
+        if (user == null)
+        {
+            user = new DealZone.Domain.Identity.User
+            {
+                Email = $"test-notif-{Guid.NewGuid():N}@example.com",
+                PasswordHash = "hash",
+                FullName = "Notif Test User"
+            };
+            db.Users.Add(user);
+            await db.SaveChangesAsync();
+        }
+        var userId = user.Id;
         var key = $"idemp-key-{Guid.NewGuid():N}";
 
         // Call twice with the same idempotency key

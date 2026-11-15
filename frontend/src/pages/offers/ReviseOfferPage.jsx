@@ -158,7 +158,7 @@ export default function ReviseOfferPage() {
                     <Input
                       {...register(`items.${idx}.unitPrice`)}
                       type="number"
-                      step="0.01"
+                      step="1"
                       label="Unit Price (EGP)"
                       placeholder="0.00"
                       error={errors.items?.[idx]?.unitPrice?.message}

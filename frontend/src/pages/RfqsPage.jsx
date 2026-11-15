@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import {
@@ -6,7 +6,6 @@ import {
   Search,
   FileText,
   MapPin,
-  Calendar,
   ChevronLeft,
   ChevronRight,
   TrendingDown,
@@ -15,27 +14,16 @@ import {
   Send,
   Eye,
   AlertCircle,
-  Filter,
-  CheckCircle2,
-  ShieldCheck,
-  Gavel,
 } from 'lucide-react'
 import { rfqService } from '../shared/api/services/rfqService'
 import { useTranslation } from '../hooks/useTranslation'
 import { usePermissions } from '../hooks/usePermissions'
 import Button from '../components/ui/Button'
 import Badge from '../components/ui/Badge'
-import { PageSpinner } from '../components/ui/Spinner'
 import EmptyState from '../components/ui/EmptyState'
 import { formatDate, formatCurrency } from '../utils/format'
-
-// Status variants
-const statusVariant = {
-  Draft: 'navy',
-  Published: 'success',
-  Closed: 'warning',
-  Cancelled: 'error',
-}
+import { statusMeta } from '../utils/statusLabels'
+import { ROUTES } from '../constants/routes'
 
 const statusOptions = [
   { value: '', label: 'All Statuses', labelAr: 'جميع الحالات' },
@@ -51,7 +39,6 @@ export default function RfqsPage() {
   const navigate = useNavigate()
   const {
     canManageRfqs,
-    canSubmitOffers,
     hasBothCapabilities,
     isSupplierOnly,
     isBuyerOnly,
@@ -65,7 +52,7 @@ export default function RfqsPage() {
   const [pageNumber, setPageNumber] = useState(1)
   const pageSize = 12
 
-  // View mode: 'mine' (Buyer RFQs/Tenders) or 'discover' (Market Feed for Supplier)
+  // View mode: 'mine' (Buyer RFQs) or 'discover' (Market Feed for Supplier)
   const [dualViewMode, setDualViewMode] = useState(isSupplierOnly ? 'discover' : 'mine')
 
   // Keep dualViewMode in sync with permission rehydration
@@ -75,12 +62,12 @@ export default function RfqsPage() {
     } else if (isBuyerOnly && dualViewMode !== 'mine') {
       setDualViewMode('mine')
     }
-  }, [isSupplierOnly, isBuyerOnly])
+  }, [isSupplierOnly, isBuyerOnly, dualViewMode])
 
   const isSupplierView = isSupplierOnly || (hasBothCapabilities && dualViewMode === 'discover')
 
   // Real API Query for RFQs
-  const { data: apiData, isLoading: isQueryLoading, error: queryError, refetch } = useQuery({
+  const { data: apiData, isLoading: isQueryLoading } = useQuery({
     queryKey: isSupplierView
       ? ['rfqs', 'discovery', { searchTerm, pageNumber, pageSize }]
       : ['rfqs', 'mine', { status: statusFilter, searchTerm, pageNumber, pageSize }],
@@ -113,7 +100,7 @@ export default function RfqsPage() {
             ? 'لضمان أمان المعاملات الصناعية والتجارة الموثوقة، يلزم استكمال رفع السجل التجاري والبطاقة الضريبية لطرح طلبات الأسعار أو تقديم العروض التنافسية.'
             : 'To publish reverse bidding tenders or submit commercial quotes, please complete commercial registration and tax vetting.'}
         </p>
-        <Button as={Link} to="/onboarding/verification" variant="primary" size="md">
+        <Button as={Link} to={ROUTES.VERIFICATION} variant="primary" size="md">
           {isAr ? 'استكمال التحقق الآن' : 'Complete Verification'}
         </Button>
       </div>
@@ -132,8 +119,8 @@ export default function RfqsPage() {
               <h1 className="text-2xl sm:text-3xl font-extrabold text-[#06245B] tracking-tight">
                 {isSupplierView
                   ? isAr
-                    ? 'مناقصات السوق والمزايدة العكسية'
-                    : 'Open Industrial Tenders & Reverse Bidding'
+                    ? 'طلبات الأسعار المفتوحة والمزايدات'
+                    : 'Open Market RFQs & Tenders'
                   : isAr
                   ? 'إدارة طلبات الأسعار والمناقصات الخاصة بي'
                   : 'My Procurement RFQs & Tenders'}
@@ -177,56 +164,27 @@ export default function RfqsPage() {
             <p className="text-sm text-slate-500 max-w-2xl">
               {isSupplierView
                 ? isAr
-                  ? 'استعرض المناقصات المطروحة من المصانع وقدم عروض أسعار تنافسية للفوز بصفقات التوريد الصناعي.'
-                  : 'Explore active tenders from verified manufacturers and submit competitive quotes in reverse auctions.'
+                  ? 'استعرض طلبات الأسعار والمناقصات المفتوحة وقدم عروض أسعار تنافسية للفوز بصفقات التوريد.'
+                  : 'Explore active open RFQs and submit competitive quotes to win supply deals.'
                 : isAr
                 ? 'اطرح مناقصات الشراء، حدد الكميات والمواصفات، وقارن عروض الموردين المعتمدين لترسية أفضل سعر.'
                 : 'Publish structured procurement tenders, define line specs, and evaluate counterparty bids.'}
             </p>
           </div>
 
-          {/* Action buttons: Buyer only */}
+          {/* Action button: Buyer only */}
           {canManageRfqs && !isSupplierView && (
-            <div className="flex items-center gap-2.5 flex-wrap shrink-0">
-              <Button
-                as={Link}
-                to="/rfqs/create"
-                variant="primary"
-                size="md"
-                icon={<Plus size={16} />}
-              >
-                {isAr ? 'طلب سعر مباشر (RFQ)' : 'New Quote Request'}
-              </Button>
-              <Button
-                as={Link}
-                to="/tenders/create"
-                variant="outline"
-                size="md"
-                icon={<Gavel size={16} />}
-                className="border-[#06245B] text-[#06245B] hover:bg-[#EAF4FF]"
-              >
-                {isAr ? 'طرح مناقصة كبرى (Tender)' : 'Publish Tender'}
-              </Button>
-            </div>
+            <Button
+              as={Link}
+              to={ROUTES.RFQ_CREATE}
+              variant="primary"
+              size="md"
+              icon={<Plus size={18} />}
+              className="shrink-0"
+            >
+              {isAr ? 'طرح طلب سعر جديد' : 'Create New RFQ'}
+            </Button>
           )}
-        </div>
-
-        {/* Section Navigation Tabs between Direct RFQs and Public Tenders */}
-        <div className="flex items-center gap-2 mt-6 pt-5 border-t border-slate-100 flex-wrap">
-          <Link
-            to="/rfqs"
-            className="px-4 py-2 rounded-2xl bg-[#06245B] text-white text-xs font-bold shadow-xs flex items-center gap-2"
-          >
-            <FileText size={15} />
-            <span>{isAr ? 'طلبات الأسعار المباشرة (RFQs)' : 'Direct Quotations (RFQs)'}</span>
-          </Link>
-          <Link
-            to="/tenders"
-            className="px-4 py-2 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-all flex items-center gap-2"
-          >
-            <Gavel size={15} className="text-[#1266D6]" />
-            <span>{isAr ? 'المناقصات الكبرى والمزايدات (Tenders)' : 'Industrial Tenders'}</span>
-          </Link>
         </div>
 
         {/* Filter and Search Bar */}
@@ -238,8 +196,8 @@ export default function RfqsPage() {
               type="search"
               placeholder={
                 isAr
-                  ? 'بحث برقم المناقصة، اسم المادة، المدينة الصناعية، أو الشركة...'
-                  : 'Search by RFQ number, material, industrial zone, or company...'
+                  ? 'بحث برقم الطلب، اسم المادة، المحافظة، أو الشركة...'
+                  : 'Search by RFQ number, material, governorate, or company...'
               }
               value={searchTerm}
               onChange={(e) => {
@@ -312,8 +270,8 @@ export default function RfqsPage() {
             title={
               isSupplierView
                 ? isAr
-                  ? 'لا توجد مناقصات مطابقة لبحثك حالياً'
-                  : 'No Open Tenders Found'
+                  ? 'لا توجد طلبات أسعار مفتوحة مطابقة لبحثك حالياً'
+                  : 'No Open RFQs Found'
                 : isAr
                 ? 'لم تقم بإنشاء أي طلبات أسعار بعد'
                 : 'No RFQs Created Yet'
@@ -321,15 +279,15 @@ export default function RfqsPage() {
             description={
               isSupplierView
                 ? isAr
-                  ? 'حاول تعديل شروط البحث أو اختيار تصنيف آخر لمتابعة المناقصات المتاحة.'
-                  : 'Try adjusting your search terms or check back soon for newly published factory tenders.'
+                  ? 'حاول تعديل شروط البحث لمتابعة طلبات الأسعار والمناقصات المتاحة.'
+                  : 'Try adjusting your search terms or check back soon for newly published RFQs.'
                 : isAr
                 ? 'ابدأ بطرح أول طلب سعر لتلقي عروض الأسعار التنافسية من كبرى المصانع والموردين في مصر.'
-                : 'Publish your first procurement tender to start receiving competitive quotes from verified suppliers.'
+                : 'Publish your first procurement RFQ to start receiving competitive quotes from verified suppliers.'
             }
             action={
               canManageRfqs && !isSupplierView ? (
-                <Button as={Link} to="/rfqs/create" variant="primary">
+                <Button as={Link} to={ROUTES.RFQ_CREATE} variant="primary">
                   {isAr ? 'إنشاء أول طلب سعر' : 'Create Your First RFQ'}
                 </Button>
               ) : undefined
@@ -337,140 +295,175 @@ export default function RfqsPage() {
           />
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {rfqList.map((rfq) => {
-            const catName = isAr
-              ? rfq.targetCategoryNameAr || rfq.targetCategoryNameEn
-              : rfq.targetCategoryNameEn || rfq.targetCategoryNameAr
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            {rfqList.map((rfq) => {
+              const catName = isAr
+                ? rfq.targetCategoryNameAr || rfq.targetCategoryNameEn
+                : rfq.targetCategoryNameEn || rfq.targetCategoryNameAr
 
-            return (
-              <div
-                key={rfq.id}
-                onClick={() => navigate(`/rfqs/${rfq.id}`)}
-                className="bg-white rounded-3xl border border-slate-200/80 p-5 cursor-pointer hover:border-[#1266D6] hover:shadow-md transition-all duration-200 flex flex-col justify-between group"
-              >
-                <div>
-                  {/* Card Top: RFQ Number & Status Badge */}
-                  <div className="flex items-start justify-between gap-2 mb-3">
-                    <div>
-                      <span className="text-xs font-mono text-slate-400 block mb-0.5">
-                        {rfq.rfqNumber}
-                      </span>
-                      <span className="text-[11px] font-bold text-[#1266D6] bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-100">
-                        {catName || 'Industrial Sourcing'}
-                      </span>
-                    </div>
+              const statusInfo = statusMeta('rfq', rfq.status, isAr)
 
-                    <Badge variant={statusVariant[rfq.status] || 'navy'}>
-                      {rfq.status}
-                    </Badge>
-                  </div>
-
-                  {/* Title */}
-                  <h3 className="font-bold text-[#06245B] text-base leading-snug group-hover:text-[#1266D6] transition-colors mb-3 line-clamp-2">
-                    {isAr ? rfq.title : rfq.titleEn || rfq.title}
-                  </h3>
-
-                  {/* Logistics and Dates */}
-                  <div className="space-y-2 text-xs text-slate-500 mb-4 p-3 rounded-2xl bg-slate-50 border border-slate-100">
-                    <div className="flex items-center gap-2">
-                      <MapPin size={14} className="text-[#1266D6] shrink-0" />
-                      <span className="truncate">
-                        {rfq.deliveryCity}, {rfq.deliveryGovernorate}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <Clock size={14} className="text-amber-600 shrink-0" />
-                      <span>
-                        {isAr ? 'ينتهي في: ' : 'Closes: '}
-                        <strong>{formatDate(rfq.closingDateUtc)}</strong>
-                      </span>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <Building2 size={14} className="text-slate-400 shrink-0" />
-                      <span className="truncate">
-                        {isAr ? 'المشتري: ' : 'Buyer: '}
-                        <strong className="text-slate-700">{rfq.buyerCompanyName}</strong>
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Reverse Bidding / Bids Summary Snapshot */}
-                  {isSupplierView && rfq.currentLowestUnitPrice ? (
-                    <div className="p-3 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-between mb-4">
+              return (
+                <div
+                  key={rfq.id}
+                  onClick={() => navigate(ROUTES.RFQ_DETAIL(rfq.id))}
+                  className="bg-white rounded-3xl border border-slate-200/80 p-5 cursor-pointer hover:border-[#1266D6] hover:shadow-md transition-all duration-200 flex flex-col justify-between group"
+                >
+                  <div>
+                    {/* Card Top: RFQ Number & Status Badge */}
+                    <div className="flex items-start justify-between gap-2 mb-3">
                       <div>
-                        <span className="text-[11px] font-semibold text-emerald-800 block flex items-center gap-1">
-                          <TrendingDown size={13} />
-                          <span>{isAr ? 'أدنى سعر مسجل حالياً' : 'Current Lowest Bid'}</span>
+                        <span className="text-xs font-mono text-slate-400 block mb-0.5">
+                          {rfq.rfqNumber}
                         </span>
-                        <span className="text-base font-extrabold text-emerald-900">
-                          {formatCurrency(rfq.currentLowestUnitPrice)}
-                        </span>
-                        <span className="text-[11px] text-emerald-700 font-mono ms-1">
-                          / {isAr ? rfq.unit : rfq.unitEn || 'ton'}
+                        <span className="text-[11px] font-bold text-[#1266D6] bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-100">
+                          {catName || 'Industrial Sourcing'}
                         </span>
                       </div>
 
-                      <div className="text-end">
-                        <span className="text-[10px] font-bold text-emerald-700 bg-white/80 px-2 py-0.5 rounded-full border border-emerald-200">
-                          {rfq.offersCount} {isAr ? 'عروض مقدمة' : 'bids'}
+                      <Badge variant={statusInfo.variant}>
+                        {statusInfo.label}
+                      </Badge>
+                    </div>
+
+                    {/* Title */}
+                    <h3 className="font-bold text-[#06245B] text-base leading-snug group-hover:text-[#1266D6] transition-colors mb-3 line-clamp-2">
+                      {isAr ? rfq.title : rfq.titleEn || rfq.title}
+                    </h3>
+
+                    {/* Logistics and Dates */}
+                    <div className="space-y-2 text-xs text-slate-500 mb-4 p-3 rounded-2xl bg-slate-50 border border-slate-100">
+                      <div className="flex items-center gap-2">
+                        <MapPin size={14} className="text-[#1266D6] shrink-0" />
+                        <span className="truncate">
+                          {rfq.deliveryCity}, {rfq.deliveryGovernorate}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <Clock size={14} className="text-amber-600 shrink-0" />
+                        <span>
+                          {isAr ? 'ينتهي في: ' : 'Closes: '}
+                          <strong>{formatDate(rfq.closingDateUtc)}</strong>
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <Building2 size={14} className="text-slate-400 shrink-0" />
+                        <span className="truncate">
+                          {isAr ? 'المشتري: ' : 'Buyer: '}
+                          <strong className="text-slate-700">{rfq.buyerCompanyName}</strong>
                         </span>
                       </div>
                     </div>
-                  ) : !isSupplierView && (
-                    <div className="p-3 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-between mb-4 text-xs">
-                      <span className="text-slate-500">
-                        {isAr ? 'عروض الأسعار المستلمة: ' : 'Quotes Received: '}
-                        <strong className="text-[#06245B] font-bold">{rfq.offersCount ?? 0}</strong>
-                      </span>
 
-                      {rfq.lowestBidAmount && (
-                        <span className="font-bold text-[#1266D6]">
-                          {isAr ? 'أفضل عرض: ' : 'Best: '}
-                          {formatCurrency(rfq.lowestBidAmount)}
+                    {/* Reverse Bidding / Bids Summary Snapshot */}
+                    {isSupplierView && rfq.currentLowestUnitPrice ? (
+                      <div className="p-3 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-between mb-4">
+                        <div>
+                          <span className="text-[11px] font-semibold text-emerald-800 block flex items-center gap-1">
+                            <TrendingDown size={13} />
+                            <span>{isAr ? 'أدنى سعر مسجل حالياً' : 'Current Lowest Bid'}</span>
+                          </span>
+                          <span className="text-base font-extrabold text-emerald-900">
+                            {formatCurrency(rfq.currentLowestUnitPrice)}
+                          </span>
+                          <span className="text-[11px] text-emerald-700 font-mono ms-1">
+                            / {isAr ? rfq.unit : rfq.unitEn || 'ton'}
+                          </span>
+                        </div>
+
+                        <div className="text-end">
+                          <span className="text-[10px] font-bold text-emerald-700 bg-white/80 px-2 py-0.5 rounded-full border border-emerald-200">
+                            {rfq.offersCount} {isAr ? 'عروض مقدمة' : 'bids'}
+                          </span>
+                        </div>
+                      </div>
+                    ) : !isSupplierView && (
+                      <div className="p-3 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-between mb-4 text-xs">
+                        <span className="text-slate-500">
+                          {isAr ? 'عروض الأسعار المستلمة: ' : 'Quotes Received: '}
+                          <strong className="text-[#06245B] font-bold">{rfq.offersCount ?? 0}</strong>
                         </span>
-                      )}
-                    </div>
-                  )}
-                </div>
 
-                {/* Card Bottom CTA */}
-                <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
-                  <span className="text-xs text-slate-400">
-                    {rfq.itemCount} {isAr ? 'أصناف مطلوبة' : 'line items'}
-                  </span>
+                        {rfq.lowestBidAmount && (
+                          <span className="font-bold text-[#1266D6]">
+                            {isAr ? 'أفضل عرض: ' : 'Best: '}
+                            {formatCurrency(rfq.lowestBidAmount)}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
 
-                  {isSupplierView ? (
-                    <Button
-                      size="xs"
-                      variant="primary"
-                      icon={<Send size={13} />}
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        navigate(`/rfqs/${rfq.id}/submit-offer`)
-                      }}
-                    >
-                      {isAr ? 'تقديم عرض تنافسي' : 'Bid on Tender'}
-                    </Button>
-                  ) : (
-                    <Button
-                      size="xs"
-                      variant="outline"
-                      icon={<Eye size={13} />}
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        navigate(`/rfqs/${rfq.id}`)
-                      }}
-                    >
-                      {isAr ? 'عرض العروض والترسية' : 'Manage Tender'}
-                    </Button>
-                  )}
+                  {/* Card Bottom CTA */}
+                  <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+                    <span className="text-xs text-slate-400">
+                      {rfq.itemCount} {isAr ? 'أصناف مطلوبة' : 'line items'}
+                    </span>
+
+                    {isSupplierView ? (
+                      <Button
+                        size="xs"
+                        variant="primary"
+                        icon={<Send size={13} />}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          navigate(`/rfqs/${rfq.id}/submit-offer`)
+                        }}
+                      >
+                        {isAr ? 'تقديم عرض أسعار' : 'Submit Offer'}
+                      </Button>
+                    ) : (
+                      <Button
+                        size="xs"
+                        variant="outline"
+                        icon={<Eye size={13} />}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          navigate(ROUTES.RFQ_DETAIL(rfq.id))
+                        }}
+                      >
+                        {isAr ? 'إدارة الطلب' : 'Manage RFQ'}
+                      </Button>
+                    )}
+                  </div>
                 </div>
+              )
+            })}
+          </div>
+
+          {/* Pagination */}
+          {apiData && apiData.totalPages > 1 && (
+            <div className="flex items-center justify-between border-t border-slate-100 pt-4">
+              <p className="text-xs text-slate-500">
+                {isAr
+                  ? `عرض صفحة ${apiData.pageNumber} من ${apiData.totalPages} (${apiData.totalCount} طلب إجمالي)`
+                  : `Showing page ${apiData.pageNumber} of ${apiData.totalPages} (${apiData.totalCount} total RFQs)`}
+              </p>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="xs"
+                  icon={<ChevronLeft size={14} className={isAr ? 'rotate-180' : ''} />}
+                  disabled={apiData.pageNumber <= 1}
+                  onClick={() => setPageNumber((p) => Math.max(1, p - 1))}
+                >
+                  {isAr ? 'السابق' : 'Previous'}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="xs"
+                  icon={<ChevronRight size={14} className={isAr ? 'rotate-180' : ''} />}
+                  disabled={apiData.pageNumber >= apiData.totalPages}
+                  onClick={() => setPageNumber((p) => p + 1)}
+                >
+                  {isAr ? 'التالي' : 'Next'}
+                </Button>
               </div>
-            )
-          })}
+            </div>
+          )}
         </div>
       )}
     </div>

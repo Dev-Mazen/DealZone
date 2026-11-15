@@ -235,7 +235,7 @@ function FileUpload({
   const zoneBase =
     "relative flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed p-8 text-center transition-all duration-200 cursor-pointer select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00D9F5] focus-visible:ring-offset-2";
 
-  let zoneVariant = "";
+  let zoneVariant;
   if (disabled) {
     zoneVariant = "border-slate-200 bg-slate-50 cursor-not-allowed opacity-60";
   } else if (error) {

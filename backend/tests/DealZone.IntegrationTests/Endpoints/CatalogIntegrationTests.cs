@@ -4,7 +4,9 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using DealZone.Application.Auth.DTOs;
 using DealZone.Application.Catalog.DTOs;
+using DealZone.Application.Companies.DTOs;
 using DealZone.Application.Common.Models;
+using DealZone.Domain.Companies;
 using DealZone.Infrastructure.Persistence;
 using DealZone.Infrastructure.Services;
 using DealZone.IntegrationTests.Infrastructure;
@@ -101,7 +103,7 @@ public class CatalogIntegrationTests
         await using var factory = new DealZoneWebApplicationFactory();
         var client = factory.CreateClient();
 
-        var userToken = await RegisterAndLoginAsync(client, "regular.user@dealzone.eg");
+        var userToken = await RegisterAndLoginAsync(client, $"regular.user.{Guid.NewGuid():N}@dealzone.eg");
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", userToken);
 
         var request = new CreateCategoryRequest(null, "TEXTILES", "منسوجات", "Textiles", null, null, 10);
@@ -116,15 +118,17 @@ public class CatalogIntegrationTests
         await using var factory = new DealZoneWebApplicationFactory();
         var client = factory.CreateClient();
 
-        var adminToken = await CreateAdminAndLoginAsync(factory, client, "catalog.admin@dealzone.eg");
+        var adminToken = await CreateAdminAndLoginAsync(factory, client, $"catalog.admin.{Guid.NewGuid():N}@dealzone.eg");
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", adminToken);
 
-        // 1. Attempting to create an unsupported Category should return BadRequest
-        var invalidCatReq = new CreateCategoryRequest(null, "CERAMICS", "سيراميك", "Ceramics", "مواد السيراميك والبورسلين", "Ceramic and porcelain materials", 5);
-        var invalidCatRes = await client.PostAsJsonAsync("/api/v1/admin/catalog/categories", invalidCatReq);
-        Assert.Equal(HttpStatusCode.BadRequest, invalidCatRes.StatusCode);
+        var catCode = $"C_{Guid.NewGuid():N}"[..8].ToUpperInvariant();
+        var customCatReq = new CreateCategoryRequest(null, catCode, "سيراميك", "Ceramics", "مواد السيراميك والبورسلين", "Ceramic and porcelain materials", 5);
+        var customCatRes = await client.PostAsJsonAsync("/api/v1/admin/catalog/categories", customCatReq);
+        Assert.Equal(HttpStatusCode.Created, customCatRes.StatusCode);
+        var createdCustomCat = await customCatRes.Content.ReadFromJsonAsync<CategoryDto>(JsonOptions);
+        Assert.NotNull(createdCustomCat);
 
-        // 2. Attempting to duplicate an existing supported Category should return Conflict
+        // 2. Attempting to duplicate an existing Category should return Conflict
         var dupCatReq = new CreateCategoryRequest(null, "TEXTILES", "منسوجات", "Textiles", null, null, 1);
         var dupCatRes = await client.PostAsJsonAsync("/api/v1/admin/catalog/categories", dupCatReq);
         Assert.Equal(HttpStatusCode.Conflict, dupCatRes.StatusCode);
@@ -161,15 +165,103 @@ public class CatalogIntegrationTests
         Assert.NotNull(createdMat);
         Assert.Equal("TEX-COTTON-FABRIC-100", createdMat.Code);
 
-        // 6. Delete (archive) Category
-        var delRes = await client.DeleteAsync($"/api/v1/admin/catalog/categories/{targetCategory.Id}");
+        // 6. Delete (archive) Custom Category
+        var delRes = await client.DeleteAsync($"/api/v1/admin/catalog/categories/{createdCustomCat.Id}");
         Assert.Equal(HttpStatusCode.NoContent, delRes.StatusCode);
 
         // 7. Verify category is archived
-        var getCatRes = await client.GetAsync($"/api/v1/catalog/categories/{targetCategory.Id}");
+        var getCatRes = await client.GetAsync($"/api/v1/catalog/categories/{createdCustomCat.Id}");
         Assert.Equal(HttpStatusCode.OK, getCatRes.StatusCode);
         var fetchedCat = await getCatRes.Content.ReadFromJsonAsync<CategoryDto>(JsonOptions);
         Assert.NotNull(fetchedCat);
         Assert.True(fetchedCat.IsArchived);
+    }
+
+    [Fact]
+    public async Task Supplier_CreateProduct_WithUnitKgAndNoMaterial_ReturnsUnitKg()
+    {
+        await using var factory = new DealZoneWebApplicationFactory();
+        var client = factory.CreateClient();
+
+        var suffix = Guid.NewGuid().ToString("N")[..8];
+        var supplierEmail = $"supplier.{suffix}@dealzone.eg";
+
+        // Register supplier and create approved company
+        var supplierToken = await RegisterAndLoginAsync(client, supplierEmail);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", supplierToken);
+
+        var compReq = new CreateCompanyRequest(
+            $"Supplier Company {suffix}",
+            $"Supplier {suffix}",
+            "Textiles & Garments",
+            "Cairo",
+            "Cairo",
+            "Textiles supplier",
+            $"https://supplier-{suffix}.eg",
+            $"TAX-{suffix}",
+            $"CRN-{suffix}",
+            supplierEmail,
+            $"+2010{Random.Shared.Next(10000000, 99999999)}",
+            "123 Industrial Area",
+            null,
+            null,
+            "Supplier");
+
+        var compRes = await client.PostAsJsonAsync("/api/v1/companies", compReq);
+        Assert.Equal(HttpStatusCode.Created, compRes.StatusCode);
+        var company = await compRes.Content.ReadFromJsonAsync<CompanyResponse>(JsonOptions);
+        Assert.NotNull(company);
+
+        // Approve company in database
+        using (var scope = factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<DealZoneDbContext>();
+            var comp = await db.Companies.FirstAsync(c => c.Id == company.Id);
+            comp.VerificationStatus = CompanyVerificationStatus.Approved;
+            comp.VerifiedAtUtc = DateTimeOffset.UtcNow;
+            await db.SaveChangesAsync();
+        }
+
+        // Fetch categories to get TEXTILES category
+        var catRes = await client.GetAsync("/api/v1/catalog/categories");
+        Assert.Equal(HttpStatusCode.OK, catRes.StatusCode);
+        var categories = await catRes.Content.ReadFromJsonAsync<List<CategoryDto>>(JsonOptions);
+        Assert.NotNull(categories);
+        var textilesCategory = categories.First(c => c.Code == "TEXTILES");
+
+        // Supplier creates product with Unit = "kg" and MaterialId = null
+        var createProductReq = new CreateCatalogProductRequest(
+            CategoryId: textilesCategory.Id,
+            MaterialId: null,
+            Sku: $"SKU-TEST-KG-{suffix}".ToUpperInvariant(),
+            NameAr: "غزل قطن ممشط بالكيلوجرام",
+            NameEn: "Combed Cotton Yarn In Kilograms",
+            DescriptionAr: "منتج قطني للبيع بوحدة الكيلوجرام بدون ربط بمادة مسبقة",
+            DescriptionEn: "Cotton product sold in kg unit with no material selector",
+            Specifications: "Count: 30/1, 100% Cotton",
+            PricingMode: 1,
+            UnitPrice: 180m,
+            Currency: "EGP",
+            Unit: "kg",
+            AvailableQuantity: 5000m,
+            MinimumOrderQuantity: 50m,
+            DeliveryLeadTimeDays: 5);
+
+        var createRes = await client.PostAsJsonAsync("/api/v1/catalog/products", createProductReq);
+        Assert.Equal(HttpStatusCode.Created, createRes.StatusCode);
+        var createdProduct = await createRes.Content.ReadFromJsonAsync<CatalogProductResponse>(JsonOptions);
+        Assert.NotNull(createdProduct);
+        Assert.Null(createdProduct.MaterialId);
+        Assert.Equal("kg", createdProduct.Unit, ignoreCase: true);
+        Assert.Equal(180m, createdProduct.UnitPrice);
+        Assert.Equal(textilesCategory.Id, createdProduct.CategoryId);
+
+        // Fetch by id
+        var getProductRes = await client.GetAsync($"/api/v1/catalog/products/{createdProduct.Id}");
+        Assert.Equal(HttpStatusCode.OK, getProductRes.StatusCode);
+        var fetchedProduct = await getProductRes.Content.ReadFromJsonAsync<CatalogProductResponse>(JsonOptions);
+        Assert.NotNull(fetchedProduct);
+        Assert.Null(fetchedProduct.MaterialId);
+        Assert.Equal("kg", fetchedProduct.Unit, ignoreCase: true);
     }
 }

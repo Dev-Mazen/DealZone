@@ -40,7 +40,8 @@ public class RfqIntegrationTests
         HttpClient client,
         string email,
         string legalName,
-        string tradeName)
+        string tradeName,
+        string companyType = "Buyer")
     {
         var token = await RegisterAndLoginAsync(client, email);
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
@@ -60,7 +61,8 @@ public class RfqIntegrationTests
             "+201011112222",
             "12 Industrial St",
             null,
-            "44629");
+            "44629",
+            companyType);
 
         var compRes = await client.PostAsJsonAsync("/api/v1/companies", compReq);
         Assert.Equal(HttpStatusCode.Created, compRes.StatusCode);
@@ -104,7 +106,8 @@ public class RfqIntegrationTests
             "+201000000000",
             "Industrial Area",
             null,
-            null);
+            null,
+            "Buyer");
 
         var compRes = await client.PostAsJsonAsync("/api/v1/companies", compReq);
         Assert.Equal(HttpStatusCode.Created, compRes.StatusCode);
@@ -191,7 +194,8 @@ public class RfqIntegrationTests
             client,
             "supplier.lifecycle@dealzone.eg",
             "Ezz Rolling Mills Supplier SAE",
-            "Ezz Supplier");
+            "Ezz Supplier",
+            companyType: "Supplier");
 
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", supplierToken);
 
@@ -270,7 +274,8 @@ public class RfqIntegrationTests
             client,
             "supplier.snoop@dealzone.eg",
             "Snoop Supplier Ltd",
-            "Snoop Supplier");
+            "Snoop Supplier",
+            companyType: "Supplier");
 
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", supplierToken);
 

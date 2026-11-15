@@ -77,4 +77,7 @@ export const adminService = {
     api
       .post(`/admin/shipments/${shipmentId}/status`, { status, location, description })
       .then((r) => r.data),
+
+  createDealShipment: (dealId, data) =>
+    api.post(`/deals/${dealId}/shipments`, data).then((r) => r.data),
 }

@@ -44,13 +44,6 @@ const SupplierDirectoryPage = lazy(() => import('./pages/suppliers/SupplierDirec
 const CompanyProfilePage = lazy(() => import('./pages/suppliers/CompanyProfilePage'))
 const ButtonTestPage = lazy(() => import('./pages/ButtonTestPage'))
 
-// Tender & Bidding pages
-const TendersListPage = lazy(() => import('./pages/tenders/TendersListPage'))
-const CreateTenderPage = lazy(() => import('./pages/tenders/CreateTenderPage'))
-const TenderDetailPage = lazy(() => import('./pages/tenders/TenderDetailPage'))
-const BidDetailPage = lazy(() => import('./pages/tenders/BidDetailPage'))
-const MyBidsPage = lazy(() => import('./pages/tenders/MyBidsPage'))
-
 // Admin pages
 const AdminAnalyticsPage = lazy(() => import('./pages/admin/AdminAnalyticsPage'))
 const AdminLayout = lazy(() => import('./pages/admin/AdminLayout'))
@@ -60,12 +53,21 @@ const AdminCatalogPage = lazy(() => import('./pages/admin/AdminCatalogPage'))
 const AdminDisputesPage = lazy(() => import('./pages/admin/AdminDisputesPage'))
 const AdminShippingPage = lazy(() => import('./pages/admin/AdminShippingPage'))
 
+const shouldRetry = (count, err) => {
+  const s = err?.status ?? err?.response?.status
+  if (s && s < 500) return false
+  return count < 2
+}
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 60_000,
-      retry: 1,
+      retry: shouldRetry,
       refetchOnWindowFocus: false,
+    },
+    mutations: {
+      retry: false,
     },
   },
 })
@@ -81,12 +83,20 @@ function App() {
   useEffect(() => {
     const rehydrate = async () => {
       const refreshToken = tokenStore.getRefresh()
+      const accessToken = tokenStore.getAccess()
       if (!refreshToken) {
         setLoading(false)
         return
       }
 
       try {
+        if (!accessToken) {
+          const res = await authService.refresh(refreshToken)
+          if (res?.accessToken) {
+            tokenStore.setAccess(res.accessToken)
+            if (res.refreshToken) tokenStore.setRefresh(res.refreshToken)
+          }
+        }
         const u = await authService.me()
         setUser(u)
       } catch {
@@ -133,11 +143,13 @@ function App() {
                   <>
                     <Route path="/suppliers" element={<SupplierDirectoryPage />} />
                     <Route path="/suppliers/:companyId" element={<CompanyProfilePage />} />
+                    <Route path="/buyers/:companyId" element={<CompanyProfilePage />} />
                     <Route path="/companies/:companyId" element={<CompanyProfilePage />} />
+                    <Route path="/verification" element={<Navigate to="/onboarding/verification" replace />} />
                   </>
                 )}
-                <Route path="/login" element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <LoginPage />} />
-                <Route path="/register" element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <RegisterPage />} />
+                <Route path="/login" element={isAuthenticated ? (user?.isSystemAdmin ? <Navigate to="/admin/analytics" replace /> : <Navigate to="/dashboard" replace />) : <LoginPage />} />
+                <Route path="/register" element={isAuthenticated ? (user?.isSystemAdmin ? <Navigate to="/admin/analytics" replace /> : <Navigate to="/dashboard" replace />) : <RegisterPage />} />
                 <Route path="/confirm-email" element={<ConfirmEmailPage />} />
                 <Route path="/forgot-password" element={<ForgotPasswordPage />} />
                 <Route path="/reset-password" element={<ResetPasswordPage />} />
@@ -162,7 +174,9 @@ function App() {
                 <Route path="negotiations/:negotiationId" element={<NegotiationDetailPage />} />
                 <Route path="suppliers" element={<SupplierDirectoryPage />} />
                 <Route path="suppliers/:companyId" element={<CompanyProfilePage />} />
+                <Route path="buyers/:companyId" element={<CompanyProfilePage />} />
                 <Route path="companies/:companyId" element={<CompanyProfilePage />} />
+                <Route path="verification" element={<Navigate to="/onboarding/verification" replace />} />
                 <Route path="onboarding/company" element={<CompanyOnboardingPage />} />
                 <Route path="onboarding/verification" element={<VerificationPage />} />
 
@@ -171,13 +185,6 @@ function App() {
                 <Route path="rfqs/create" element={<CreateRfqPage />} />
                 <Route path="rfqs/:rfqId" element={<RfqDetailPage />} />
                 <Route path="rfqs/:rfqId/submit-offer" element={<SubmitOfferPage />} />
-
-                {/* Tenders & Reverse Bidding */}
-                <Route path="tenders" element={<TendersListPage />} />
-                <Route path="tenders/create" element={<CreateTenderPage />} />
-                <Route path="tenders/:tenderId" element={<TenderDetailPage />} />
-                <Route path="tenders/bids/mine" element={<MyBidsPage />} />
-                <Route path="tenders/bids/:bidId" element={<BidDetailPage />} />
 
                 {/* Offers */}
                 <Route path="offers" element={<MyOffersPage />} />

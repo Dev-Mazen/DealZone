@@ -7,6 +7,12 @@ export const authService = {
   confirmEmail: (email, token) =>
     api.post('/auth/confirm-email', { email, token }).then((r) => r.data),
 
+  confirmEmailCode: (email, code) =>
+    api.post('/auth/confirm-email-code', { email, code }).then((r) => r.data),
+
+  confirmEmailLink: (token) =>
+    api.post('/auth/confirm-email-link', { token }).then((r) => r.data),
+
   resendConfirmation: (email) =>
     api.post('/auth/resend-confirmation', { email }).then((r) => r.data),
 

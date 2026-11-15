@@ -18,7 +18,14 @@ export default function DonutChart({
 
   const defaultColors = ['#00D9F5', '#1266D6', '#06245B', '#10B981', '#F59E0B', '#8B5CF6']
 
-  let accumulatedPercent = 0
+  const slices = data.map((item, idx) => {
+    const percent = item.value / total
+    const strokeDasharray = `${percent * circumference} ${circumference}`
+    const prevPercent = data.slice(0, idx).reduce((acc, cur) => acc + (cur.value / total), 0)
+    const strokeDashoffset = -(prevPercent * circumference)
+    const color = item.color || defaultColors[idx % defaultColors.length]
+    return { idx, strokeDasharray, strokeDashoffset, color }
+  })
 
   const containerClasses =
     layout === 'horizontal'
@@ -35,24 +42,18 @@ export default function DonutChart({
           viewBox={`0 0 ${size} ${size}`}
           className="rotate-[-90deg] overflow-visible"
         >
-          {data.map((item, idx) => {
-            const percent = item.value / total
-            const strokeDasharray = `${percent * circumference} ${circumference}`
-            const strokeDashoffset = -(accumulatedPercent * circumference)
-            accumulatedPercent += percent
-            const color = item.color || defaultColors[idx % defaultColors.length]
-
+          {slices.map((slice) => {
             return (
               <circle
-                key={idx}
+                key={slice.idx}
                 cx={center}
                 cy={center}
                 r={radius}
                 fill="transparent"
-                stroke={color}
+                stroke={slice.color}
                 strokeWidth={strokeWidth}
-                strokeDasharray={strokeDasharray}
-                strokeDashoffset={strokeDashoffset}
+                strokeDasharray={slice.strokeDasharray}
+                strokeDashoffset={slice.strokeDashoffset}
                 strokeLinecap="round"
                 className="transition-all duration-300 hover:opacity-80"
               />

@@ -27,6 +27,7 @@ public class RfqOffersController : ApiControllerBase
     /// Submit a new structured offer for an open RFQ as an approved marketplace supplier.
     /// </summary>
     [HttpPost]
+    [Authorize(Policy = "SupplierSales")]
     public async Task<IActionResult> SubmitOffer(
         Guid rfqId,
         [FromBody] CreateOfferRequest request,
@@ -42,6 +43,7 @@ public class RfqOffersController : ApiControllerBase
     /// Get offers submitted by the current authenticated supplier for this RFQ (all revisions).
     /// </summary>
     [HttpGet("mine")]
+    [Authorize(Policy = "SupplierCompany")]
     public async Task<IActionResult> GetMyOffersForRfq(
         Guid rfqId,
         CancellationToken cancellationToken)
@@ -54,6 +56,7 @@ public class RfqOffersController : ApiControllerBase
     /// Get all submitted offers received for this RFQ. Restricted to the owning buyer company.
     /// </summary>
     [HttpGet]
+    [Authorize(Policy = "BuyerCompany")]
     public async Task<IActionResult> GetOffersForRfq(
         Guid rfqId,
         CancellationToken cancellationToken)

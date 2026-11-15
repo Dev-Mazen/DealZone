@@ -12,7 +12,7 @@ public static class OpenApiConfiguration
         {
             document.Info = new OpenApiInfo
             {
-                Title = "DealZone Marketplace Web API",
+                Title = "DealZone Web API",
                 Version = "v1",
                 Description = "Egyptian B2B Industrial Raw-Material Marketplace Web API. Built with .NET 10 following Clean Architecture and Modular Monolith principles."
             };

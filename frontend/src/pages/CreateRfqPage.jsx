@@ -15,249 +15,297 @@ import Input from '../components/ui/Input'
 import Card, { CardHeader } from '../components/ui/Card'
 import { PageSpinner } from '../components/ui/Spinner'
 
-const getCreateRfqSchema = (isAr) => {
-  const itemSchema = z.object({
-    categoryId: z.string().min(1, isAr ? 'القطاع/الفئة مطلوبة' : 'Category is required'),
-    materialId: z.string().optional(),
-    materialName: z.string().min(2, isAr ? 'اسم المادة مطلوب' : 'Material name is required'),
-    specifications: z.string().min(5, isAr ? 'المواصفات الفنية مطلوبة (5 أحرف على الأقل)' : 'Specifications required (min 5 chars)'),
-    quantity: z.coerce.number({ invalid_type_error: isAr ? 'يجب إدخال كمية رقمية' : 'Enter a numeric quantity' }).positive(isAr ? 'يجب أن تكون الكمية أكبر من الصفر' : 'Quantity must be > 0'),
-    unitOfMeasureId: z.string().optional(),
-    targetPricePerUnit: z.coerce.number().positive(isAr ? 'السعر المستهدف يجب أن يكون موجباً' : 'Target price must be positive').optional(),
-    notes: z.string().optional(),
-  })
+/* ----------------------------- constants ----------------------------- */
 
-  return z.object({
-    title: z.string().min(5, isAr ? 'عنوان الطلب يجب ألا يقل عن 5 أحرف' : 'Title must be at least 5 characters'),
-    description: z.string().optional(),
-    targetCategoryId: z.string().optional(),
-    deliveryGovernorate: z.string().min(1, isAr ? 'المحافظة مطلوبة' : 'Governorate is required'),
-    deliveryCity: z.string().min(1, isAr ? 'المدينة مطلوبة' : 'City is required'),
-    deliveryAddress: z.string().min(5, isAr ? 'عنوان التسليم بالتفصيل مطلوب' : 'Full delivery address required'),
-    closingDateUtc: z.string().min(1, isAr ? 'تاريخ إغلاق العطاءات مطلوب' : 'Closing date required'),
-    requiredDeliveryDateUtc: z.string().optional(),
-    targetBudget: z.coerce.number().positive(isAr ? 'الميزانية التقديرية يجب أن تكون أكبر من الصفر' : 'Target budget must be positive').optional(),
-    currency: z.string().optional(),
-    notes: z.string().optional(),
-    publishImmediately: z.boolean(),
-    items: z.array(itemSchema).min(1, isAr ? 'يجب إضافة بند واحد على الأقل' : 'At least one line item is required'),
-  })
+const GOVERNORATES = [
+  ['Cairo', 'القاهرة'], ['Giza', 'الجيزة'], ['Alexandria', 'الإسكندرية'], ['Luxor', 'الأقصر'],
+  ['Aswan', 'أسوان'], ['Qena', 'قنا'], ['Sohag', 'سوهاج'], ['Minya', 'المنيا'],
+  ['Asyut', 'أسيوط'], ['Fayoum', 'الفيوم'], ['Beni Suef', 'بني سويف'], ['Suez', 'السويس'],
+  ['Ismailia', 'الإسماعيلية'], ['Port Said', 'بورسعيد'], ['Damietta', 'دمياط'],
+  ['Dakahlia', 'الدقهلية'], ['Sharqia', 'الشرقية'], ['Qalyubia', 'القليوبية'],
+  ['Monufia', 'المنوفية'], ['Gharbia', 'الغربية'], ['Kafr el-Sheikh', 'كفر الشيخ'],
+  ['Beheira', 'البحيرة'], ['Matruh', 'مطروح'], ['North Sinai', 'شمال سيناء'],
+  ['South Sinai', 'جنوب سيناء'], ['Red Sea', 'البحر الأحمر'], ['New Valley', 'الوادي الجديد'],
+].map(([value, ar]) => ({ value, ar }))
+
+const selectClass =
+  'w-full px-3 py-2.5 rounded-lg border border-[rgba(6,36,91,0.12)] text-sm focus:outline-none focus:border-[#1266D6] focus:ring-2 focus:ring-[#1266D6]/10 text-[#1E293B] bg-white'
+const textareaClass =
+  'w-full px-3 py-2.5 rounded-lg border border-[rgba(6,36,91,0.12)] text-sm focus:outline-none focus:border-[#1266D6] focus:ring-2 focus:ring-[#1266D6]/10 resize-none text-[#1E293B] placeholder:text-[#94A3B8]'
+const labelClass = 'block text-sm font-medium text-[#475569] mb-1'
+
+const toDateInput = (d) => d.toISOString().split('T')[0]
+const addDays = (n) => {
+  const d = new Date()
+  d.setDate(d.getDate() + n)
+  return d
 }
 
-const EGYPT_GOVERNORATES = [
-  'Cairo', 'Giza', 'Alexandria', 'Luxor', 'Aswan', 'Qena', 'Sohag',
-  'Minya', 'Asyut', 'Fayoum', 'Beni Suef', 'Suez', 'Ismailia',
-  'Port Said', 'Damietta', 'Dakahlia', 'Sharqia', 'Qalyubia',
-  'Monufia', 'Gharbia', 'Kafr el-Sheikh', 'Beheira', 'Matruh',
-  'North Sinai', 'South Sinai', 'Red Sea', 'New Valley',
-]
+/* ------------------------------- schema ------------------------------ */
 
-function LineItemRow({
-  index,
-  onRemove,
-  categories,
-  units,
-  isAr,
-  register,
-  errors,
-  setValue,
-  watch,
-}) {
-  const selectedCategoryId = watch(`items.${index}.categoryId`)
-  const { data: materials } = useQuery({
-    queryKey: ['catalog', 'materials', selectedCategoryId],
-    queryFn: () => catalogService.getMaterials({ categoryId: selectedCategoryId, pageSize: 200 }),
-    enabled: !!selectedCategoryId,
+// Empty inputs ('' or NaN) become undefined so optional numeric fields don't fail validation.
+const emptyToUndefined = (v) =>
+  v === '' || v == null || (typeof v === 'number' && Number.isNaN(v)) ? undefined : v
+
+const optionalPositive = (msg) =>
+  z.preprocess(emptyToUndefined, z.coerce.number({ invalid_type_error: msg }).positive(msg).optional())
+
+const buildSchema = (isAr) => {
+  const t = (ar, en) => (isAr ? ar : en)
+
+  const item = z.object({
+    categoryId: z.string().min(1, t('اختر الفئة', 'Select a category')),
+    materialId: z.string().optional(),
+    materialName: z.string().min(2, t('اسم المادة مطلوب', 'Material name is required')),
+    specifications: z.string().min(5, t('اكتب المواصفات (5 أحرف على الأقل)', 'Add specifications (min 5 chars)')),
+    quantity: z.coerce
+      .number({ invalid_type_error: t('أدخل كمية رقمية', 'Enter a numeric quantity') })
+      .positive(t('الكمية يجب أن تكون أكبر من صفر', 'Quantity must be greater than 0')),
+    unitOfMeasureId: z.string().optional(),
+    targetPricePerUnit: optionalPositive(t('السعر يجب أن يكون أكبر من صفر', 'Price must be greater than 0')),
   })
+
+  return z
+    .object({
+      title: z.string().min(5, t('العنوان 5 أحرف على الأقل', 'Title must be at least 5 characters')),
+      deliveryGovernorate: z.string().min(1, t('اختر المحافظة', 'Select a governorate')),
+      deliveryCity: z.string().optional(),
+      deliveryAddress: z.string().min(5, t('اكتب عنوان التسليم', 'Enter the delivery address')),
+      closingDateUtc: z.string().min(1, t('اختر تاريخ إغلاق العروض', 'Select a closing date')),
+      requiredDeliveryDateUtc: z.string().optional(),
+      targetBudget: optionalPositive(t('الميزانية يجب أن تكون أكبر من صفر', 'Budget must be greater than 0')),
+      notes: z.string().optional(),
+      items: z.array(item).min(1, t('أضف بنداً واحداً على الأقل', 'Add at least one line item')),
+    })
+    .refine((d) => !d.requiredDeliveryDateUtc || !d.closingDateUtc || d.requiredDeliveryDateUtc >= d.closingDateUtc, {
+      path: ['requiredDeliveryDateUtc'],
+      message: t('تاريخ التسليم يجب أن يكون بعد إغلاق العروض', 'Delivery date must be after the closing date'),
+    })
+}
+
+/* ----------------------------- prefill ------------------------------- */
+
+// Everything prefilled goes into defaultValues once, so later re-renders never overwrite user edits.
+const buildDefaults = (prefilled, isAr) => {
+  const t = (ar, en) => (isAr ? ar : en)
+  const matDisplay = prefilled?.materialName || prefilled?.materialCode || ''
+  const supplier = prefilled?.targetSupplierName
+
+  let title = ''
+  if (matDisplay) {
+    title = supplier
+      ? t(`طلب عرض سعر موجه إلى ${supplier}: ${matDisplay}`, `RFQ to ${supplier}: ${matDisplay}`)
+      : t(`طلب توريد: ${matDisplay}`, `RFQ: Supply of ${matDisplay}`)
+  }
+
+  const specifications =
+    prefilled?.specifications ||
+    (matDisplay
+      ? t(
+          `توريد ${matDisplay} مطابق للمواصفات القياسية مع شهادة الجودة.`,
+          `Supply of ${matDisplay} conforming to industry standards, with quality certificate.`
+        )
+      : '')
+
+  return {
+    title,
+    notes: supplier ? t(`طلب موجه إلى المورد: ${supplier}`, `Targeted RFQ for supplier: ${supplier}`) : '',
+    deliveryGovernorate: prefilled?.governorate || '',
+    deliveryCity: prefilled?.city || '',
+    deliveryAddress: prefilled?.deliveryAddress || '',
+    closingDateUtc: toDateInput(addDays(7)),
+    requiredDeliveryDateUtc: '',
+    targetBudget: '',
+    items: [
+      {
+        categoryId: prefilled?.categoryId || '',
+        materialId: prefilled?.materialId || '',
+        materialName: matDisplay,
+        specifications,
+        quantity: prefilled?.quantity ?? '',
+        unitOfMeasureId: '',
+        targetPricePerUnit: '',
+      },
+    ],
+  }
+}
+
+/* ----------------------------- line item ----------------------------- */
+
+function LineItemRow({ index, canRemove, onRemove, categories, units, isAr, register, errors, setValue, watch }) {
+  const t = (ar, en) => (isAr ? ar : en)
+  const itemErrors = errors.items?.[index]
+  const categoryId = watch(`items.${index}.categoryId`)
+
+  const { data: materials } = useQuery({
+    queryKey: ['catalog', 'materials', categoryId],
+    queryFn: () => catalogService.getMaterials({ categoryId, pageSize: 200 }),
+    enabled: !!categoryId,
+  })
+
+  const nameOf = (o) => (isAr ? o.nameAr || o.nameEn : o.nameEn || o.nameAr)
+  const materialItems = materials?.items || []
+
+  const categoryReg = register(`items.${index}.categoryId`)
+  const materialReg = register(`items.${index}.materialName`)
 
   return (
     <div className="p-4 bg-[#F4F7FB] rounded-xl border border-[rgba(6,36,91,0.08)] space-y-4">
       <div className="flex items-center justify-between">
-        <span className="text-sm font-semibold text-[#06245B]">
-          {isAr ? `البند ${index + 1}` : `Line Item ${index + 1}`}
-        </span>
-        <button
-          type="button"
-          onClick={onRemove}
-          className="p-1.5 rounded-lg hover:bg-red-50 text-[#EF4444] transition-colors"
-          title={isAr ? 'حذف' : 'Remove'}
-        >
-          <Trash2 size={16} />
-        </button>
+        <span className="text-sm font-semibold text-[#06245B]">{t(`البند ${index + 1}`, `Item ${index + 1}`)}</span>
+        {canRemove && (
+          <button
+            type="button"
+            onClick={onRemove}
+            className="p-1.5 rounded-lg hover:bg-red-50 text-[#EF4444] transition-colors"
+            title={t('حذف', 'Remove')}
+            aria-label={t('حذف البند', 'Remove item')}
+          >
+            <Trash2 size={16} />
+          </button>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Category */}
         <div>
-          <label className="block text-sm font-medium text-[#475569] mb-1">
-            {isAr ? 'الفئة' : 'Category'} *
-          </label>
+          <label className={labelClass}>{t('الفئة', 'Category')} *</label>
           <select
-            {...register(`items.${index}.categoryId`)}
+            {...categoryReg}
             onChange={(e) => {
-              setValue(`items.${index}.categoryId`, e.target.value)
+              categoryReg.onChange(e)
+              // a new category invalidates the previously picked material
               setValue(`items.${index}.materialId`, '')
               setValue(`items.${index}.materialName`, '')
             }}
-            className="w-full px-3 py-2.5 rounded-lg border border-[rgba(6,36,91,0.12)] text-sm
-                       focus:outline-none focus:border-[#1266D6] focus:ring-2 focus:ring-[#1266D6]/10
-                       text-[#1E293B] bg-white"
+            className={selectClass}
           >
-            <option value="">{isAr ? 'اختر الفئة' : 'Select category'}</option>
+            <option value="">{t('اختر الفئة', 'Select category')}</option>
             {categories.map((cat) => (
               <option key={cat.id} value={cat.id}>
-                {isAr ? (cat.nameAr || cat.nameEn) : (cat.nameEn || cat.nameAr)}
+                {'—'.repeat(cat._depth)}
+                {cat._depth > 0 ? ' ' : ''}
+                {nameOf(cat)}
               </option>
             ))}
           </select>
-          {errors.items?.[index]?.categoryId && (
-            <p className="text-[#EF4444] text-xs mt-1">{errors.items[index].categoryId.message}</p>
-          )}
+          {itemErrors?.categoryId && <p className="text-[#EF4444] text-xs mt-1">{itemErrors.categoryId.message}</p>}
         </div>
 
-        {/* Material dropdown (optional) + free-text name */}
+        {/* Material: ONE field. Type freely, or pick a catalog suggestion. */}
         <div>
-          <label className="block text-sm font-medium text-[#475569] mb-1">
-            {isAr ? 'المادة' : 'Material'} *
-          </label>
-          {materials && materials.items.length > 0 ? (
-            <select
-              className="w-full px-3 py-2.5 rounded-lg border border-[rgba(6,36,91,0.12)] text-sm
-                         focus:outline-none focus:border-[#1266D6] focus:ring-2 focus:ring-[#1266D6]/10
-                         text-[#1E293B] bg-white"
-              onChange={(e) => {
-                const mat = materials.items.find((m) => m.id === e.target.value)
-                setValue(`items.${index}.materialId`, e.target.value)
-                if (mat) {
-                  setValue(`items.${index}.materialName`, isAr ? mat.nameAr : mat.nameEn)
-                }
-              }}
-            >
-              <option value="">{isAr ? 'اختر مادة (اختياري)' : 'Select material (optional)'}</option>
-              {materials.items.map((mat) => (
-                <option key={mat.id} value={mat.id}>
-                  {isAr ? (mat.nameAr || mat.nameEn) : (mat.nameEn || mat.nameAr)}
-                </option>
-              ))}
-            </select>
-          ) : (
-            <Input
-              {...register(`items.${index}.materialName`)}
-              placeholder={isAr ? 'اسم المادة' : 'Material name'}
-              error={errors.items?.[index]?.materialName?.message}
-            />
-          )}
+          <Input
+            label={`${t('المادة', 'Material')} *`}
+            placeholder={materialItems.length ? t('اكتب أو اختر من القائمة', 'Type or pick from the list') : t('اسم المادة', 'Material name')}
+            list={`materials-${index}`}
+            autoComplete="off"
+            {...materialReg}
+            onChange={(e) => {
+              materialReg.onChange(e)
+              const match = materialItems.find((m) => nameOf(m) === e.target.value)
+              setValue(`items.${index}.materialId`, match?.id || '')
+            }}
+            error={itemErrors?.materialName?.message}
+          />
+          <datalist id={`materials-${index}`}>
+            {materialItems.map((m) => (
+              <option key={m.id} value={nameOf(m)} />
+            ))}
+          </datalist>
         </div>
 
-        {/* Material name (always visible if dropdown selected) */}
-        {materials && materials.items.length > 0 && (
-          <Input
-            {...register(`items.${index}.materialName`)}
-            label={isAr ? 'اسم المادة المحدد' : 'Material Name'}
-            placeholder={isAr ? 'سيتم ملؤه تلقائياً' : 'Auto-filled from selection'}
-            error={errors.items?.[index]?.materialName?.message}
-          />
-        )}
-
-        {/* Quantity */}
+        {/* Quantity + unit + target price */}
         <Input
           type="number"
-          step="0.0001"
-          min="0.0001"
-          label={isAr ? 'الكمية *' : 'Quantity *'}
-          {...register(`items.${index}.quantity`, { valueAsNumber: true })}
-          error={errors.items?.[index]?.quantity?.message}
+          inputMode="decimal"
+          step="any"
+          min="0"
+          label={`${t('الكمية', 'Quantity')} *`}
+          {...register(`items.${index}.quantity`)}
+          error={itemErrors?.quantity?.message}
         />
 
-        {/* Unit of Measure */}
         <div>
-          <label className="block text-sm font-medium text-[#475569] mb-1">
-            {isAr ? 'وحدة القياس' : 'Unit of Measure'}
-          </label>
-          <select
-            {...register(`items.${index}.unitOfMeasureId`)}
-            className="w-full px-3 py-2.5 rounded-lg border border-[rgba(6,36,91,0.12)] text-sm
-                       focus:outline-none focus:border-[#1266D6] focus:ring-2 focus:ring-[#1266D6]/10
-                       text-[#1E293B] bg-white"
-          >
-            <option value="">{isAr ? 'اختر الوحدة' : 'Select unit'}</option>
+          <label className={labelClass}>{t('وحدة القياس', 'Unit')}</label>
+          <select {...register(`items.${index}.unitOfMeasureId`)} className={selectClass}>
+            <option value="">{t('اختر الوحدة', 'Select unit')}</option>
             {units.map((unit) => (
               <option key={unit.id} value={unit.id}>
-                {isAr ? `${unit.nameAr} (${unit.symbolAr || unit.code})` : `${unit.nameEn} (${unit.symbolEn || unit.code})`}
+                {isAr
+                  ? `${unit.nameAr} (${unit.symbolAr || unit.code})`
+                  : `${unit.nameEn} (${unit.symbolEn || unit.code})`}
               </option>
             ))}
           </select>
         </div>
 
-        {/* Target price per unit */}
         <Input
           type="number"
-          step="0.01"
+          inputMode="decimal"
+          step="any"
           min="0"
-          label={isAr ? 'السعر المستهدف للوحدة (اختياري)' : 'Target Unit Price (optional)'}
-          {...register(`items.${index}.targetPricePerUnit`, { valueAsNumber: true })}
+          label={t('السعر المستهدف للوحدة (اختياري)', 'Target unit price (optional)')}
+          {...register(`items.${index}.targetPricePerUnit`)}
+          error={itemErrors?.targetPricePerUnit?.message}
         />
       </div>
 
       {/* Specifications */}
       <div>
-        <label className="block text-sm font-medium text-[#475569] mb-1">
-          {isAr ? 'المواصفات *' : 'Specifications *'}
-        </label>
+        <label className={labelClass}>{t('المواصفات', 'Specifications')} *</label>
         <textarea
           {...register(`items.${index}.specifications`)}
           rows={3}
-          placeholder={isAr ? 'وصف مفصل للمواصفات المطلوبة...' : 'Detailed specifications and requirements...'}
-          className="w-full px-3 py-2.5 rounded-lg border border-[rgba(6,36,91,0.12)] text-sm
-                     focus:outline-none focus:border-[#1266D6] focus:ring-2 focus:ring-[#1266D6]/10
-                     resize-none text-[#1E293B] placeholder:text-[#94A3B8]"
+          placeholder={t('الدرجة، المقاس، المعايير المطلوبة...', 'Grade, size, required standards...')}
+          className={textareaClass}
         />
-        {errors.items?.[index]?.specifications && (
-          <p className="text-[#EF4444] text-xs mt-1">{errors.items[index].specifications.message}</p>
-        )}
+        {itemErrors?.specifications && <p className="text-[#EF4444] text-xs mt-1">{itemErrors.specifications.message}</p>}
       </div>
     </div>
   )
 }
 
+/* -------------------------------- page ------------------------------- */
+
 export default function CreateRfqPage() {
   const { language } = useTranslation()
+  const isAr = language === 'ar'
+  const t = (ar, en) => (isAr ? ar : en)
   const navigate = useNavigate()
   const location = useLocation()
   const [searchParams] = useSearchParams()
   const toast = useToast()
-  const isAr = language === 'ar'
-
   const { canManageRfqs, isSupplierOnly } = usePermissions()
 
-  // Extract pre-filled material from navigation state or URL query
+  // Prefilled material/supplier from navigation state or URL query
   const prefilled = useMemo(() => {
-    const stateObj = location.state?.prefilledMaterial
-    if (stateObj) return stateObj
-    const matId = searchParams.get('materialId')
-    const matCode = searchParams.get('materialCode')
-    const matName = searchParams.get('materialName')
-    const catId = searchParams.get('catId')
-    const unit = searchParams.get('unit')
-    const qty = searchParams.get('qty')
-    const supplierId = searchParams.get('supplierId')
-    const supplierName = searchParams.get('supplierName')
-    if (matId || matCode || matName) {
-      return {
-        materialId: matId || undefined,
-        materialCode: matCode || undefined,
-        materialName: matName || undefined,
-        categoryId: catId || undefined,
-        unit: unit || undefined,
-        quantity: qty ? Number(qty) : undefined,
-        targetSupplierId: supplierId || undefined,
-        targetSupplierName: supplierName || undefined,
-      }
+    const fromState = location.state?.prefilledMaterial
+    if (fromState) return fromState
+
+    const get = (k) => searchParams.get(k) || undefined
+    const materialId = get('materialId')
+    const materialCode = get('materialCode')
+    const materialName = get('materialName')
+    const targetSupplierId = get('supplierId') || get('targetSupplierId')
+    const targetSupplierName = get('supplierName') || get('targetSupplierName')
+
+    if (!(materialId || materialCode || materialName || targetSupplierId || targetSupplierName)) return null
+    const qty = get('qty')
+    return {
+      materialId,
+      materialCode,
+      materialName,
+      categoryId: get('catId'),
+      unit: get('unit'),
+      quantity: qty ? Number(qty) : undefined,
+      targetSupplierId,
+      targetSupplierName,
     }
-    return null
   }, [location.state, searchParams])
 
-  const isPrefilled = Boolean(prefilled?.materialName || prefilled?.materialCode)
+  const isPrefilled = Boolean(prefilled?.materialName || prefilled?.materialCode || prefilled?.targetSupplierName)
+
+  const schema = useMemo(() => buildSchema(isAr), [isAr])
 
   const {
     register,
@@ -267,166 +315,104 @@ export default function CreateRfqPage() {
     setValue,
     watch,
   } = useForm({
-    resolver: zodResolver(getCreateRfqSchema(isAr)),
-    mode: 'onChange',
-    defaultValues: {
-      publishImmediately: false,
-      currency: 'EGP',
-      items: [
-        {
-          categoryId: prefilled?.categoryId || '',
-          materialId: prefilled?.materialId || '',
-          materialName: prefilled?.materialName || '',
-          specifications: prefilled?.specifications || '',
-          quantity: prefilled?.quantity || undefined,
-        },
-      ],
-    },
+    resolver: zodResolver(schema),
+    mode: 'onTouched',
+    defaultValues: buildDefaults(prefilled, isAr),
   })
 
   const { fields, append, remove } = useFieldArray({ control, name: 'items' })
 
-  // Load catalog data
   const { data: categories, isLoading: loadingCategories } = useQuery({
     queryKey: ['catalog', 'categories'],
     queryFn: () => catalogService.getCategories(),
   })
-
   const { data: units, isLoading: loadingUnits } = useQuery({
     queryKey: ['catalog', 'units'],
     queryFn: () => catalogService.getUnits(),
   })
 
-  // Automatically pre-fill the form whenever prefilled context or reference data is ready
+  // The only thing that depends on async data: match the prefilled unit once units are loaded
   useEffect(() => {
-    if (!prefilled) return
+    if (!units?.length || !prefilled?.unit) return
+    const target = prefilled.unit.toLowerCase()
+    const found = units.find(
+      (u) =>
+        u.id === prefilled.unitOfMeasureId ||
+        u.code?.toLowerCase() === target ||
+        u.nameEn?.toLowerCase() === target ||
+        u.nameAr?.includes(prefilled.unit)
+    )
+    if (found) setValue('items.0.unitOfMeasureId', found.id)
+  }, [units, prefilled, setValue])
 
-    const matDisplay = prefilled.materialName || prefilled.materialCode || ''
-    if (matDisplay) {
-      if (prefilled.targetSupplierName) {
-        setValue('title', isAr ? `طلب عرض سعر موجه إلى ${prefilled.targetSupplierName}: ${matDisplay}` : `RFQ to ${prefilled.targetSupplierName}: ${matDisplay}`)
-        setValue('notes', isAr ? `طلب عرض سعر موجه خصيصاً إلى مورد الكتالوج: ${prefilled.targetSupplierName}` : `Targeted RFQ for supplier: ${prefilled.targetSupplierName}`)
-      } else {
-        setValue('title', isAr ? `طلب توريد: ${matDisplay}` : `RFQ: Supply of ${matDisplay}`)
-      }
-    }
-
-    if (prefilled.categoryId) {
-      setValue('targetCategoryId', prefilled.categoryId)
-      setValue('items.0.categoryId', prefilled.categoryId)
-    }
-
-    if (prefilled.materialId) {
-      setValue('items.0.materialId', prefilled.materialId)
-    }
-
-    if (prefilled.materialName) {
-      setValue('items.0.materialName', prefilled.materialName)
-    }
-
-    if (prefilled.quantity) {
-      setValue('items.0.quantity', prefilled.quantity)
-    }
-
-    if (prefilled.specifications) {
-      setValue('items.0.specifications', prefilled.specifications)
-    } else if (matDisplay) {
-      setValue(
-        'items.0.specifications',
-        isAr
-          ? `توريد مادة ${matDisplay} مطابقة للمعايير الصناعية والمواصفات القياسية المصرية (EOS) ومرفق معها شهادة الجودة.`
-          : `Supply of ${matDisplay} conforming to certified EOS / ASTM industrial standards with Mill Test Certificate.`
-      )
-    }
-
-    if (units && units.length > 0 && prefilled.unit) {
-      const uTarget = prefilled.unit.toLowerCase()
-      const found = units.find(
-        (u) =>
-          u.id === prefilled.unitOfMeasureId ||
-          u.code?.toLowerCase() === uTarget ||
-          u.nameEn?.toLowerCase() === uTarget ||
-          u.nameAr?.includes(prefilled.unit)
-      )
-      if (found) {
-        setValue('items.0.unitOfMeasureId', found.id)
-      }
-    }
-
-    if (prefilled.deliveryAddress) {
-      setValue('deliveryAddress', prefilled.deliveryAddress)
-    }
-    if (prefilled.industrialZone) {
-      setValue('deliveryCity', prefilled.industrialZone)
-      setValue('deliveryGovernorate', 'Sharqia')
-    }
-  }, [prefilled, units, setValue, isAr])
-
-  // Flatten categories for dropdown (all levels)
-  const flatCategories = useCallback(() => {
+  // Flatten the category tree (keeps depth for indentation)
+  const flatCategories = useMemo(() => {
     const flat = []
-    const traverse = (cats, depth = 0) => {
+    const walk = (cats, depth = 0) =>
       cats.forEach((cat) => {
         flat.push({ ...cat, _depth: depth })
-        if (cat.subCategories?.length) traverse(cat.subCategories, depth + 1)
+        if (cat.subCategories?.length) walk(cat.subCategories, depth + 1)
       })
-    }
-    if (categories) traverse(categories)
+    if (categories) walk(categories)
     return flat
-  }, [categories])()
+  }, [categories])
 
   const createMutation = useMutation({
     mutationFn: (data) => rfqService.create(data),
     onSuccess: (rfq) => {
-      toast.success(isAr ? 'تم إنشاء طلب السعر بنجاح' : 'RFQ created successfully')
+      toast.success(t('تم إنشاء طلب السعر', 'RFQ created'))
       navigate(`/rfqs/${rfq.id}`)
     },
     onError: (err) => {
-      toast.error(err?.problem?.detail || (isAr ? 'فشل إنشاء الطلب' : 'Failed to create RFQ'))
+      toast.error(err?.problem?.detail || t('تعذّر إنشاء الطلب', 'Could not create the RFQ'))
     },
   })
 
-  const onSubmit = (data) => {
-    // Build the proper API request
-    const request = {
-      title: data.title,
-      description: data.description || undefined,
-      targetCategoryId: data.targetCategoryId || undefined,
-      deliveryGovernorate: data.deliveryGovernorate,
-      deliveryCity: data.deliveryCity,
-      deliveryAddress: data.deliveryAddress,
-      closingDateUtc: new Date(data.closingDateUtc).toISOString(),
-      requiredDeliveryDateUtc: data.requiredDeliveryDateUtc
-        ? new Date(data.requiredDeliveryDateUtc).toISOString()
-        : undefined,
-      targetBudget: data.targetBudget || undefined,
-      currency: data.currency || 'EGP',
-      notes: data.notes || undefined,
-      publishImmediately: data.publishImmediately,
-      items: data.items.map((item) => ({
-        categoryId: item.categoryId,
-        materialId: item.materialId || undefined,
-        materialName: item.materialName,
-        specifications: item.specifications,
-        quantity: item.quantity,
-        unitOfMeasureId: item.unitOfMeasureId || undefined,
-        targetPricePerUnit: item.targetPricePerUnit || undefined,
-        notes: item.notes || undefined,
-      })),
-    }
-    createMutation.mutate(request)
-  }
+  const submit = useCallback(
+    (publishImmediately) => (data) => {
+      const govAr = GOVERNORATES.find((g) => g.value === data.deliveryGovernorate)
+      createMutation.mutate({
+        title: data.title,
+        // derived from the first line item instead of asking the user twice
+        targetCategoryId: data.items[0]?.categoryId || undefined,
+        deliveryGovernorate: data.deliveryGovernorate,
+        // city is optional in the UI; fall back to the governorate so the API still gets a value
+        deliveryCity: data.deliveryCity?.trim() || govAr?.value || data.deliveryGovernorate,
+        deliveryAddress: data.deliveryAddress,
+        closingDateUtc: new Date(data.closingDateUtc).toISOString(),
+        requiredDeliveryDateUtc: data.requiredDeliveryDateUtc
+          ? new Date(data.requiredDeliveryDateUtc).toISOString()
+          : undefined,
+        targetBudget: data.targetBudget || undefined,
+        currency: 'EGP',
+        notes: data.notes?.trim() || undefined,
+        publishImmediately,
+        targetSupplierCompanyId: prefilled?.targetSupplierId || undefined,
+        items: data.items.map((item) => ({
+          categoryId: item.categoryId,
+          materialId: item.materialId || undefined,
+          materialName: item.materialName,
+          specifications: item.specifications,
+          quantity: item.quantity,
+          unitOfMeasureId: item.unitOfMeasureId || undefined,
+          targetPricePerUnit: item.targetPricePerUnit || undefined,
+        })),
+      })
+    },
+    [createMutation, prefilled]
+  )
 
   if (isSupplierOnly || !canManageRfqs) {
     return (
       <div className="text-center py-16">
         <p className="text-[#EF4444] mb-4 font-bold">
-          {isAr
-            ? 'غير مسموح للموردين بإنشاء طلبات شراء. يمكنك تصفح طلبات الأسعار وتقديم عروضك.'
-            : 'Suppliers are not permitted to create RFQs. You can browse open RFQs and submit bids.'}
+          {t(
+            'الموردون لا يمكنهم إنشاء طلبات شراء. يمكنك تصفح طلبات الأسعار وتقديم عروضك.',
+            'Suppliers cannot create RFQs. You can browse open RFQs and submit offers.'
+          )}
         </p>
         <Button variant="primary" onClick={() => navigate('/rfqs')}>
-          {isAr ? 'استعراض طلبات الأسعار' : 'Discover RFQs'}
+          {t('تصفح طلبات الأسعار', 'Browse RFQs')}
         </Button>
       </div>
     )
@@ -434,10 +420,9 @@ export default function CreateRfqPage() {
 
   if (loadingCategories || loadingUnits) return <PageSpinner />
 
-  // Minimum closing date = tomorrow
-  const tomorrow = new Date()
-  tomorrow.setDate(tomorrow.getDate() + 1)
-  const minDate = tomorrow.toISOString().split('T')[0]
+  const minDate = toDateInput(addDays(1))
+  const isPending = createMutation.isPending
+  const publishingNow = isPending && createMutation.variables?.publishImmediately
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 animate-fade-in">
@@ -447,131 +432,84 @@ export default function CreateRfqPage() {
           type="button"
           onClick={() => navigate('/rfqs')}
           className="mt-1 p-2 rounded-lg hover:bg-[#EAF4FF] text-[#64748B] hover:text-[#06245B] transition-colors"
+          aria-label={t('رجوع', 'Back')}
         >
-          <ArrowLeft size={20} />
+          <ArrowLeft size={20} className="rtl:rotate-180" />
         </button>
         <div>
-          <h1 className="text-2xl font-bold text-[#06245B]">
-            {isAr ? 'إنشاء طلب سعر جديد' : 'Create New RFQ'}
-          </h1>
+          <h1 className="text-2xl font-bold text-[#06245B]">{t('طلب سعر جديد', 'New RFQ')}</h1>
           <p className="text-sm text-[#64748B] mt-1">
-            {isAr
-              ? 'أنشئ طلب تسعير لمواد خام صناعية وتلقّ عروض من الموردين المعتمدين'
-              : 'Create a Request for Quotation for industrial raw materials and receive offers from verified suppliers'}
+            {t('حدد ما تحتاجه واستقبل عروض الموردين.', 'Tell suppliers what you need and receive offers.')}
           </p>
         </div>
       </div>
 
-      {/* Contextual Pre-filled Material Banner */}
+      {/* Prefilled banner */}
       {isPrefilled && (
-        <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-[#EAF4FF] to-blue-50 border border-blue-200/80 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-[#1266D6] text-white flex items-center justify-center shrink-0">
-              <Package size={20} />
-            </div>
-            <div>
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-xs font-bold text-[#1266D6] uppercase tracking-wide">
-                  {isAr ? 'طلب مخصص لخامة محددة' : 'Specific Material Request'}
-                </span>
-                <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded-md">
-                  <CheckCircle2 size={12} />
-                  {isAr ? 'بيانات معبأة تلقائياً' : 'Pre-filled'}
-                </span>
-                {prefilled.targetSupplierName && (
-                  <span className="inline-flex items-center gap-1 text-[11px] font-bold text-[#06245B] bg-white px-2 py-0.5 rounded-md border border-blue-200">
-                    <Building2 size={12} className="text-[#1266D6]" />
-                    {isAr ? 'المورد المستهدف: ' : 'Targeted Supplier: '}{prefilled.targetSupplierName}
-                  </span>
-                )}
-              </div>
-              <h3 className="font-extrabold text-[#06245B] text-base mt-0.5">
-                {prefilled.materialName || prefilled.materialCode}
-              </h3>
-              <p className="text-xs text-slate-500 mt-0.5">
-                {isAr
-                  ? 'تم ملء المواصفات القياسية ووحدة القياس والفئة تلقائياً. يمكنك مراجعة وتعديل أي حقل بحرية.'
-                  : 'Standard specifications, unit of measure, and category were auto-filled. You can review and adjust any field freely.'}
-              </p>
-            </div>
+        <div className="p-4 rounded-2xl bg-[#EAF4FF] border border-blue-200/80 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-[#1266D6] text-white flex items-center justify-center shrink-0">
+            <Package size={20} />
           </div>
-          {prefilled.materialCode && (
-            <span className="font-mono text-xs font-bold bg-white px-3 py-1.5 rounded-xl border border-blue-200 text-[#06245B] shrink-0">
-              {prefilled.materialCode}
-            </span>
-          )}
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <h3 className="font-bold text-[#06245B]">{prefilled.materialName || prefilled.materialCode}</h3>
+              {prefilled.materialCode && prefilled.materialName && (
+                <span className="font-mono text-xs text-[#06245B]/70">{prefilled.materialCode}</span>
+              )}
+              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded-md">
+                <CheckCircle2 size={12} />
+                {t('معبأ تلقائياً', 'Pre-filled')}
+              </span>
+              {prefilled.targetSupplierName && (
+                <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#06245B] bg-white px-2 py-0.5 rounded-md border border-blue-200">
+                  <Building2 size={12} className="text-[#1266D6]" />
+                  {prefilled.targetSupplierName}
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-slate-500 mt-0.5">
+              {t('راجع البيانات وعدّل أي حقل تريده.', 'Review the details and change anything you need.')}
+            </p>
+          </div>
         </div>
       )}
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-
-        {/* General Info */}
+      <form onSubmit={handleSubmit(submit(false))} className="space-y-6" noValidate>
+        {/* Basics */}
         <Card>
-          <CardHeader
-            title={isAr ? 'معلومات عامة' : 'General Information'}
-          />
-          <div className="space-y-4">
-            <Input
-              label={isAr ? 'عنوان الطلب *' : 'RFQ Title *'}
-              placeholder={isAr ? 'مثال: طلب خام بولي إيثيلين Q4-2026' : 'e.g., Polyethylene Raw Material Q4-2026'}
-              {...register('title')}
-              error={errors.title?.message}
-            />
-
-            <div>
-              <label className="block text-sm font-medium text-[#475569] mb-1">
-                {isAr ? 'الفئة المستهدفة (اختياري)' : 'Target Category (optional)'}
-              </label>
-              <select
-                {...register('targetCategoryId')}
-                className="w-full px-3 py-2.5 rounded-lg border border-[rgba(6,36,91,0.12)] text-sm
-                           focus:outline-none focus:border-[#1266D6] focus:ring-2 focus:ring-[#1266D6]/10
-                           text-[#1E293B] bg-white"
-              >
-                <option value="">{isAr ? 'جميع الفئات' : 'All categories'}</option>
-                {flatCategories.map((cat) => (
-                  <option key={cat.id} value={cat.id}>
-                    {'—'.repeat(cat._depth)}{cat._depth > 0 ? ' ' : ''}
-                    {isAr ? (cat.nameAr || cat.nameEn) : (cat.nameEn || cat.nameAr)}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-[#475569] mb-1">
-                {isAr ? 'الوصف (اختياري)' : 'Description (optional)'}
-              </label>
-              <textarea
-                {...register('description')}
-                rows={2}
-                placeholder={isAr ? 'وصف إضافي للطلب...' : 'Additional context about this request...'}
-                className="w-full px-3 py-2.5 rounded-lg border border-[rgba(6,36,91,0.12)] text-sm
-                           focus:outline-none focus:border-[#1266D6] focus:ring-2 focus:ring-[#1266D6]/10
-                           resize-none text-[#1E293B] placeholder:text-[#94A3B8]"
+          <CardHeader title={t('الطلب', 'Request')} />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="md:col-span-2">
+              <Input
+                label={`${t('عنوان الطلب', 'Title')} *`}
+                placeholder={t('مثال: خام بولي إيثيلين للربع الرابع', 'e.g., Polyethylene raw material Q4')}
+                {...register('title')}
+                error={errors.title?.message}
               />
             </div>
+            <Input
+              type="date"
+              label={`${t('آخر موعد لاستقبال العروض', 'Offers close on')} *`}
+              min={minDate}
+              {...register('closingDateUtc')}
+              error={errors.closingDateUtc?.message}
+            />
           </div>
         </Card>
 
-        {/* Delivery & Deadline */}
+        {/* Delivery */}
         <Card>
-          <CardHeader
-            title={isAr ? 'التسليم والجدول الزمني' : 'Delivery & Timeline'}
-          />
+          <CardHeader title={t('التسليم', 'Delivery')} />
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-[#475569] mb-1">
-                {isAr ? 'المحافظة *' : 'Governorate *'}
-              </label>
-              <select
-                {...register('deliveryGovernorate')}
-                className="w-full px-3 py-2.5 rounded-lg border border-[rgba(6,36,91,0.12)] text-sm
-                           focus:outline-none focus:border-[#1266D6] focus:ring-2 focus:ring-[#1266D6]/10
-                           text-[#1E293B] bg-white"
-              >
-                <option value="">{isAr ? 'اختر المحافظة' : 'Select governorate'}</option>
-                {EGYPT_GOVERNORATES.map((g) => <option key={g} value={g}>{g}</option>)}
+              <label className={labelClass}>{t('المحافظة', 'Governorate')} *</label>
+              <select {...register('deliveryGovernorate')} className={selectClass}>
+                <option value="">{t('اختر المحافظة', 'Select governorate')}</option>
+                {GOVERNORATES.map((g) => (
+                  <option key={g.value} value={g.value}>
+                    {isAr ? g.ar : g.value}
+                  </option>
+                ))}
               </select>
               {errors.deliveryGovernorate && (
                 <p className="text-[#EF4444] text-xs mt-1">{errors.deliveryGovernorate.message}</p>
@@ -579,69 +517,43 @@ export default function CreateRfqPage() {
             </div>
 
             <Input
-              label={isAr ? 'المدينة *' : 'City *'}
+              label={t('المدينة / المنطقة (اختياري)', 'City / area (optional)')}
               {...register('deliveryCity')}
-              error={errors.deliveryCity?.message}
             />
 
             <div className="md:col-span-2">
               <Input
-                label={isAr ? 'عنوان التسليم الكامل *' : 'Full Delivery Address *'}
-                placeholder={isAr ? 'الشارع، الحي، المنطقة الصناعية...' : 'Street, district, industrial zone...'}
+                label={`${t('عنوان التسليم', 'Delivery address')} *`}
+                placeholder={t('الشارع، الحي، أو بوابة المصنع', 'Street, district, or factory gate')}
                 {...register('deliveryAddress')}
                 error={errors.deliveryAddress?.message}
               />
             </div>
-
-            <Input
-              type="date"
-              label={isAr ? 'تاريخ إغلاق العروض *' : 'Offer Closing Date *'}
-              min={minDate}
-              {...register('closingDateUtc')}
-              error={errors.closingDateUtc?.message}
-            />
-
-            <Input
-              type="date"
-              label={isAr ? 'تاريخ التسليم المطلوب (اختياري)' : 'Required Delivery Date (optional)'}
-              min={minDate}
-              {...register('requiredDeliveryDateUtc')}
-            />
-
-            <Input
-              type="number"
-              step="0.01"
-              min="0"
-              label={isAr ? 'الميزانية الإجمالية (اختياري)' : 'Target Budget EGP (optional)'}
-              {...register('targetBudget', { valueAsNumber: true })}
-            />
           </div>
         </Card>
 
-        {/* Line Items */}
+        {/* Items */}
         <Card>
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h2 className="font-semibold text-[#06245B]">{isAr ? 'بنود الطلب' : 'Line Items'}</h2>
-              <p className="text-sm text-[#64748B] mt-0.5">
-                {isAr ? 'أضف المواد الخام المطلوبة' : 'Add the raw materials you need'}
-              </p>
+              <h2 className="font-semibold text-[#06245B]">{t('البنود', 'Items')}</h2>
+              <p className="text-sm text-[#64748B] mt-0.5">{t('أضف المواد المطلوبة', 'Add the materials you need')}</p>
             </div>
             <Button
               type="button"
               variant="outline"
               size="sm"
               icon={<Plus size={16} />}
-              onClick={() => append({ categoryId: '', materialName: '', specifications: '', quantity: undefined })}
+              onClick={() => append({ categoryId: '', materialId: '', materialName: '', specifications: '', quantity: '', unitOfMeasureId: '', targetPricePerUnit: '' })}
             >
-              {isAr ? 'إضافة بند' : 'Add Item'}
+              {t('إضافة بند', 'Add item')}
             </Button>
           </div>
 
-          {errors.items?.root && (
+          {(errors.items?.root?.message || errors.items?.message) && (
             <div className="flex items-center gap-2 p-3 bg-red-50 rounded-lg text-[#EF4444] text-sm mb-4">
               <AlertCircle size={16} />
-              {errors.items.root.message}
+              {errors.items?.root?.message || errors.items?.message}
             </div>
           )}
 
@@ -650,6 +562,7 @@ export default function CreateRfqPage() {
               <LineItemRow
                 key={field.id}
                 index={index}
+                canRemove={fields.length > 1}
                 onRemove={() => remove(index)}
                 categories={flatCategories}
                 units={units || []}
@@ -663,55 +576,66 @@ export default function CreateRfqPage() {
           </div>
         </Card>
 
-        {/* Notes */}
+        {/* Optional extras, collapsed by default */}
         <Card>
-          <CardHeader title={isAr ? 'ملاحظات إضافية' : 'Additional Notes'} />
-          <textarea
-            {...register('notes')}
-            rows={3}
-            placeholder={isAr ? 'أي ملاحظات أو متطلبات خاصة...' : 'Any special requirements or notes for suppliers...'}
-            className="w-full px-3 py-2.5 rounded-lg border border-[rgba(6,36,91,0.12)] text-sm
-                       focus:outline-none focus:border-[#1266D6] focus:ring-2 focus:ring-[#1266D6]/10
-                       resize-none text-[#1E293B] placeholder:text-[#94A3B8]"
-          />
+          <details className="group" open={Boolean(prefilled?.targetSupplierName)}>
+            <summary className="cursor-pointer select-none font-semibold text-[#06245B] list-none flex items-center justify-between">
+              <span>{t('خيارات إضافية (اختيارية)', 'More options (optional)')}</span>
+              <span className="text-xs text-[#64748B] group-open:hidden">{t('إظهار', 'Show')}</span>
+            </summary>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+              <Input
+                type="date"
+                label={t('تاريخ التسليم المطلوب', 'Required delivery date')}
+                min={minDate}
+                {...register('requiredDeliveryDateUtc')}
+                error={errors.requiredDeliveryDateUtc?.message}
+              />
+              <Input
+                type="number"
+                inputMode="decimal"
+                step="any"
+                min="0"
+                label={t('الميزانية الإجمالية (جنيه)', 'Total budget (EGP)')}
+                {...register('targetBudget')}
+                error={errors.targetBudget?.message}
+              />
+              <div className="md:col-span-2">
+                <label className={labelClass}>{t('ملاحظات للموردين', 'Notes for suppliers')}</label>
+                <textarea
+                  {...register('notes')}
+                  rows={3}
+                  placeholder={t('أي متطلبات خاصة...', 'Any special requirements...')}
+                  className={textareaClass}
+                />
+              </div>
+            </div>
+          </details>
         </Card>
 
-        {/* Actions */}
-        <div className="bg-white rounded-xl border border-[rgba(6,36,91,0.08)] p-5">
-          <div className="flex items-center gap-3 mb-4">
-            <input
-              type="checkbox"
-              id="publishImmediately"
-              {...register('publishImmediately')}
-              className="w-4 h-4 rounded border-[rgba(6,36,91,0.2)] text-[#00D9F5]"
-            />
-            <label htmlFor="publishImmediately" className="text-sm text-[#1E293B] cursor-pointer select-none">
-              <span className="font-medium">{isAr ? 'نشر فوري' : 'Publish immediately'}</span>
-              <span className="text-[#64748B] ms-2">
-                {isAr ? '(إذا لم تحدد هذا الخيار، سيتم حفظه كمسودة)' : '(Otherwise saved as Draft)'}
-              </span>
-            </label>
-          </div>
-
-          <div className="flex justify-end gap-3">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => navigate('/rfqs')}
-              disabled={createMutation.isPending}
-            >
-              {isAr ? 'إلغاء' : 'Cancel'}
-            </Button>
-            <Button
-              type="submit"
-              variant="primary"
-              loading={createMutation.isPending}
-            >
-              {createMutation.isPending
-                ? (isAr ? 'جاري الإنشاء...' : 'Creating...')
-                : (isAr ? 'إنشاء طلب السعر' : 'Create RFQ')}
-            </Button>
-          </div>
+        {/* Actions: two explicit buttons instead of a checkbox */}
+        <div className="sticky bottom-3 bg-white/95 backdrop-blur rounded-xl border border-[rgba(6,36,91,0.08)] shadow-lg p-4 flex flex-wrap items-center justify-end gap-3">
+          <Button type="button" variant="ghost" onClick={() => navigate('/rfqs')} disabled={isPending}>
+            {t('إلغاء', 'Cancel')}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleSubmit(submit(false))}
+            loading={isPending && !publishingNow}
+            disabled={isPending}
+          >
+            {t('حفظ كمسودة', 'Save as draft')}
+          </Button>
+          <Button
+            type="button"
+            variant="primary"
+            onClick={handleSubmit(submit(true))}
+            loading={publishingNow}
+            disabled={isPending}
+          >
+            {t('نشر الطلب', 'Publish RFQ')}
+          </Button>
         </div>
       </form>
     </div>

@@ -24,6 +24,7 @@ import Input from '../../components/ui/Input'
 import { EGYPT_PHONE_REGEX } from '../../shared/validation/formSchemas'
 import Textarea from '../../components/ui/Textarea'
 import Button from '../../components/ui/Button'
+import { getGovernorateOptions } from '../../constants/governorates'
 
 const getCompanySchema = (isAr) =>
   z.object({
@@ -98,6 +99,36 @@ const commonSectors = [
   { ar: 'تعدين ومواد بناء', en: 'Mining & Construction' },
 ]
 
+const EGYPT_GOVERNORATES = [
+  { ar: 'القاهرة',          en: 'Cairo' },
+  { ar: 'الجيزة',           en: 'Giza' },
+  { ar: 'الإسكندرية',       en: 'Alexandria' },
+  { ar: 'القليوبية',        en: 'Qalyubia' },
+  { ar: 'الشرقية',          en: 'Sharqia' },
+  { ar: 'الغربية',          en: 'Gharbia' },
+  { ar: 'المنوفية',         en: 'Monufia' },
+  { ar: 'الدقهلية',         en: 'Dakahlia' },
+  { ar: 'كفر الشيخ',        en: 'Kafr El Sheikh' },
+  { ar: 'البحيرة',          en: 'Beheira' },
+  { ar: 'الإسماعيلية',      en: 'Ismailia' },
+  { ar: 'السويس',           en: 'Suez' },
+  { ar: 'بورسعيد',          en: 'Port Said' },
+  { ar: 'دمياط',            en: 'Damietta' },
+  { ar: 'الفيوم',           en: 'Faiyum' },
+  { ar: 'بني سويف',         en: 'Beni Suef' },
+  { ar: 'المنيا',           en: 'Minya' },
+  { ar: 'أسيوط',            en: 'Asyut' },
+  { ar: 'سوهاج',            en: 'Sohag' },
+  { ar: 'قنا',              en: 'Qena' },
+  { ar: 'الأقصر',           en: 'Luxor' },
+  { ar: 'أسوان',            en: 'Aswan' },
+  { ar: 'البحر الأحمر',     en: 'Red Sea' },
+  { ar: 'شمال سيناء',       en: 'North Sinai' },
+  { ar: 'جنوب سيناء',       en: 'South Sinai' },
+  { ar: 'مطروح',            en: 'Matrouh' },
+  { ar: 'الوادي الجديد',    en: 'New Valley' },
+]
+
 export default function CompanyOnboardingPage() {
   const navigate = useNavigate()
   const { t, language } = useTranslation()
@@ -107,10 +138,6 @@ export default function CompanyOnboardingPage() {
   const setUser = useAuthStore((s) => s.setUser)
   const [isLoading, setIsLoading] = useState(false)
   const [userIntent, setUserIntent] = useState('buyer')
-
-  if (user?.isSystemAdmin) {
-    return <Navigate to="/admin/verification" replace />
-  }
 
   useEffect(() => {
     const saved = localStorage.getItem('dz_user_intent')
@@ -133,18 +160,20 @@ export default function CompanyOnboardingPage() {
 
   const currentSector = watch('industrySector')
 
+  if (user?.isSystemAdmin) {
+    return <Navigate to="/admin/verification" replace />
+  }
+
   const onSubmit = async (data) => {
     setIsLoading(true)
     try {
       const typeMapping = {
         buyer: 'Buyer',
         supplier: 'Supplier',
-        dual: 'Both',
-        both: 'Both',
       }
       const payload = {
         ...data,
-        companyType: typeMapping[userIntent] || 'Both',
+        companyType: typeMapping[userIntent] || 'Buyer',
       }
       await companyService.create(payload)
       const user = await authService.me()
@@ -231,7 +260,6 @@ export default function CompanyOnboardingPage() {
             {[
               { id: 'buyer', labelAr: 'مشتري / مصنع', labelEn: 'Buyer / Factory' },
               { id: 'supplier', labelAr: 'مورّد خامات', labelEn: 'Supplier' },
-              { id: 'dual', labelAr: 'كلاهما (مشتري ومورد)', labelEn: 'Both (Dual)' },
             ].map((t) => (
               <button
                 key={t.id}
@@ -366,13 +394,26 @@ export default function CompanyOnboardingPage() {
             </div>
 
             <div className="grid sm:grid-cols-2 gap-4 mb-4">
-              <Input
-                {...register('governorate')}
-                label={t('company.governorate')}
-                placeholder={isAr ? 'الشرقية' : 'Sharqia'}
-                error={errors.governorate?.message}
-                required
-              />
+              {/* Governorate dropdown */}
+              <div className="flex flex-col gap-1.5 w-full">
+                <label className="text-sm font-medium text-[#1E293B]">
+                  {t('company.governorate')} <span className="text-[#EF4444] ms-1">*</span>
+                </label>
+                <select
+                  {...register('governorate')}
+                  className={`h-11 px-3 rounded-xl border text-sm bg-white ${errors.governorate ? 'border-red-400 ring-1 ring-red-300' : 'border-slate-300'}`}
+                >
+                  <option value="">{isAr ? 'اختر المحافظة...' : 'Select Governorate...'}</option>
+                  {getGovernorateOptions(isAr).map((g) => (
+                    <option key={g.key} value={g.value}>
+                      {g.label}
+                    </option>
+                  ))}
+                </select>
+                {errors.governorate && (
+                  <p className="text-xs text-red-600">{errors.governorate.message}</p>
+                )}
+              </div>
               <Input
                 {...register('city')}
                 label={t('company.city')}

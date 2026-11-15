@@ -92,8 +92,8 @@ export function getNavSections(roleKey, isAr) {
                         { key: 'marketplace', label: isAr ? 'السوق التجاري' : 'Marketplace', icon: Store, path: '/marketplace', match: ['/catalog'] },
                         { key: 'my-products', label: isAr ? 'منتجاتي المعروضة' : 'My Listed Products', icon: Package, path: '/catalog/my-products' },
                         { key: 'negotiations', label: isAr ? 'مفاوضات الأسعار' : 'Price Negotiations', icon: Handshake, path: '/negotiations' },
-                        { key: 'rfqs', label: isAr ? 'طلبات الأسعار المفتوحة' : 'Open Market RFQs', icon: FileText, path: '/rfqs', match: ['/tenders'] },
-                        { key: 'offers', label: isAr ? 'عروضي ومزايداتي' : 'My Bids & Offers', icon: Send, path: '/offers', match: ['/tenders/bids/mine'] },
+                        { key: 'rfqs', label: isAr ? 'طلبات الأسعار المفتوحة' : 'Open Market RFQs', icon: FileText, path: '/rfqs' },
+                        { key: 'offers', label: isAr ? 'عروضي' : 'My Offers', icon: Send, path: '/offers' },
                     ],
                 },
                 {
@@ -114,11 +114,10 @@ export function getNavSections(roleKey, isAr) {
                     title: isAr ? 'التوريد والسوق' : 'Sourcing & Market',
                     items: [
                         { key: 'marketplace', label: isAr ? 'السوق التجاري' : 'Marketplace', icon: Store, path: '/marketplace', match: ['/catalog'] },
-                        { key: 'my-products', label: isAr ? 'منتجاتي المعروضة' : 'My Listed Products', icon: Package, path: '/catalog/my-products' },
                         { key: 'negotiations', label: isAr ? 'مفاوضات الأسعار' : 'Price Negotiations', icon: Handshake, path: '/negotiations' },
                         { key: 'suppliers', label: isAr ? 'دليل الموردين' : 'Supplier Directory', icon: Building2, path: '/suppliers' },
-                        { key: 'rfqs', label: isAr ? 'طلبات التوريد (RFQs)' : 'Procurement RFQs', icon: FileText, path: '/rfqs', match: ['/tenders'] },
-                        { key: 'offers', label: isAr ? 'العروض المستلمة' : 'Received Offers', icon: Inbox, path: '/offers', match: ['/tenders/bids/mine'] },
+                        { key: 'rfqs', label: isAr ? 'طلبات التوريد (RFQs)' : 'Procurement RFQs', icon: FileText, path: '/rfqs' },
+                        { key: 'offers', label: isAr ? 'العروض المستلمة' : 'Received Offers', icon: Inbox, path: '/offers' },
                     ],
                 },
                 {
@@ -142,8 +141,8 @@ export function getNavSections(roleKey, isAr) {
                         { key: 'my-products', label: isAr ? 'منتجاتي المعروضة' : 'My Listed Products', icon: Package, path: '/catalog/my-products' },
                         { key: 'negotiations', label: isAr ? 'مفاوضات الأسعار' : 'Price Negotiations', icon: Handshake, path: '/negotiations' },
                         { key: 'suppliers', label: isAr ? 'دليل الموردين' : 'Supplier Directory', icon: Building2, path: '/suppliers' },
-                        { key: 'rfqs', label: isAr ? 'طلبات التوريد والأسعار' : 'RFQs & Bidding', icon: FileText, path: '/rfqs', match: ['/tenders'] },
-                        { key: 'offers', label: isAr ? 'العروض والمزايدات' : 'Offers & Bids', icon: DollarSign, path: '/offers', match: ['/tenders/bids/mine'] },
+                        { key: 'rfqs', label: isAr ? 'طلبات التوريد والأسعار' : 'RFQs', icon: FileText, path: '/rfqs' },
+                        { key: 'offers', label: isAr ? 'العروض' : 'Offers', icon: DollarSign, path: '/offers' },
                     ],
                 },
                 {

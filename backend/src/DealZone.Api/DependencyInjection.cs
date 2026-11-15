@@ -15,7 +15,8 @@ public static class ApiServiceRegistration
 
     public static IServiceCollection AddApiServices(
         this IServiceCollection services,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        IWebHostEnvironment environment)
     {
         services.AddControllers();
         services.AddEndpointsApiExplorer();
@@ -34,15 +35,45 @@ public static class ApiServiceRegistration
         services.Configure<CorsOptions>(configuration.GetSection(CorsOptions.SectionName));
         var corsOptions = configuration.GetSection(CorsOptions.SectionName).Get<CorsOptions>() ?? new CorsOptions();
 
+        var allowedOriginsList = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if (corsOptions.AllowedOrigins != null)
+        {
+            foreach (var origin in corsOptions.AllowedOrigins)
+            {
+                if (!string.IsNullOrWhiteSpace(origin))
+                {
+                    allowedOriginsList.Add(origin.Trim().TrimEnd('/'));
+                }
+            }
+        }
+
+        // Support environment variable or single string config (e.g. CORS_ALLOWED_ORIGINS="https://app.dealzone.com,http://localhost:5173")
+        var envOrigins = configuration["CORS_ALLOWED_ORIGINS"] ?? configuration["CorsSettings:AllowedOrigins"];
+        if (!string.IsNullOrWhiteSpace(envOrigins))
+        {
+            var split = envOrigins.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            foreach (var origin in split)
+            {
+                allowedOriginsList.Add(origin.TrimEnd('/'));
+            }
+        }
+
+        var allowedOrigins = allowedOriginsList.ToArray();
+
+        if (!environment.IsDevelopment() && allowedOrigins.Length == 0)
+        {
+            throw new InvalidOperationException("CORS configuration error: In non-Development environments, CorsSettings:AllowedOrigins must be configured with at least one valid origin.");
+        }
+
         services.AddCors(options =>
         {
             options.AddPolicy(CorsOptions.PolicyName, policy =>
             {
-                if (corsOptions.AllowedOrigins.Length > 0)
+                if (allowedOrigins.Length > 0)
                 {
-                    policy.WithOrigins(corsOptions.AllowedOrigins)
+                    policy.WithOrigins(allowedOrigins)
                         .WithHeaders("Content-Type", "Authorization", "X-Requested-With", "Accept", "Origin", "Accept-Language")
-                        .WithMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
+                        .WithMethods("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS")
                         .AllowCredentials()
                         .SetPreflightMaxAge(TimeSpan.FromHours(1));
                 }

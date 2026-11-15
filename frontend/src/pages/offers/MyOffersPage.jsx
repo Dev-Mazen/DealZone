@@ -32,16 +32,7 @@ import Modal from '../../components/ui/Modal'
 import { PageSpinner } from '../../components/ui/Spinner'
 import EmptyState from '../../components/ui/EmptyState'
 import { formatCurrency, formatDate } from '../../utils/format'
-
-const statusVariant = {
-  Submitted: 'info',
-  UnderReview: 'warning',
-  Accepted: 'success',
-  Rejected: 'error',
-  Superseded: 'navy',
-  Withdrawn: 'navy',
-  Expired: 'error',
-}
+import { statusMeta } from '../../utils/statusLabels'
 
 const statusOptions = [
   { value: '', label: 'All Statuses', labelAr: 'جميع الحالات' },
@@ -203,7 +194,7 @@ export default function MyOffersPage() {
         <p className="text-sm text-[#64748B] mb-6 leading-relaxed">
           {isAr
             ? 'لتقديم العروض التجارية أو مراجعتها وإبرام الصفقات، يجب أولاً إتمام توثيق السجل التجاري والبطاقة الضريبية.'
-            : 'To submit or evaluate commercial bids, please complete commercial registration and tax verification.'}
+            : 'To submit or evaluate commercial offers, please complete commercial registration and tax verification.'}
         </p>
         <Button as={Link} to="/onboarding/verification" variant="primary" size="md">
           {isAr ? 'استكمال التحقق الآن' : 'Complete Verification'}
@@ -224,10 +215,10 @@ export default function MyOffersPage() {
               {activeTab === 'received'
                 ? isAr
                   ? 'عروض الأسعار المستلمة من الموردين'
-                  : 'Incoming Supplier Quotations & Bids'
+                  : 'Incoming Supplier Quotations & Offers'
                 : isAr
-                ? 'عروضي ومزايداتي المقدمة في السوق'
-                : 'My Submitted Bids & Quotes'}
+                ? 'عروضي المقدمة في السوق'
+                : 'My Submitted Quotes & Offers'}
             </h1>
             <p className="text-sm text-slate-500 mt-1 max-w-xl">
               {activeTab === 'received'
@@ -235,8 +226,8 @@ export default function MyOffersPage() {
                   ? 'قارن بين عروض الأسعار وفترات التوريد واقبل العرض الأنسب لإبرام صفقة تجارية ملزمة.'
                   : 'Compare supplier quotes, lead times, and payment terms to accept and close deals.'
                 : isAr
-                ? 'تابع حالة عروضك ومزايداتك المقدمة، وقم بتعديل الأسعار للفوز بمناقصات التوريد الصناعي.'
-                : 'Monitor your submitted bids, participate in reverse auctions, and revise prices.'}
+                ? 'تابع حالة عروضك المقدمة، وقم بتعديل الأسعار للفوز بطلبات التوريد الصناعي.'
+                : 'Monitor your submitted offers and revise prices.'}
             </p>
           </div>
 
@@ -345,18 +336,18 @@ export default function MyOffersPage() {
             description={
               activeTab === 'submitted'
                 ? isAr
-                  ? 'استعرض مناقصات السوق المفتوحة وقدم عروضك التنافسية للعملاء الصناعيين.'
-                  : 'Explore open market tenders and submit competitive pricing to buyers.'
+                  ? 'استعرض طلبات عروض أسعار السوق المفتوحة وقدم عروضك التنافسية للعملاء الصناعيين.'
+                  : 'Explore open market RFQs and submit competitive pricing to buyers.'
                 : isAr
-                ? 'عندما تنشر مناقصاتك، ستظهر عروض الموردين المعتمدين هنا للمقارنة والترسية.'
+                ? 'عندما تنشر طلبات الأسعار، ستظهر عروض الموردين المعتمدين هنا للمقارنة والترسية.'
                 : 'When you publish RFQs, quotes from verified suppliers will appear here for evaluation.'
             }
             action={
               <Button as={Link} to="/rfqs" variant="primary">
                 {activeTab === 'submitted'
                   ? isAr
-                    ? 'تصفح مناقصات السوق'
-                    : 'Explore Open Tenders'
+                    ? 'تصفح طلبات الأسعار المفتوحة'
+                    : 'Explore Open RFQs'
                   : isAr
                   ? 'إدارة طلبات الأسعار'
                   : 'Manage Your RFQs'}
@@ -387,13 +378,19 @@ export default function MyOffersPage() {
                       </h3>
                       <p className="text-xs text-slate-500 mt-1 flex items-center gap-1.5">
                         <Building2 size={13} className="text-[#1266D6]" />
-                        <span>{offer.supplierCompanyName || 'Supplier Enterprise'}</span>
+                        <Link
+                          to={`/suppliers/${offer.supplierCompanyId}`}
+                          onClick={(e) => e.stopPropagation()}
+                          className="hover:text-[#1266D6] hover:underline"
+                        >
+                          {offer.supplierCompanyName || 'Supplier Enterprise'}
+                        </Link>
                       </p>
                     </div>
 
                     <div className="flex flex-col items-end gap-1.5">
-                      <Badge variant={statusVariant[offer.status] || 'info'}>
-                        {offer.status}
+                      <Badge variant={statusMeta('offer', offer.status, isAr).variant}>
+                        {statusMeta('offer', offer.status, isAr).label}
                       </Badge>
                       {offer.revisionNumber > 1 && (
                         <span className="text-[10px] font-extrabold bg-blue-50 text-[#1266D6] px-2 py-0.5 rounded-full border border-blue-100">
@@ -447,7 +444,7 @@ export default function MyOffersPage() {
                     <Link
                       to={`/rfqs/${offer.rfqId}`}
                       className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-500 hover:text-[#06245B] transition-colors"
-                      title={isAr ? 'عرض المناقصة الأصلية' : 'View Tender Details'}
+                      title={isAr ? 'عرض طلب عرض السعر الأصلي' : 'View RFQ Details'}
                     >
                       <ExternalLink size={15} />
                     </Link>
@@ -458,7 +455,7 @@ export default function MyOffersPage() {
                         <Link
                           to={`/offers/${offer.id}/revise`}
                           className="px-2.5 py-1.5 rounded-xl bg-blue-50 text-[#1266D6] hover:bg-blue-100 font-bold transition-colors flex items-center gap-1"
-                          title={isAr ? 'تقديم مزايدة عكسية بسعر أقل' : 'Revise Offer (Lower Price)'}
+                          title={isAr ? 'تقديم عرض معدل' : 'Revise Offer'}
                         >
                           <Edit3 size={13} />
                           <span>{isAr ? 'تعديل السعر' : 'Revise'}</span>
@@ -681,7 +678,7 @@ export default function MyOffersPage() {
                 to={`/rfqs/${offerDetail.rfqId}`}
                 className="text-xs font-semibold text-[#1266D6] hover:underline flex items-center gap-1"
               >
-                <span>{isAr ? 'الانتقال إلى المناقصة (RFQ)' : 'Open Tender Details'}</span>
+                <span>{isAr ? 'الانتقال إلى طلب السعر (RFQ)' : 'Open RFQ Details'}</span>
                 <ExternalLink size={13} />
               </Link>
 

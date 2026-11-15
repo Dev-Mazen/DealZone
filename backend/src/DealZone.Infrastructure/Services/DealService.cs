@@ -54,7 +54,7 @@ public class DealService : IDealService
     // -------------------------------------------------------------------------
 
     public async Task<PagedResult<DealSummaryResponse>> GetMyDealsAsync(
-        DealStatus? status,
+        string? status,
         int pageNumber,
         int pageSize,
         CancellationToken cancellationToken = default)
@@ -69,9 +69,6 @@ public class DealService : IDealService
             .Include(d => d.Rfq)
                 .ThenInclude(r => r!.TargetCategory)
             .Include(d => d.Offer)
-            .Include(d => d.Tender)
-                .ThenInclude(t => t!.TargetCategory)
-            .Include(d => d.Bid)
             .Include(d => d.DirectPurchase)
                 .ThenInclude(dp => dp!.CatalogProduct)
             .Include(d => d.ProductNegotiation)
@@ -80,9 +77,13 @@ public class DealService : IDealService
             .Include(d => d.SupplierCompany)
             .Where(d => d.BuyerCompanyId == company.Id || d.SupplierCompanyId == company.Id);
 
-        if (status.HasValue)
+        if (!string.IsNullOrWhiteSpace(status))
         {
-            query = query.Where(d => d.Status == status.Value);
+            if (!Enum.TryParse<DealStatus>(status, true, out var dealStatus))
+            {
+                throw new DealZone.Application.Common.Exceptions.ValidationException(nameof(status), $"Invalid deal status '{status}'.");
+            }
+            query = query.Where(d => d.Status == dealStatus);
         }
 
         var totalCount = await query.CountAsync(cancellationToken);
@@ -110,8 +111,6 @@ public class DealService : IDealService
             .AsNoTracking()
             .Include(d => d.Rfq)
             .Include(d => d.Offer)
-            .Include(d => d.Tender)
-            .Include(d => d.Bid)
             .Include(d => d.DirectPurchase)
                 .ThenInclude(dp => dp!.CatalogProduct)
             .Include(d => d.ProductNegotiation)
@@ -132,7 +131,7 @@ public class DealService : IDealService
 
             if (deal.BuyerCompanyId != company.Id && deal.SupplierCompanyId != company.Id)
             {
-                throw new ForbiddenException("You are not a participant in this deal.");
+                throw new NotFoundException($"Deal with ID '{dealId}' was not found.");
             }
         }
 
@@ -179,6 +178,7 @@ public class DealService : IDealService
 
         if (isBuyer)
         {
+            company.AssertCanOperateAsBuyer();
             if (member.Role != CompanyRole.Owner &&
                 member.Role != CompanyRole.Admin &&
                 member.Role != CompanyRole.ProcurementManager)
@@ -191,6 +191,7 @@ public class DealService : IDealService
         }
         else if (isSupplier)
         {
+            company.AssertCanOperateAsSupplier();
             if (member.Role != CompanyRole.Owner &&
                 member.Role != CompanyRole.Admin &&
                 member.Role != CompanyRole.SalesManager)
@@ -215,6 +216,14 @@ public class DealService : IDealService
         }
 
         await _context.SaveChangesAsync(cancellationToken);
+
+        // Detach 'deal' (and DirectPurchase if loaded) so the second SaveChangesAsync inside
+        // NotificationService does not re-issue UPDATEs against stale RowVersions.
+        _context.Entry(deal).State = EntityState.Detached;
+        if (deal.DirectPurchase != null)
+        {
+            _context.Entry(deal.DirectPurchase).State = EntityState.Detached;
+        }
 
         if (deal.Status == DealStatus.Confirmed)
         {
@@ -332,6 +341,12 @@ public class DealService : IDealService
 
         await _context.SaveChangesAsync(cancellationToken);
         _logger.LogInformation("Deal {DealNumber} moved to InProgress by Supplier.", deal.DealNumber);
+
+        _context.Entry(deal).State = EntityState.Detached;
+        if (deal.DirectPurchase != null)
+        {
+            _context.Entry(deal.DirectPurchase).State = EntityState.Detached;
+        }
 
         await _notificationService.CreateNotificationsForCompanyMembersAsync(
             deal.BuyerCompanyId,
@@ -717,7 +732,7 @@ public class DealService : IDealService
 
             if (deal.BuyerCompanyId != company.Id && deal.SupplierCompanyId != company.Id)
             {
-                throw new ForbiddenException("You are not a participant in this deal.");
+                throw new NotFoundException($"Deal with ID '{dealId}' was not found.");
             }
         }
 
@@ -990,7 +1005,6 @@ public class DealService : IDealService
 
         var title = deal.Source switch
         {
-            DealSource.Tender => deal.Tender?.Title ?? deal.Tender?.TenderNumber ?? string.Empty,
             DealSource.DirectPurchase => deal.DirectPurchase?.CatalogProduct?.NameEn ?? "Direct Purchase",
             DealSource.ProductNegotiation => deal.ProductNegotiation?.CatalogProduct?.NameEn ?? "Negotiated Product Offer",
             _ => deal.Rfq?.Title ?? string.Empty
@@ -998,7 +1012,6 @@ public class DealService : IDealService
 
         var rfqOrTenderNumber = deal.Source switch
         {
-            DealSource.Tender => deal.Tender?.TenderNumber ?? string.Empty,
             DealSource.DirectPurchase => deal.DirectPurchase?.PurchaseNumber ?? string.Empty,
             DealSource.ProductNegotiation => deal.ProductNegotiation?.NegotiationNumber ?? string.Empty,
             _ => deal.Rfq?.RfqNumber ?? string.Empty
@@ -1006,7 +1019,6 @@ public class DealService : IDealService
 
         var offerOrBidNumber = deal.Source switch
         {
-            DealSource.Tender => deal.Bid?.BidNumber ?? string.Empty,
             DealSource.DirectPurchase => deal.DirectPurchase?.CatalogProduct?.Sku ?? string.Empty,
             DealSource.ProductNegotiation => deal.ProductNegotiation?.CatalogProduct?.Sku ?? string.Empty,
             _ => deal.Offer?.OfferNumber ?? string.Empty
@@ -1037,10 +1049,6 @@ public class DealService : IDealService
             leadTimeDays,
             shippingIncluded,
             deal.Source.ToString(),
-            deal.TenderId,
-            deal.Tender?.TenderNumber,
-            deal.BidId,
-            deal.Bid?.BidNumber,
             deal.DirectPurchaseId,
             deal.DirectPurchase?.PurchaseNumber);
     }
@@ -1052,7 +1060,6 @@ public class DealService : IDealService
 
         var title = deal.Source switch
         {
-            DealSource.Tender => deal.Tender?.Title ?? deal.Tender?.TenderNumber ?? string.Empty,
             DealSource.DirectPurchase => deal.DirectPurchase?.CatalogProduct?.NameEn ?? "Direct Purchase",
             DealSource.ProductNegotiation => deal.ProductNegotiation?.CatalogProduct?.NameEn ?? "Negotiated Product Offer",
             _ => deal.Rfq?.Title ?? string.Empty
@@ -1060,7 +1067,6 @@ public class DealService : IDealService
 
         var rfqOrTenderNumber = deal.Source switch
         {
-            DealSource.Tender => deal.Tender?.TenderNumber ?? string.Empty,
             DealSource.DirectPurchase => deal.DirectPurchase?.PurchaseNumber ?? string.Empty,
             DealSource.ProductNegotiation => deal.ProductNegotiation?.NegotiationNumber ?? string.Empty,
             _ => deal.Rfq?.RfqNumber ?? string.Empty
@@ -1068,7 +1074,6 @@ public class DealService : IDealService
 
         var offerOrBidNumber = deal.Source switch
         {
-            DealSource.Tender => deal.Bid?.BidNumber ?? string.Empty,
             DealSource.DirectPurchase => deal.DirectPurchase?.CatalogProduct?.Sku ?? string.Empty,
             DealSource.ProductNegotiation => deal.ProductNegotiation?.CatalogProduct?.Sku ?? string.Empty,
             _ => deal.Offer?.OfferNumber ?? string.Empty
@@ -1124,11 +1129,6 @@ public class DealService : IDealService
             terms,
             disputes,
             deal.Source.ToString(),
-            deal.TenderId,
-            deal.Tender?.TenderNumber,
-            deal.BidId,
-            deal.Bid?.BidNumber,
-            deal.BidRevisionNumber,
             deal.DirectPurchaseId,
             deal.DirectPurchase?.PurchaseNumber);
     }

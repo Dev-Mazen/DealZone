@@ -46,6 +46,12 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
+# ── Archives & Backups ──
+*.zip
+*.bak
+backups/
+scratch/
+
 # ── IDE & Editor Specific ──
 .vs/
 .idea/

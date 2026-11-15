@@ -43,8 +43,8 @@ export default function LandingPage() {
       icon: FileText,
       title: isAr ? 'طلبات عروض أسعار منظمة' : 'Structured RFQ Workflows',
       desc: isAr
-        ? 'نظام مناقصات احترافي لتحديد المواصفات واستقبال عروض الأسعار التنافسية وإجراء المراجعات.'
-        : 'Formal bidding system to specify parameters, receive itemized proposals, and audit revisions.',
+        ? 'نظام طلبات عروض أسعار احترافي لتحديد المواصفات واستقبال العروض التنافسية وإجراء المراجعات.'
+        : 'Formal RFQ workflow to specify parameters, receive itemized proposals, and audit revisions.',
     },
     {
       icon: Truck,
@@ -94,7 +94,7 @@ export default function LandingPage() {
       desc: isAr
         ? 'حدد المواد الخام والكميات المطلوبة ومكان التسليم والمواصفات الفنية بدقة.'
         : 'Specify materials, exact target quantities, delivery location, and technical parameters.',
-      image: '/images/tenders-reverse-bidding.jpeg',
+      image: '/images/rfqs-competitive-pricing.jpeg',
     },
     {
       step: '02',
@@ -178,7 +178,7 @@ export default function LandingPage() {
           <p className="text-base sm:text-xl text-slate-100 max-w-3xl mx-auto mb-10 leading-relaxed font-normal">
             {isAr
               ? 'اربط مصنعك مباشرة بأكبر شبكة من موردي المواد الخام المعتمدين في مصر. أدر طلبات الشراء، قارن عروض الأسعار، وأتمم صفقاتك بكل موثوقية وأمان.'
-              : 'Directly connect your factory with verified Egyptian raw material suppliers. Publish tenders, compare itemized offers, and close legally binding deals with total transparency.'}
+              : 'Directly connect your factory with verified Egyptian raw material suppliers. Publish RFQs, compare itemized offers, and close legally binding deals with total transparency.'}
           </p>
 
           {/* Call to Actions */}

@@ -48,15 +48,15 @@ const ROLE_OPTIONS = [
     value: 'ProcurementManager',
     labelEn: 'Procurement Manager',
     labelAr: 'مدير المشتريات',
-    descEn: 'Authorized to publish RFQs, review incoming bids, and accept supplier quotes.',
-    descAr: 'إصدار ونشر طلبات عروض الأسعار، مراجعة عروض الموردين وقبول المناقصات.',
+    descEn: 'Authorized to publish RFQs, review incoming proposals, and accept supplier quotes.',
+    descAr: 'إصدار ونشر طلبات عروض الأسعار، مراجعة عروض الموردين وقبولها.',
   },
   {
     value: 'SalesManager',
     labelEn: 'Sales Manager',
     labelAr: 'مدير المبيعات',
-    descEn: 'Authorized to submit quotations on open tenders and manage dispatch milestones.',
-    descAr: 'تقديم عروض الأسعار في مناقصات السوق المفتوحة ومتابعة مواعيد التوريد والشحن.',
+    descEn: 'Authorized to submit quotations on open RFQs and manage dispatch milestones.',
+    descAr: 'تقديم عروض الأسعار في طلبات السوق المفتوحة ومتابعة مواعيد التوريد والشحن.',
   },
   {
     value: 'Member',
@@ -241,7 +241,7 @@ export default function CompanyMembersTab() {
           title={isAr ? 'لا يوجد أعضاء مضافون' : 'No Team Members Yet'}
           description={
             isAr
-              ? 'أضف زملاء العمل في مصنعك لإدارة المناقصات وعروض الأسعار معاً.'
+              ? 'أضف زملاء العمل في منشأتك لإدارة طلبات وعروض الأسعار معاً.'
               : 'Add your team members to collaborate on industrial procurement and sales.'
           }
         />
@@ -515,7 +515,7 @@ export default function CompanyMembersTab() {
                 </>
               ) : (
                 <>
-                  Are you sure you want to remove <strong>{deleteMember.fullName}</strong> from the company? They will lose access to all company deals, bids, and RFQs.
+                  Are you sure you want to remove <strong>{deleteMember.fullName}</strong> from the company? They will lose access to all company deals, offers, and RFQs.
                 </>
               )}
             </p>

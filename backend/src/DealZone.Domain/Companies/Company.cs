@@ -13,7 +13,7 @@ public class Company : AuditableEntity, ISoftDelete, IConcurrencyToken
     public string? Description { get; set; }
     public string? Website { get; set; }
 
-    public CompanyType CompanyType { get; set; } = CompanyType.Both;
+    public CompanyType CompanyType { get; set; }
 
     public CompanyVerificationStatus VerificationStatus { get; set; } = CompanyVerificationStatus.Pending;
     public DateTimeOffset? VerifiedAtUtc { get; set; }

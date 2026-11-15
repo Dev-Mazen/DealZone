@@ -28,10 +28,6 @@ export default function VerificationPage() {
   const queryClient = useQueryClient()
   const [uploadingDocType, setUploadingDocType] = useState(null)
 
-  if (user?.isSystemAdmin) {
-    return <Navigate to="/admin/verification" replace />
-  }
-
   const { data: status, isLoading } = useQuery({
     queryKey: ['company', 'verification'],
     queryFn: () => companyService.getVerificationStatus(),
@@ -58,6 +54,10 @@ export default function VerificationPage() {
       toast.error(err?.problem?.detail || (isAr ? 'فشل حذف المستند' : 'Failed to delete document'))
     },
   })
+
+  if (user?.isSystemAdmin) {
+    return <Navigate to="/admin/verification" replace />
+  }
 
   const handleUpload = async (docType, file) => {
     setUploadingDocType(docType)

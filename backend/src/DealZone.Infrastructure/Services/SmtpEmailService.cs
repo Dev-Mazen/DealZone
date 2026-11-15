@@ -21,57 +21,173 @@ public class SmtpEmailService : IEmailService
 
     public async Task SendEmailConfirmationAsync(string email, string token, CancellationToken cancellationToken = default)
     {
+        await SendEmailConfirmationAsync(email, token, token, "ar", cancellationToken);
+    }
+
+    public async Task SendEmailConfirmationAsync(
+        string email,
+        string code,
+        string linkToken,
+        string language = "ar",
+        CancellationToken cancellationToken = default)
+    {
         var frontendUrl = string.IsNullOrWhiteSpace(_settings.FrontendBaseUrl)
             ? "http://localhost:5173"
             : _settings.FrontendBaseUrl.TrimEnd('/');
 
-        var confirmationLink = $"{frontendUrl}/confirm-email?email={Uri.EscapeDataString(email)}&token={Uri.EscapeDataString(token)}";
+        var confirmationLink = $"{frontendUrl}/confirm-email?token={Uri.EscapeDataString(linkToken)}";
+        var isAr = language == "ar";
 
-        var subject = "Confirm your DealZone account | تأكيد حساب ديل زون";
-        var textBody = $"""
-            Hello,
+        var subject = isAr
+            ? "أكّد حسابك على DealZone"
+            : "Confirm your DealZone account";
 
-            Thank you for registering on DealZone — Egypt's Industrial Raw Materials Marketplace.
+        var preheader = isAr
+            ? $"رمز تأكيد حسابك على DealZone هو: {code}"
+            : $"Your DealZone verification code is: {code}";
 
-            Please confirm your email address by clicking the link below:
+        var textBody = isAr ? $"""
+            {preheader}
+
+            مرحباً بك في DealZone،
+
+            شكراً لتسجيلك معنا. لتأكيد بريدك الإلكتروني وتفعيل حسابك، يرجى إدخال رمز التحقق التالي:
+            {code}
+
+            صلاحية هذا الرمز 15 دقيقة فقط.
+
+            أو يمكنك النقر مباشرة على الرابط التالي لتأكيد حسابك:
             {confirmationLink}
 
-            Or copy and paste this verification code into the confirmation page:
-            {token}
+            صلاحية الرابط 24 ساعة.
+            إذا لم تكن قد طلبت إنشاء هذا الحساب، يرجى تجاهل هذه الرسالة.
 
-            This code is valid for 24 hours.
-            If you did not register for this account, please ignore this email.
+            فريق عمل DealZone
+            """ : $"""
+            {preheader}
 
-            Regards,
-            DealZone Marketplace Team
-            ---
-            مرحباً بك في ديل زون،
-            يرجى تأكيد بريدك الإلكتروني بالنقر على الرابط أعلاه أو إدخال رمز التحقق في صفحة التأكيد.
+            Welcome to DealZone,
+
+            Thank you for registering. To confirm your email address and activate your account, please enter the following verification code:
+            {code}
+
+            This code is valid for 15 minutes only.
+
+            Or you can click the link below to confirm your account directly:
+            {confirmationLink}
+
+            This link is valid for 24 hours.
+            If you did not create an account with DealZone, please disregard this email.
+
+            DealZone Team
             """;
 
-        var htmlBody = $"""
-            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 24px; border: 1px solid #E2E8F0; border-radius: 12px; background: #ffffff;">
-                <h2 style="color: #06245B; margin-bottom: 4px;">Welcome to DealZone</h2>
-                <p style="color: #64748B; font-size: 14px; margin-top: 0;">Egypt's Industrial Raw Materials Marketplace</p>
-                <hr style="border: 0; border-top: 1px solid #E2E8F0; margin: 16px 0;" />
-                <p style="color: #1E293B; font-size: 15px; line-height: 1.6;">
-                    Thank you for registering. Please confirm your email address to activate your account and start trading:
-                </p>
-                <div style="text-align: center; margin: 28px 0;">
-                    <a href="{confirmationLink}" style="background-color: #06245B; color: #ffffff; padding: 12px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">
-                        Confirm My Email Address
-                    </a>
-                </div>
-                <p style="color: #475569; font-size: 13px;">Or copy and paste this link into your browser:</p>
-                <p style="color: #1266D6; font-size: 12px; word-break: break-all; background: #F8FAFC; padding: 10px; border-radius: 6px; border: 1px solid #E2E8F0;">
-                    {confirmationLink}
-                </p>
-                <p style="color: #475569; font-size: 13px; margin-top: 20px;">Or enter this confirmation code on the verification page:</p>
-                <p style="font-family: monospace; font-size: 14px; background: #EAF4FF; color: #06245B; padding: 10px 14px; border-radius: 6px; font-weight: bold; word-break: break-all;">
-                    {token}
-                </p>
-                <p style="color: #94A3B8; font-size: 12px; margin-top: 24px;">This confirmation link and code are valid for 24 hours.</p>
-            </div>
+        var htmlBody = isAr ? $"""
+            <!DOCTYPE html>
+            <html lang="ar" dir="rtl">
+            <head>
+              <meta charset="utf-8" />
+              <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+            </head>
+            <body style="margin: 0; padding: 20px; background-color: #F8FAFC; font-family: 'Cairo', Tahoma, Arial, sans-serif; direction: rtl; text-align: right;">
+              <div style="display: none; max-height: 0px; overflow: hidden; opacity: 0; font-size: 1px;">
+                {preheader}
+              </div>
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; border: 1px solid #E2E8F0; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
+                <tr>
+                  <td style="padding: 28px 32px; background: #06245B; text-align: center;">
+                    <h1 style="color: #ffffff; margin: 0; font-size: 26px; font-weight: 800; letter-spacing: 0.5px;">DealZone</h1>
+                    <p style="color: #93C5FD; margin: 6px 0 0; font-size: 13px;">منصة التوريد والصفقات الصناعية</p>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 32px 32px 24px;">
+                    <h2 style="color: #0F172A; margin: 0 0 16px; font-size: 20px;">أكّد بريدك الإلكتروني</h2>
+                    <p style="color: #334155; font-size: 15px; line-height: 1.6; margin: 0 0 24px;">
+                      مرحباً بك في DealZone. يرجى استخدام رمز التحقق المكون من 6 أرقام لتأكيد حسابك وتفعيله:
+                    </p>
+                    <div style="background: #F1F5F9; border: 2px dashed #CBD5E1; border-radius: 8px; padding: 18px; text-align: center; margin: 0 0 20px;">
+                      <span style="font-family: 'Courier New', monospace; font-size: 32px; font-weight: 800; letter-spacing: 8px; color: #06245B;">{code}</span>
+                      <p style="color: #64748B; font-size: 12px; margin: 8px 0 0;">صلاحية هذا الرمز 15 دقيقة فقط</p>
+                    </div>
+                    <div style="text-align: center; margin: 28px 0 20px;">
+                      <p style="color: #64748B; font-size: 14px; margin: 0 0 12px;">أو يمكنك تأكيد حسابك بنقرة واحدة:</p>
+                      <a href="{confirmationLink}" style="background-color: #1266D6; color: #ffffff; padding: 12px 32px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 15px; display: inline-block;">
+                        تأكيد الحساب مباشرة
+                      </a>
+                    </div>
+                    <p style="color: #94A3B8; font-size: 12px; margin-top: 24px; line-height: 1.5;">
+                      صلاحية رابط التأكيد 24 ساعة. إذا واجهت مشكلة في النقر على الزر، يمكنك نسخ الرابط التالي ولصقه في المتصفح:<br />
+                      <span style="color: #1266D6; word-break: break-all;">{confirmationLink}</span>
+                    </p>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 20px 32px; background: #F8FAFC; border-top: 1px solid #E2E8F0; text-align: center;">
+                    <p style="color: #64748B; font-size: 12px; margin: 0; line-height: 1.5;">
+                      إذا لم تكن قد أنشأت حساباً في DealZone، يمكنك تجاهل هذه الرسالة بأمان وستنتهي صلاحيتها تلقائياً.
+                    </p>
+                    <p style="color: #94A3B8; font-size: 11px; margin: 8px 0 0;">
+                      &copy; {DateTime.UtcNow.Year} DealZone. جميع الحقوق محفوظة.
+                    </p>
+                  </td>
+                </tr>
+              </table>
+            </body>
+            </html>
+            """ : $"""
+            <!DOCTYPE html>
+            <html lang="en" dir="ltr">
+            <head>
+              <meta charset="utf-8" />
+              <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+            </head>
+            <body style="margin: 0; padding: 20px; background-color: #F8FAFC; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; direction: ltr; text-align: left;">
+              <div style="display: none; max-height: 0px; overflow: hidden; opacity: 0; font-size: 1px;">
+                {preheader}
+              </div>
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; border: 1px solid #E2E8F0; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
+                <tr>
+                  <td style="padding: 28px 32px; background: #06245B; text-align: center;">
+                    <h1 style="color: #ffffff; margin: 0; font-size: 26px; font-weight: 800; letter-spacing: 0.5px;">DealZone</h1>
+                    <p style="color: #93C5FD; margin: 6px 0 0; font-size: 13px;">Industrial Procurement Platform</p>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 32px 32px 24px;">
+                    <h2 style="color: #0F172A; margin: 0 0 16px; font-size: 20px;">Confirm your email address</h2>
+                    <p style="color: #334155; font-size: 15px; line-height: 1.6; margin: 0 0 24px;">
+                      Welcome to DealZone. Please use the following 6-digit verification code to confirm and activate your account:
+                    </p>
+                    <div style="background: #F1F5F9; border: 2px dashed #CBD5E1; border-radius: 8px; padding: 18px; text-align: center; margin: 0 0 20px;">
+                      <span style="font-family: 'Courier New', monospace; font-size: 32px; font-weight: 800; letter-spacing: 8px; color: #06245B;">{code}</span>
+                      <p style="color: #64748B; font-size: 12px; margin: 8px 0 0;">This code is valid for 15 minutes only</p>
+                    </div>
+                    <div style="text-align: center; margin: 28px 0 20px;">
+                      <p style="color: #64748B; font-size: 14px; margin: 0 0 12px;">Or confirm with one click:</p>
+                      <a href="{confirmationLink}" style="background-color: #1266D6; color: #ffffff; padding: 12px 32px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 15px; display: inline-block;">
+                        Confirm Account Directly
+                      </a>
+                    </div>
+                    <p style="color: #94A3B8; font-size: 12px; margin-top: 24px; line-height: 1.5;">
+                      Link valid for 24 hours. If the button above doesn't work, copy and paste this link:<br />
+                      <span style="color: #1266D6; word-break: break-all;">{confirmationLink}</span>
+                    </p>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 20px 32px; background: #F8FAFC; border-top: 1px solid #E2E8F0; text-align: center;">
+                    <p style="color: #64748B; font-size: 12px; margin: 0; line-height: 1.5;">
+                      If you did not create an account on DealZone, please disregard this email.
+                    </p>
+                    <p style="color: #94A3B8; font-size: 11px; margin: 8px 0 0;">
+                      &copy; {DateTime.UtcNow.Year} DealZone. All rights reserved.
+                    </p>
+                  </td>
+                </tr>
+              </table>
+            </body>
+            </html>
             """;
 
         await SendEmailAsync(email, subject, textBody, htmlBody, "EmailConfirmation", isCritical: true, cancellationToken);
@@ -85,39 +201,79 @@ public class SmtpEmailService : IEmailService
 
         var resetLink = $"{frontendUrl}/reset-password?email={Uri.EscapeDataString(email)}&token={Uri.EscapeDataString(token)}";
 
-        var subject = "Reset your DealZone password | إعادة تعيين كلمة المرور";
-        var textBody = $"""
-            Hello,
+        var subject = "إعادة تعيين كلمة المرور | Reset your DealZone password";
+        var preheader = "طلب إعادة تعيين كلمة المرور لحسابك في DealZone";
 
-            We received a request to reset your DealZone password.
-            Use the following link to complete the password reset:
+        var textBody = $"""
+            {preheader}
+
+            مرحباً بك في DealZone،
+
+            تلقينا طلباً لإعادة تعيين كلمة المرور الخاصة بحسابك.
+            يمكنك إعادة تعيين كلمة المرور عبر الرابط التالي:
             {resetLink}
 
-            Or copy and paste this token:
+            رمز إعادة التعيين (Token):
             {token}
 
-            This token is valid for 1 hour. If you did not request this, please contact support immediately.
+            صلاحية هذا الرابط والرمز ساعة واحدة فقط.
+            إذا لم تكن قد طلبت إعادة تعيين كلمة المرور، يمكنك تجاهل هذه الرسالة بأمان.
 
-            Regards,
-            DealZone Marketplace Team
+            فريق عمل DealZone
             """;
 
         var htmlBody = $"""
-            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 24px; border: 1px solid #E2E8F0; border-radius: 12px; background: #ffffff;">
-                <h2 style="color: #06245B; margin-bottom: 4px;">Reset Your Password</h2>
-                <hr style="border: 0; border-top: 1px solid #E2E8F0; margin: 16px 0;" />
-                <p style="color: #1E293B; font-size: 15px;">We received a request to reset your password on DealZone.</p>
-                <div style="text-align: center; margin: 28px 0;">
-                    <a href="{resetLink}" style="background-color: #06245B; color: #ffffff; padding: 12px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">
-                        Reset Password
-                    </a>
-                </div>
-                <p style="color: #475569; font-size: 13px;">Or copy and paste this reset token:</p>
-                <p style="font-family: monospace; font-size: 14px; background: #EAF4FF; color: #06245B; padding: 8px 12px; border-radius: 6px; word-break: break-all;">
-                    {token}
-                </p>
-                <p style="color: #94A3B8; font-size: 12px; margin-top: 24px;">This link and token are valid for 1 hour.</p>
-            </div>
+            <!DOCTYPE html>
+            <html lang="ar" dir="rtl">
+            <head>
+              <meta charset="utf-8" />
+              <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+            </head>
+            <body style="margin: 0; padding: 20px; background-color: #F8FAFC; font-family: 'Cairo', Tahoma, Arial, sans-serif; direction: rtl; text-align: right;">
+              <div style="display: none; max-height: 0px; overflow: hidden; opacity: 0; font-size: 1px;">
+                {preheader}
+              </div>
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; border: 1px solid #E2E8F0; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
+                <tr>
+                  <td style="padding: 28px 32px; background: #06245B; text-align: center;">
+                    <h1 style="color: #ffffff; margin: 0; font-size: 26px; font-weight: 800;">DealZone</h1>
+                    <p style="color: #93C5FD; margin: 6px 0 0; font-size: 13px;">منصة التوريد والصفقات الصناعية</p>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 32px 32px 24px;">
+                    <h2 style="color: #0F172A; margin: 0 0 16px; font-size: 20px;">إعادة تعيين كلمة المرور</h2>
+                    <p style="color: #334155; font-size: 15px; line-height: 1.6; margin: 0 0 24px;">
+                      تلقينا طلباً لإعادة تعيين كلمة المرور الخاصة بحسابك في DealZone. يرجى النقر على الزر أدناه لاختيار كلمة مرور جديدة:
+                    </p>
+                    <div style="text-align: center; margin: 28px 0 24px;">
+                      <a href="{resetLink}" style="background-color: #1266D6; color: #ffffff; padding: 12px 32px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 15px; display: inline-block;">
+                        إعادة تعيين كلمة المرور
+                      </a>
+                    </div>
+                    <p style="color: #64748B; font-size: 13px; margin-top: 20px;">أو يمكنك استخدام رمز إعادة التعيين مباشرة:</p>
+                    <div style="font-family: monospace; font-size: 13px; background: #F1F5F9; color: #06245B; padding: 10px 14px; border-radius: 6px; word-break: break-all; border: 1px solid #CBD5E1;">
+                      {token}
+                    </div>
+                    <p style="color: #94A3B8; font-size: 12px; margin-top: 24px; line-height: 1.5;">
+                      هذا الرابط والرمز صالحان لمدة ساعة واحدة فقط (1 hour).<br />
+                      رابط الصفحة: <span style="color: #1266D6; word-break: break-all;">{resetLink}</span>
+                    </p>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 20px 32px; background: #F8FAFC; border-top: 1px solid #E2E8F0; text-align: center;">
+                    <p style="color: #64748B; font-size: 12px; margin: 0; line-height: 1.5;">
+                      إذا لم تكن قد طلبت إعادة تعيين كلمة المرور، يمكنك تجاهل هذا البريد الإلكتروني وسيبقى حسابك آمناً تماماً.
+                    </p>
+                    <p style="color: #94A3B8; font-size: 11px; margin: 8px 0 0;">
+                      &copy; {DateTime.UtcNow.Year} DealZone. جميع الحقوق محفوظة.
+                    </p>
+                  </td>
+                </tr>
+              </table>
+            </body>
+            </html>
             """;
 
         await SendEmailAsync(email, subject, textBody, htmlBody, "PasswordReset", isCritical: true, cancellationToken);
@@ -140,7 +296,7 @@ public class SmtpEmailService : IEmailService
             Please sign in to DealZone to view your company details.
 
             Regards,
-            DealZone Marketplace Team
+            DealZone Team
             """;
 
         await SendEmailAsync(email, subject, textBody, null, $"VerificationDecision:{decision}", isCritical: false, cancellationToken);
@@ -163,7 +319,7 @@ public class SmtpEmailService : IEmailService
             Please log into DealZone to review and confirm the Deal terms.
 
             Regards,
-            DealZone Marketplace Team
+            DealZone Team
             """;
 
         await SendEmailAsync(email, subject, textBody, null, "OfferAccepted", isCritical: false, cancellationToken);
@@ -187,7 +343,7 @@ public class SmtpEmailService : IEmailService
             Thank you for participating on DealZone.
 
             Regards,
-            DealZone Marketplace Team
+            DealZone Team
             """;
 
         await SendEmailAsync(email, subject, textBody, null, "OfferRejected", isCritical: false, cancellationToken);
@@ -208,7 +364,7 @@ public class SmtpEmailService : IEmailService
             The deal is now formally Confirmed and ready for fulfillment.
 
             Regards,
-            DealZone Marketplace Team
+            DealZone Team
             """;
 
         await SendEmailAsync(email, subject, textBody, null, "DealConfirmation", isCritical: false, cancellationToken);
@@ -234,7 +390,7 @@ public class SmtpEmailService : IEmailService
             Please sign in to DealZone to review the updated status.
 
             Regards,
-            DealZone Marketplace Team
+            DealZone Team
             """;
 
         await SendEmailAsync(email, subject, textBody, null, $"DisputeResolution:{resolutionAction}", isCritical: false, cancellationToken);

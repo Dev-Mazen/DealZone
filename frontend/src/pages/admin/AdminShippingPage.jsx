@@ -19,6 +19,15 @@ export default function AdminShippingPage() {
   const queryClient = useQueryClient()
   const [providerToDelete, setProviderToDelete] = useState(null)
   const [showAddModal, setShowAddModal] = useState(false)
+  const [showCreateShipmentModal, setShowCreateShipmentModal] = useState(false)
+  const [dealShipmentData, setDealShipmentData] = useState({
+    dealId: '',
+    pickupAddress: '',
+    deliveryAddress: '',
+    carrierName: '',
+    trackingNumber: '',
+    notes: '',
+  })
   const [newProvider, setNewProvider] = useState({
     name: '',
     contactPerson: '',
@@ -41,6 +50,24 @@ export default function AdminShippingPage() {
       queryClient.invalidateQueries({ queryKey: ['admin', 'shipping-providers'] })
     },
     onError: (err) => toast.error(err?.problem?.detail || 'Failed to create provider'),
+  })
+
+  const createShipmentMutation = useMutation({
+    mutationFn: () => adminService.createDealShipment(dealShipmentData.dealId.trim(), {
+      arrangement: 2, // DealZoneArranged
+      pickupAddress: dealShipmentData.pickupAddress.trim(),
+      deliveryAddress: dealShipmentData.deliveryAddress.trim(),
+      carrierName: dealShipmentData.carrierName.trim() || undefined,
+      trackingNumber: dealShipmentData.trackingNumber.trim() || undefined,
+      notes: dealShipmentData.notes.trim() || undefined,
+    }),
+    onSuccess: () => {
+      toast.success('Shipment created successfully for deal')
+      setShowCreateShipmentModal(false)
+      setDealShipmentData({ dealId: '', pickupAddress: '', deliveryAddress: '', carrierName: '', trackingNumber: '', notes: '' })
+      queryClient.invalidateQueries({ queryKey: ['admin', 'shipments'] })
+    },
+    onError: (err) => toast.error(err?.problem?.detail || err?.message || 'Failed to create shipment'),
   })
 
   const activateMutation = useMutation({
@@ -78,14 +105,24 @@ export default function AdminShippingPage() {
           <h2 className="text-lg font-bold text-[#06245B]">DealZone Shipping Partners</h2>
           <p className="text-xs text-[#64748B]">Manage integrated logistics and delivery service providers</p>
         </div>
-        <Button
-          variant="primary"
-          size="sm"
-          icon={<Plus size={16} />}
-          onClick={() => setShowAddModal(true)}
-        >
-          Add Provider
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="secondary"
+            size="sm"
+            icon={<Truck size={16} />}
+            onClick={() => setShowCreateShipmentModal(true)}
+          >
+            Create Deal Shipment
+          </Button>
+          <Button
+            variant="primary"
+            size="sm"
+            icon={<Plus size={16} />}
+            onClick={() => setShowAddModal(true)}
+          >
+            Add Provider
+          </Button>
+        </div>
       </div>
 
       {providers.length === 0 ? (
@@ -240,6 +277,72 @@ export default function AdminShippingPage() {
             </Button>
             <Button variant="primary" type="submit" loading={createMutation.isPending}>
               Add Provider
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Create Deal Shipment Modal (SystemAdmin Only) */}
+      <Modal open={showCreateShipmentModal} onClose={() => setShowCreateShipmentModal(false)} title="Create Shipment for Deal">
+        <form
+          onSubmit={(e) => {
+            e.preventDefault()
+            createShipmentMutation.mutate()
+          }}
+          className="space-y-4"
+        >
+          <Input
+            label="Deal ID (GUID) *"
+            placeholder="e.g. 3fa85f64-5717-4562-b3fc-2c963f66afa6"
+            value={dealShipmentData.dealId}
+            onChange={(e) => setDealShipmentData({ ...dealShipmentData, dealId: e.target.value })}
+            required
+          />
+          <Input
+            label="Pickup Address *"
+            placeholder="e.g. 10th of Ramadan Industrial Zone, Warehouse B"
+            value={dealShipmentData.pickupAddress}
+            onChange={(e) => setDealShipmentData({ ...dealShipmentData, pickupAddress: e.target.value })}
+            required
+          />
+          <Input
+            label="Delivery Address *"
+            placeholder="e.g. 6th of October City, Industrial Sector 3"
+            value={dealShipmentData.deliveryAddress}
+            onChange={(e) => setDealShipmentData({ ...dealShipmentData, deliveryAddress: e.target.value })}
+            required
+          />
+          <div className="grid grid-cols-2 gap-3">
+            <Input
+              label="Carrier Name (optional)"
+              placeholder="e.g. Nile Logistics Express"
+              value={dealShipmentData.carrierName}
+              onChange={(e) => setDealShipmentData({ ...dealShipmentData, carrierName: e.target.value })}
+            />
+            <Input
+              label="Tracking Number (optional)"
+              placeholder="e.g. TRK-2026-9901"
+              value={dealShipmentData.trackingNumber}
+              onChange={(e) => setDealShipmentData({ ...dealShipmentData, trackingNumber: e.target.value })}
+            />
+          </div>
+          <Input
+            label="Notes (optional)"
+            placeholder="Handling instructions, truck type..."
+            value={dealShipmentData.notes}
+            onChange={(e) => setDealShipmentData({ ...dealShipmentData, notes: e.target.value })}
+          />
+          <div className="flex justify-end gap-3 pt-2">
+            <Button variant="outline" type="button" onClick={() => setShowCreateShipmentModal(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              type="submit"
+              loading={createShipmentMutation.isPending}
+              disabled={!dealShipmentData.dealId.trim() || !dealShipmentData.pickupAddress.trim() || !dealShipmentData.deliveryAddress.trim()}
+            >
+              Create Shipment
             </Button>
           </div>
         </form>

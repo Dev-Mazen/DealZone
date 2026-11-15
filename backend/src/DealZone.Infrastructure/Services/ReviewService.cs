@@ -51,7 +51,7 @@ public class ReviewService : IReviewService
             throw new DealZone.Application.Common.Exceptions.ValidationException(validationResult.Errors);
         }
 
-        var (company, _) = await RequireApprovedCompanyAsync(cancellationToken);
+        var (company, member) = await RequireApprovedCompanyAsync(cancellationToken);
 
         var deal = await _context.Deals
             .Include(d => d.BuyerCompany)
@@ -64,12 +64,29 @@ public class ReviewService : IReviewService
             throw new ForbiddenException("Only verified buyer or supplier companies participating in this deal can submit a review.");
         }
 
+        var isBuyer = deal.BuyerCompanyId == company.Id;
+        if (isBuyer)
+        {
+            company.AssertCanOperateAsBuyer();
+            if (member.Role != CompanyRole.Owner && member.Role != CompanyRole.Admin && member.Role != CompanyRole.ProcurementManager)
+            {
+                throw new ForbiddenException("Only company Owners, Admins, or Procurement Managers can submit buyer reviews.");
+            }
+        }
+        else
+        {
+            company.AssertCanOperateAsSupplier();
+            if (member.Role != CompanyRole.Owner && member.Role != CompanyRole.Admin && member.Role != CompanyRole.SalesManager)
+            {
+                throw new ForbiddenException("Only company Owners, Admins, or Sales Managers can submit supplier reviews.");
+            }
+        }
+
         if (deal.Status != DealStatus.Completed)
         {
             throw new ConflictException($"Reviews can only be submitted for completed deals. Current deal status is '{deal.Status}'.");
         }
 
-        var isBuyer = deal.BuyerCompanyId == company.Id;
         var reviewerCompanyId = isBuyer ? deal.BuyerCompanyId : deal.SupplierCompanyId;
         var targetCompanyId = isBuyer ? deal.SupplierCompanyId : deal.BuyerCompanyId;
 

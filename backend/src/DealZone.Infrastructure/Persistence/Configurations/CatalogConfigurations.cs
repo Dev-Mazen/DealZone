@@ -156,13 +156,17 @@ public class CatalogProductConfiguration : IEntityTypeConfiguration<CatalogProdu
 {
     public void Configure(EntityTypeBuilder<CatalogProduct> builder)
     {
-        builder.ToTable("CatalogProducts");
+        builder.ToTable("CatalogProducts", t =>
+        {
+            t.HasCheckConstraint("CK_CatalogProducts_UnitPrice", "[UnitPrice] IS NULL OR [UnitPrice] > 0");
+            t.HasCheckConstraint("CK_CatalogProducts_MinOrderQty", "[MinimumOrderQuantity] > 0");
+        });
 
         builder.HasKey(p => p.Id);
 
         builder.Property(p => p.Sku)
             .HasMaxLength(50)
-            .IsRequired();
+            .IsRequired(false);
 
         builder.HasIndex(p => p.Sku);
 
@@ -172,7 +176,7 @@ public class CatalogProductConfiguration : IEntityTypeConfiguration<CatalogProdu
 
         builder.Property(p => p.NameEn)
             .HasMaxLength(200)
-            .IsRequired();
+            .IsRequired(false);
 
         builder.Property(p => p.DescriptionAr)
             .HasMaxLength(1000);
@@ -184,25 +188,21 @@ public class CatalogProductConfiguration : IEntityTypeConfiguration<CatalogProdu
             .HasMaxLength(2000);
 
         builder.Property(p => p.PricingMode)
-            .HasDefaultValue(ProductPricingMode.Fixed);
+            .HasDefaultValue(ProductPricingMode.Fixed)
+            .HasSentinel((ProductPricingMode)(-1));
 
         builder.Property(p => p.UnitPrice)
             .HasPrecision(18, 2)
-            .IsRequired();
+            .IsRequired(false);
 
         builder.Property(p => p.Currency)
             .HasMaxLength(3)
             .HasDefaultValue("EGP")
             .IsRequired();
 
-        builder.Property(p => p.Unit)
-            .HasMaxLength(50)
-            .HasDefaultValue("ton")
-            .IsRequired();
-
         builder.Property(p => p.AvailableQuantity)
             .HasPrecision(18, 2)
-            .IsRequired();
+            .IsRequired(false);
 
         builder.Property(p => p.MinimumOrderQuantity)
             .HasPrecision(18, 2)
@@ -234,7 +234,11 @@ public class CatalogProductConfiguration : IEntityTypeConfiguration<CatalogProdu
         builder.HasIndex(p => p.MaterialId);
         builder.HasIndex(p => p.CategoryId);
         builder.HasIndex(p => p.SupplierCompanyId);
+        builder.HasIndex(p => p.UnitId);
         builder.HasIndex(p => new { p.IsActive, p.IsArchived });
+        builder.HasIndex(p => new { p.IsActive, p.MaterialId, p.SupplierCompanyId });
+
+        builder.HasQueryFilter(p => !p.SupplierCompany.IsDeleted);
 
         builder.HasOne(p => p.Material)
             .WithMany()
@@ -245,11 +249,19 @@ public class CatalogProductConfiguration : IEntityTypeConfiguration<CatalogProdu
         builder.HasOne(p => p.Category)
             .WithMany()
             .HasForeignKey(p => p.CategoryId)
+            .IsRequired()
             .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasOne(p => p.SupplierCompany)
             .WithMany()
             .HasForeignKey(p => p.SupplierCompanyId)
+            .IsRequired()
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne(p => p.Unit)
+            .WithMany()
+            .HasForeignKey(p => p.UnitId)
+            .IsRequired()
             .OnDelete(DeleteBehavior.Restrict);
     }
 }

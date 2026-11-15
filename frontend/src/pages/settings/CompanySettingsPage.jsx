@@ -28,6 +28,7 @@ import Textarea from '../../components/ui/Textarea'
 import Button from '../../components/ui/Button'
 import Badge from '../../components/ui/Badge'
 import { verificationStatusVariant, formatDate } from '../../utils/format'
+import { getGovernorateOptions } from '../../constants/governorates'
 import { PageSpinner } from '../../components/ui/Spinner'
 import CompanyMembersTab from './CompanyMembersTab'
 
@@ -40,11 +41,33 @@ const profileSchema = z.object({
 })
 
 const GOVERNORATES = [
-  'Cairo', 'Giza', 'Alexandria', 'Aswan', 'Asyut', 'Beheira', 'Beni Suef',
-  'Dakahlia', 'Damietta', 'Fayyum', 'Gharbia', 'Ismailia', 'Kafr el-Sheikh',
-  'Luxor', 'Matruh', 'Minya', 'Monufia', 'New Valley', 'North Sinai',
-  'Port Said', 'Qalyubia', 'Qena', 'Red Sea', 'Sharqia', 'Sohag',
-  'South Sinai', 'Suez',
+  { ar: 'القاهرة', en: 'Cairo' },
+  { ar: 'الجيزة', en: 'Giza' },
+  { ar: 'الإسكندرية', en: 'Alexandria' },
+  { ar: 'القليوبية', en: 'Qalyubia' },
+  { ar: 'الشرقية', en: 'Sharqia' },
+  { ar: 'الغربية', en: 'Gharbia' },
+  { ar: 'المنوفية', en: 'Monufia' },
+  { ar: 'الدقهلية', en: 'Dakahlia' },
+  { ar: 'كفر الشيخ', en: 'Kafr el-Sheikh' },
+  { ar: 'البحيرة', en: 'Beheira' },
+  { ar: 'الإسماعيلية', en: 'Ismailia' },
+  { ar: 'السويس', en: 'Suez' },
+  { ar: 'بورسعيد', en: 'Port Said' },
+  { ar: 'دمياط', en: 'Damietta' },
+  { ar: 'الفيوم', en: 'Fayyum' },
+  { ar: 'بني سويف', en: 'Beni Suef' },
+  { ar: 'المنيا', en: 'Minya' },
+  { ar: 'أسيوط', en: 'Asyut' },
+  { ar: 'سوهاج', en: 'Sohag' },
+  { ar: 'قنا', en: 'Qena' },
+  { ar: 'الأقصر', en: 'Luxor' },
+  { ar: 'أسوان', en: 'Aswan' },
+  { ar: 'البحر الأحمر', en: 'Red Sea' },
+  { ar: 'شمال سيناء', en: 'North Sinai' },
+  { ar: 'جنوب سيناء', en: 'South Sinai' },
+  { ar: 'مطروح', en: 'Matruh' },
+  { ar: 'الوادي الجديد', en: 'New Valley' },
 ]
 
 export default function CompanySettingsPage() {
@@ -126,7 +149,7 @@ export default function CompanySettingsPage() {
         <p className="text-sm text-[#64748B] mb-6">
           {isAr
             ? 'سجل بيانات شركتك للبدء في طرح طلبات الأسعار وتقديم العروض على المنصة.'
-            : 'Register your company to start publishing tenders and bidding on DealZone.'}
+            : 'Register your company to start publishing RFQs and quoting on DealZone.'}
         </p>
         <Button as={Link} to="/onboarding/company" variant="primary" size="md">
           {isAr ? 'تسجيل شركة جديدة' : 'Register New Company'}
@@ -290,8 +313,11 @@ export default function CompanySettingsPage() {
                       className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-[#1266D6] bg-white text-slate-800"
                       {...register('governorate')}
                     >
-                      {GOVERNORATES.map((g) => (
-                        <option key={g} value={g}>{g}</option>
+                      <option value="">{isAr ? 'اختر المحافظة...' : 'Select Governorate...'}</option>
+                      {getGovernorateOptions(isAr).map((g) => (
+                        <option key={g.key} value={g.value}>
+                          {g.label}
+                        </option>
                       ))}
                     </select>
                     {errors.governorate && (

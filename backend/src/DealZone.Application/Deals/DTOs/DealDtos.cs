@@ -91,10 +91,6 @@ public record DealSummaryResponse(
     int? LeadTimeDays = null,
     bool? ShippingIncluded = null,
     string DealSource = "Rfq",
-    Guid? TenderId = null,
-    string? TenderNumber = null,
-    Guid? BidId = null,
-    string? BidNumber = null,
     Guid? DirectPurchaseId = null,
     string? DirectPurchaseNumber = null);
 
@@ -131,11 +127,6 @@ public record DealDetailResponse(
     DealCommercialTermsSnapshot? CommercialTerms,
     IReadOnlyList<DisputeSummaryResponse> Disputes,
     string DealSource = "Rfq",
-    Guid? TenderId = null,
-    string? TenderNumber = null,
-    Guid? BidId = null,
-    string? BidNumber = null,
-    int? BidRevisionNumber = null,
     Guid? DirectPurchaseId = null,
     string? DirectPurchaseNumber = null);
 

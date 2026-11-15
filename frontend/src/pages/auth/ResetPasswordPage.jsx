@@ -26,10 +26,17 @@ export default function ResetPasswordPage() {
   const email = params.get('email') || ''
   const token = params.get('token') || ''
 
-  const { register, handleSubmit, formState: { errors } } = useForm({
+  const { register, handleSubmit, watch, formState: { errors } } = useForm({
     resolver: zodResolver(getResetPasswordSchema(isAr)),
     mode: 'onChange',
   })
+
+  const newPwVal = watch('newPassword') || ''
+  const hasMinLen = newPwVal.length >= 8
+  const hasUpper = /[A-Z]/.test(newPwVal)
+  const hasLower = /[a-z]/.test(newPwVal)
+  const hasNum = /[0-9]/.test(newPwVal)
+  const hasSpecial = /[^a-zA-Z0-9]/.test(newPwVal)
 
   if (!email || !token) {
     return (
@@ -98,25 +105,51 @@ export default function ResetPasswordPage() {
 
               <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
                 <Input
-                  type="password"
+                  type={showPw ? 'text' : 'password'}
                   label={isAr ? 'كلمة المرور الجديدة' : 'New Password'}
                   {...register('newPassword')}
                   error={errors.newPassword?.message}
                   startIcon={<Lock size={18} />}
+                  endIcon={
+                    <button
+                      type="button"
+                      onClick={() => setShowPw((v) => !v)}
+                      className="text-[#64748B] hover:text-[#06245B]"
+                      tabIndex={-1}
+                    >
+                      {showPw ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  }
                   autoComplete="new-password"
                 />
 
-                <Input
-                  type="password"
-                  label={isAr ? 'تأكيد كلمة المرور' : 'Confirm Password'}
-                  {...register('confirmPassword')}
-                  error={errors.confirmPassword?.message}
-                  startIcon={<Lock size={18} />}
-                  autoComplete="new-password"
-                />
+                {newPwVal.length > 0 && (
+                  <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200 text-[11px] space-y-1">
+                    <div className="font-semibold text-slate-700 mb-1">
+                      {isAr ? 'متطلبات كلمة المرور:' : 'Password requirements:'}
+                    </div>
+                    <div className="grid grid-cols-2 gap-x-2 gap-y-0.5">
+                      <span className={hasMinLen ? 'text-emerald-600 font-medium' : 'text-slate-400'}>
+                        {hasMinLen ? '✓' : '○'} {isAr ? '8 أحرف على الأقل' : 'At least 8 chars'}
+                      </span>
+                      <span className={hasUpper ? 'text-emerald-600 font-medium' : 'text-slate-400'}>
+                        {hasUpper ? '✓' : '○'} {isAr ? 'حرف كبير (A-Z)' : 'Uppercase letter'}
+                      </span>
+                      <span className={hasLower ? 'text-emerald-600 font-medium' : 'text-slate-400'}>
+                        {hasLower ? '✓' : '○'} {isAr ? 'حرف صغير (a-z)' : 'Lowercase letter'}
+                      </span>
+                      <span className={hasNum ? 'text-emerald-600 font-medium' : 'text-slate-400'}>
+                        {hasNum ? '✓' : '○'} {isAr ? 'رقم (0-9)' : 'Number (0-9)'}
+                      </span>
+                      <span className={hasSpecial ? 'text-emerald-600 font-medium' : 'text-slate-400'}>
+                        {hasSpecial ? '✓' : '○'} {isAr ? 'رمز خاص (!@#$)' : 'Special symbol'}
+                      </span>
+                    </div>
+                  </div>
+                )}
 
                 <Input
-                  type="password"
+                  type={showPw ? 'text' : 'password'}
                   label={isAr ? 'تأكيد كلمة المرور' : 'Confirm Password'}
                   {...register('confirmPassword')}
                   error={errors.confirmPassword?.message}

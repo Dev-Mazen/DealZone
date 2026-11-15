@@ -23,14 +23,6 @@ public class DealConfiguration : IEntityTypeConfiguration<Deal>
             .IsUnique()
             .HasFilter("[OfferId] IS NOT NULL");
 
-        builder.HasIndex(d => d.TenderId)
-            .IsUnique()
-            .HasFilter("[TenderId] IS NOT NULL");
-
-        builder.HasIndex(d => d.BidId)
-            .IsUnique()
-            .HasFilter("[BidId] IS NOT NULL");
-
         builder.HasIndex(d => d.RfqId)
             .IsUnique()
             .HasFilter("[RfqId] IS NOT NULL");
@@ -86,18 +78,6 @@ public class DealConfiguration : IEntityTypeConfiguration<Deal>
         builder.HasOne(d => d.Offer)
             .WithMany()
             .HasForeignKey(d => d.OfferId)
-            .IsRequired(false)
-            .OnDelete(DeleteBehavior.Restrict);
-
-        builder.HasOne(d => d.Tender)
-            .WithMany()
-            .HasForeignKey(d => d.TenderId)
-            .IsRequired(false)
-            .OnDelete(DeleteBehavior.Restrict);
-
-        builder.HasOne(d => d.Bid)
-            .WithMany()
-            .HasForeignKey(d => d.BidId)
             .IsRequired(false)
             .OnDelete(DeleteBehavior.Restrict);
 

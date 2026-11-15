@@ -68,7 +68,8 @@ public class ShippingAndReviewIntegrationTests
         HttpClient client,
         string email,
         string legalName,
-        string tradeName)
+        string tradeName,
+        string companyType = "Buyer")
     {
         var token = await RegisterAndLoginAsync(client, email);
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
@@ -88,7 +89,8 @@ public class ShippingAndReviewIntegrationTests
             "+201011112222",
             "Industrial Area",
             null,
-            "44629");
+            "44629",
+            companyType);
 
         var compRes = await client.PostAsJsonAsync("/api/v1/companies", compReq);
         Assert.Equal(HttpStatusCode.Created, compRes.StatusCode);
@@ -113,8 +115,8 @@ public class ShippingAndReviewIntegrationTests
         HttpClient client,
         string prefix)
     {
-        var (buyerToken, _) = await CreateVerifiedCompanyAsync(factory, client, $"{prefix}.buyer@dealzone.eg", $"{prefix} Buyer Ltd", $"{prefix}Buyer");
-        var (supplierToken, _) = await CreateVerifiedCompanyAsync(factory, client, $"{prefix}.supp@dealzone.eg", $"{prefix} Supplier SAE", $"{prefix}Supp");
+        var (buyerToken, _) = await CreateVerifiedCompanyAsync(factory, client, $"{prefix}.buyer@dealzone.eg", $"{prefix} Buyer Ltd", $"{prefix}Buyer", "Buyer");
+        var (supplierToken, _) = await CreateVerifiedCompanyAsync(factory, client, $"{prefix}.supp@dealzone.eg", $"{prefix} Supplier SAE", $"{prefix}Supp", "Supplier");
 
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", buyerToken);
         var catRes = await client.GetAsync("/api/v1/catalog/categories");
@@ -173,17 +175,61 @@ public class ShippingAndReviewIntegrationTests
     }
 
     [Fact]
-    public async Task Shipment_Workflow_And_DeliveredDoesNotCompleteDeal()
+    public async Task BuyerAndSupplier_CannotCreateOrMutateShipment_ReturnsForbidden()
     {
         await using var factory = new DealZoneWebApplicationFactory();
         var client = factory.CreateClient();
 
-        var (dealId, buyerToken, supplierToken) = await CreateConfirmedDealAsync(factory, client, "ship1");
+        var (dealId, buyerToken, supplierToken) = await CreateConfirmedDealAsync(factory, client, "ship_perm");
+        var adminToken = await CreateAdminAndLoginAsync(factory, client, "admin.ship.perm@dealzone.eg");
 
-        // Supplier creates shipment
-        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", supplierToken);
         var shipReq = new CreateShipmentRequest(
-            ShippingArrangement.SupplierArranged,
+            ShippingArrangement.DealZoneArranged,
+            "Warehouse 14, 10th of Ramadan",
+            "Helwan Plant Site",
+            CarrierName: "Nile Cargo Transport",
+            TrackingNumber: "TRK-2026-999");
+
+        // 1. Supplier cannot create shipment -> 403 Forbidden
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", supplierToken);
+        var supplierCreateRes = await client.PostAsJsonAsync($"/api/v1/deals/{dealId}/shipments", shipReq);
+        Assert.Equal(HttpStatusCode.Forbidden, supplierCreateRes.StatusCode);
+
+        // 2. Buyer cannot create shipment -> 403 Forbidden
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", buyerToken);
+        var buyerCreateRes = await client.PostAsJsonAsync($"/api/v1/deals/{dealId}/shipments", shipReq);
+        Assert.Equal(HttpStatusCode.Forbidden, buyerCreateRes.StatusCode);
+
+        // 3. Admin creates shipment -> 201 Created
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", adminToken);
+        var adminCreateRes = await client.PostAsJsonAsync($"/api/v1/deals/{dealId}/shipments", shipReq);
+        Assert.Equal(HttpStatusCode.Created, adminCreateRes.StatusCode);
+        var shipment = await adminCreateRes.Content.ReadFromJsonAsync<ShipmentResponse>(JsonOptions);
+        Assert.NotNull(shipment);
+
+        // 4. Supplier cannot update tracking -> 403 Forbidden
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", supplierToken);
+        var supplierTrackRes = await client.PutAsJsonAsync($"/api/v1/shipments/{shipment.Id}/tracking", new UpdateTrackingRequest("NEW-TRK", "New Carrier"));
+        Assert.Equal(HttpStatusCode.Forbidden, supplierTrackRes.StatusCode);
+
+        // 5. Supplier cannot update status -> 403 Forbidden
+        var supplierStatusRes = await client.PostAsJsonAsync($"/api/v1/shipments/{shipment.Id}/status", new UpdateShipmentStatusRequest(ShipmentStatus.PickedUp));
+        Assert.Equal(HttpStatusCode.Forbidden, supplierStatusRes.StatusCode);
+    }
+
+    [Fact]
+    public async Task Admin_CanCreateAndProgressShipment_DeliveredDoesNotCompleteDeal()
+    {
+        await using var factory = new DealZoneWebApplicationFactory();
+        var client = factory.CreateClient();
+
+        var (dealId, _, _) = await CreateConfirmedDealAsync(factory, client, "ship1");
+        var adminToken = await CreateAdminAndLoginAsync(factory, client, "admin.ship.prog@dealzone.eg");
+
+        // Admin creates shipment
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", adminToken);
+        var shipReq = new CreateShipmentRequest(
+            ShippingArrangement.DealZoneArranged,
             "Warehouse 14, 10th of Ramadan",
             "Helwan Plant Site",
             CarrierName: "Nile Cargo Transport",
@@ -195,7 +241,7 @@ public class ShippingAndReviewIntegrationTests
         Assert.NotNull(shipment);
         Assert.Equal("Pending", shipment.Status);
 
-        // Progress status: Pending -> PickedUp -> InTransit -> Delivered
+        // Progress status: Pending -> PickedUp -> InTransit -> Delivered via admin
         await client.PostAsJsonAsync($"/api/v1/shipments/{shipment.Id}/status", new UpdateShipmentStatusRequest(ShipmentStatus.PickedUp, "Warehouse 14", "Driver arrived"));
         await client.PostAsJsonAsync($"/api/v1/shipments/{shipment.Id}/status", new UpdateShipmentStatusRequest(ShipmentStatus.InTransit, "Cairo Ring Road", "En route"));
         var delRes = await client.PostAsJsonAsync($"/api/v1/shipments/{shipment.Id}/status", new UpdateShipmentStatusRequest(ShipmentStatus.Delivered, "Helwan Site", "Delivered to receiving dock"));
@@ -213,47 +259,44 @@ public class ShippingAndReviewIntegrationTests
     }
 
     [Fact]
-    public async Task NonParticipant_CannotAccessShipment_ReturnsForbidden()
+    public async Task DealParticipants_CanReadShipment_NonParticipant_ReturnsNotFound()
     {
         await using var factory = new DealZoneWebApplicationFactory();
         var client = factory.CreateClient();
 
-        var (dealId, _, supplierToken) = await CreateConfirmedDealAsync(factory, client, "ship2");
+        var (dealId, buyerToken, supplierToken) = await CreateConfirmedDealAsync(factory, client, "ship2");
+        var adminToken = await CreateAdminAndLoginAsync(factory, client, "admin.ship.read@dealzone.eg");
         var (thirdPartyToken, _) = await CreateVerifiedCompanyAsync(factory, client, "third.ship@dealzone.eg", "Third Party Cargo", "ThirdCargo");
 
-        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", supplierToken);
-        var shipReq = new CreateShipmentRequest(
-            ShippingArrangement.SupplierArranged,
-            "Pickup Loc",
-            "Delivery Loc");
-        var shipRes = await client.PostAsJsonAsync($"/api/v1/deals/{dealId}/shipments", shipReq);
-        var shipment = await shipRes.Content.ReadFromJsonAsync<ShipmentResponse>(JsonOptions);
-
-        // 3rd party tries to access shipment
-        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", thirdPartyToken);
-        var getRes = await client.GetAsync($"/api/v1/shipments/{shipment!.Id}");
-        Assert.Equal(HttpStatusCode.Forbidden, getRes.StatusCode);
-    }
-
-    [Fact]
-    public async Task Supplier_CannotAssignDealZoneProvider_ReturnsForbidden()
-    {
-        await using var factory = new DealZoneWebApplicationFactory();
-        var client = factory.CreateClient();
-
-        var (dealId, _, supplierToken) = await CreateConfirmedDealAsync(factory, client, "ship3");
-
-        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", supplierToken);
+        // Admin creates shipment
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", adminToken);
         var shipReq = new CreateShipmentRequest(
             ShippingArrangement.DealZoneArranged,
             "Pickup Loc",
             "Delivery Loc");
         var shipRes = await client.PostAsJsonAsync($"/api/v1/deals/{dealId}/shipments", shipReq);
         var shipment = await shipRes.Content.ReadFromJsonAsync<ShipmentResponse>(JsonOptions);
+        Assert.NotNull(shipment);
 
-        // Supplier tries to assign provider directly via admin route
+        // 1. Supplier can read deal shipments and shipment by id
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", supplierToken);
+        var supplierGetRes = await client.GetAsync($"/api/v1/shipments/{shipment.Id}");
+        Assert.Equal(HttpStatusCode.OK, supplierGetRes.StatusCode);
+
+        // 2. Buyer can read shipment
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", buyerToken);
+        var buyerGetRes = await client.GetAsync($"/api/v1/shipments/{shipment.Id}");
+        Assert.Equal(HttpStatusCode.OK, buyerGetRes.StatusCode);
+
+        // 3. 3rd party tries to access shipment -> 404 to avoid leaking existence
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", thirdPartyToken);
+        var getRes = await client.GetAsync($"/api/v1/shipments/{shipment.Id}");
+        Assert.Equal(HttpStatusCode.NotFound, getRes.StatusCode);
+
+        // 4. Supplier tries to assign provider directly via admin route -> 403 Forbidden
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", supplierToken);
         var assignReq = new AssignShippingProviderRequest(Guid.NewGuid());
-        var assignRes = await client.PostAsJsonAsync($"/api/v1/admin/shipments/{shipment!.Id}/assign-provider", assignReq);
+        var assignRes = await client.PostAsJsonAsync($"/api/v1/admin/shipments/{shipment.Id}/assign-provider", assignReq);
         Assert.Equal(HttpStatusCode.Forbidden, assignRes.StatusCode);
     }
 

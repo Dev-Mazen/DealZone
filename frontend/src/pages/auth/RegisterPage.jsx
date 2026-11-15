@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Mail, Lock, User, Phone, Factory, Building2, Layers, Eye, EyeOff, ShieldCheck, TrendingUp, Handshake } from 'lucide-react'
+import { Mail, Lock, User, Phone, Factory, Building2, Eye, EyeOff, ShieldCheck, TrendingUp, Handshake } from 'lucide-react'
 import { authService } from '../../shared/api/services/authService'
 import { useToast } from '../../hooks/useToast'
 import { useTranslation } from '../../hooks/useTranslation'
@@ -28,8 +28,8 @@ const trustPoints = [
   },
   {
     icon: Handshake,
-    en: 'Secure RFQ, tendering & direct deal execution',
-    ar: 'تقديم العطاءات وإبرام الصفقات بأمان تام',
+    en: 'Secure RFQ, negotiation & direct deal execution',
+    ar: 'تقديم طلبات الأسعار وإبرام الصفقات بأمان تام',
   },
 ]
 
@@ -42,16 +42,24 @@ export default function RegisterPage() {
   const [errorMsg, setErrorMsg] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
-  const [accountIntent, setAccountIntent] = useState('buyer') // 'buyer' | 'supplier' | 'dual'
+  const [accountIntent, setAccountIntent] = useState('buyer') // 'buyer' | 'supplier'
 
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors },
   } = useForm({
     resolver: zodResolver(getRegisterSchema(isAr)),
     mode: 'onChange',
   })
+
+  const passwordVal = watch('password') || ''
+  const hasMinLen = passwordVal.length >= 8
+  const hasUpper = /[A-Z]/.test(passwordVal)
+  const hasLower = /[a-z]/.test(passwordVal)
+  const hasNum = /[0-9]/.test(passwordVal)
+  const hasSpecial = /[^a-zA-Z0-9]/.test(passwordVal)
 
   const onSubmit = async (data) => {
     setIsLoading(true)
@@ -161,11 +169,10 @@ export default function RegisterPage() {
               <label className="block text-xs font-bold text-[#06245B] mb-2 uppercase tracking-wider">
                 {isAr ? 'ما هو النشاط الأساسي لشركتك؟' : 'Primary Business Activity'}
               </label>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 gap-3">
                 {[
                   { key: 'buyer', Icon: Factory, en: 'Buyer / Factory', ar: 'مشتري / مصنع', sub: { en: 'Procure Raw Materials', ar: 'شراء خامات' } },
                   { key: 'supplier', Icon: Building2, en: 'Raw Supplier', ar: 'مورد خامات', sub: { en: 'Supply & Quoting', ar: 'توريد وبيع' } },
-                  { key: 'dual', Icon: Layers, en: 'Dual Enterprise', ar: 'كلاهما', sub: { en: 'Buy & Sell', ar: 'شراء وتوزيع' } },
                 ].map(({ key, Icon, en, ar, sub }) => (
                   <button
                     key={key}
@@ -244,6 +251,31 @@ export default function RegisterPage() {
                 required
                 autoComplete="new-password"
               />
+
+              {passwordVal.length > 0 && (
+                <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200 text-[11px] space-y-1">
+                  <div className="font-semibold text-slate-700 mb-1">
+                    {isAr ? 'متطلبات كلمة المرور:' : 'Password requirements:'}
+                  </div>
+                  <div className="grid grid-cols-2 gap-x-2 gap-y-0.5">
+                    <span className={hasMinLen ? 'text-emerald-600 font-medium' : 'text-slate-400'}>
+                      {hasMinLen ? '✓' : '○'} {isAr ? '8 أحرف على الأقل' : 'At least 8 chars'}
+                    </span>
+                    <span className={hasUpper ? 'text-emerald-600 font-medium' : 'text-slate-400'}>
+                      {hasUpper ? '✓' : '○'} {isAr ? 'حرف كبير (A-Z)' : 'Uppercase letter'}
+                    </span>
+                    <span className={hasLower ? 'text-emerald-600 font-medium' : 'text-slate-400'}>
+                      {hasLower ? '✓' : '○'} {isAr ? 'حرف صغير (a-z)' : 'Lowercase letter'}
+                    </span>
+                    <span className={hasNum ? 'text-emerald-600 font-medium' : 'text-slate-400'}>
+                      {hasNum ? '✓' : '○'} {isAr ? 'رقم (0-9)' : 'Number (0-9)'}
+                    </span>
+                    <span className={hasSpecial ? 'text-emerald-600 font-medium' : 'text-slate-400'}>
+                      {hasSpecial ? '✓' : '○'} {isAr ? 'رمز خاص (!@#$)' : 'Special symbol'}
+                    </span>
+                  </div>
+                </div>
+              )}
 
               <Input
                 {...register('confirmPassword')}

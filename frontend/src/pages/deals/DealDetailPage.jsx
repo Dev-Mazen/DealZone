@@ -1,30 +1,26 @@
-import { useState } from 'react'
+
+import { useMemo, useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   ArrowLeft, CheckCircle, Play, XCircle, AlertTriangle,
-  Truck, Star
+  Truck, Star, RefreshCw
 } from 'lucide-react'
+
 import { dealService } from '../../shared/api/services/dealService'
 import { useTranslation } from '../../hooks/useTranslation'
 import { usePermissions } from '../../hooks/usePermissions'
 import { useAuthStore } from '../../store/authStore'
 import { useToast } from '../../hooks/useToast'
+
 import Button from '../../components/ui/Button'
 import Card, { CardHeader, CardDivider } from '../../components/ui/Card'
 import Badge from '../../components/ui/Badge'
 import Modal from '../../components/ui/Modal'
 import { PageSpinner } from '../../components/ui/Spinner'
-import { formatCurrency, formatDate } from '../../utils/format'
 
-const statusVariant = {
-  AwaitingConfirmation: 'warning',
-  Confirmed: 'info',
-  InProgress: 'cyan',
-  Disputed: 'error',
-  Completed: 'success',
-  Cancelled: 'error',
-}
+import { formatCurrency, formatDate } from '../../utils/format'
+import { statusMeta } from '../../utils/statusLabels'
 
 const disputeCategories = [
   { value: 1, label: 'Quality Defect', labelAr: 'عيب في الجودة' },
@@ -36,206 +32,397 @@ const disputeCategories = [
   { value: 99, label: 'Other', labelAr: 'أخرى' },
 ]
 
+const normalizeId = (value) => String(value ?? '').trim().toLowerCase()
+
+const toArray = (value) => {
+  if (Array.isArray(value)) return value
+  if (Array.isArray(value?.items)) return value.items
+  if (Array.isArray(value?.data)) return value.data
+  if (Array.isArray(value?.results)) return value.results
+  return []
+}
+
+const getErrorMessage = (error, fallback) =>
+  error?.problem?.detail ||
+  error?.response?.data?.detail ||
+  error?.response?.data?.title ||
+  error?.message ||
+  fallback
+
+const statusSteps = [
+  'AwaitingConfirmation',
+  'Confirmed',
+  'InProgress',
+  'Completed',
+]
+
 export default function DealDetailPage() {
   const { dealId } = useParams()
+  const navigate = useNavigate()
+  const queryClient = useQueryClient()
+  const toast = useToast()
+
   const { language } = useTranslation()
   const isAr = language === 'ar'
-  const navigate = useNavigate()
-  const toast = useToast()
-  const queryClient = useQueryClient()
-  const { canManageDeals, canManageShipments, isSalesManager, isOwner, isAdmin, isProcurementManager } = usePermissions()
-  const user = useAuthStore((s) => s.user)
 
-  // Modals state
+  const {
+    canManageDeals,
+    isSalesManager,
+    isOwner,
+    isAdmin,
+    isProcurementManager,
+  } = usePermissions()
+
+  const user = useAuthStore((state) => state.user)
+  const currentCompanyId = normalizeId(user?.company?.id)
+
+  // Modal state
   const [showCancel, setShowCancel] = useState(false)
   const [showComplete, setShowComplete] = useState(false)
   const [showDispute, setShowDispute] = useState(false)
   const [showReview, setShowReview] = useState(false)
-  const [showCreateShipment, setShowCreateShipment] = useState(false)
+
+  // Form state
   const [cancelReason, setCancelReason] = useState('')
   const [disputeCategory, setDisputeCategory] = useState(1)
   const [disputeDescription, setDisputeDescription] = useState('')
   const [reviewRating, setReviewRating] = useState(5)
   const [reviewComment, setReviewComment] = useState('')
 
-  // Shipment form
-  const [shipArrangement, setShipArrangement] = useState(1)
-  const [shipPickup, setShipPickup] = useState('')
-  const [shipDelivery, setShipDelivery] = useState('')
-  const [shipCarrier, setShipCarrier] = useState('')
-
-  const { data: deal, isLoading, error } = useQuery({
+  // Queries
+  const {
+    data: deal,
+    isLoading,
+    isError,
+    error,
+    refetch,
+    isFetching,
+  } = useQuery({
     queryKey: ['deals', dealId],
     queryFn: () => dealService.get(dealId),
-    enabled: !!dealId,
+    enabled: Boolean(dealId),
   })
 
-  const { data: shipments } = useQuery({
+  const {
+    data: shipmentsResponse,
+    isLoading: shipmentsLoading,
+    isError: shipmentsError,
+    refetch: refetchShipments,
+  } = useQuery({
     queryKey: ['deals', dealId, 'shipments'],
     queryFn: () => dealService.getDealShipments(dealId),
-    enabled: !!dealId,
+    enabled: Boolean(dealId),
   })
 
-  const { data: reviews } = useQuery({
+  const shipments = useMemo(
+    () => toArray(shipmentsResponse),
+    [shipmentsResponse]
+  )
+
+  const {
+    data: reviewsResponse,
+    isLoading: reviewsLoading,
+    isError: reviewsError,
+  } = useQuery({
     queryKey: ['deals', dealId, 'reviews'],
     queryFn: () => dealService.getDealReviews(dealId),
-    enabled: !!dealId && deal?.status === 'Completed',
+    enabled: Boolean(dealId) && deal?.status === 'Completed',
   })
 
+  const reviews = useMemo(
+    () => toArray(reviewsResponse),
+    [reviewsResponse]
+  )
+
+  // Shared query invalidation
+  const refreshDealData = async ({ includeReviews = true } = {}) => {
+    const keys = [
+      ['deals', dealId],
+      ['deals'],
+      ['deals', 'mine'],
+    ]
+
+    if (includeReviews) {
+      keys.push(['deals', dealId, 'reviews'])
+    }
+
+    await Promise.all(
+      keys.map((queryKey) =>
+        queryClient.invalidateQueries({ queryKey })
+      )
+    )
+  }
+
+  // Mutations
   const confirmMutation = useMutation({
     mutationFn: () => dealService.confirm(dealId),
-    onSuccess: () => {
+    onSuccess: async () => {
       toast.success(isAr ? 'تم تأكيد الصفقة' : 'Deal confirmed')
-      queryClient.invalidateQueries({ queryKey: ['deals', dealId] })
+      await refreshDealData()
     },
-    onError: (err) => toast.error(err?.problem?.detail || err?.message || 'Failed to confirm'),
+    onError: (err) => {
+      toast.error(getErrorMessage(
+        err,
+        isAr ? 'تعذر تأكيد الصفقة' : 'Failed to confirm deal'
+      ))
+    },
   })
 
   const startMutation = useMutation({
     mutationFn: () => dealService.start(dealId),
-    onSuccess: () => {
+    onSuccess: async () => {
       toast.success(isAr ? 'تم بدء تنفيذ الصفقة' : 'Deal execution started')
-      queryClient.invalidateQueries({ queryKey: ['deals', dealId] })
+      await refreshDealData()
     },
-    onError: (err) => toast.error(err?.problem?.detail || err?.message || 'Failed to start'),
+    onError: (err) => {
+      toast.error(getErrorMessage(
+        err,
+        isAr ? 'تعذر بدء التنفيذ' : 'Failed to start fulfillment'
+      ))
+    },
   })
 
   const completeMutation = useMutation({
     mutationFn: () => dealService.complete(dealId),
-    onSuccess: () => {
+    onSuccess: async () => {
       toast.success(isAr ? 'تم إتمام الصفقة' : 'Deal completed')
-      queryClient.invalidateQueries({ queryKey: ['deals', dealId] })
       setShowComplete(false)
+      await refreshDealData()
     },
-    onError: (err) => toast.error(err?.problem?.detail || err?.message || 'Failed to complete'),
+    onError: (err) => {
+      toast.error(getErrorMessage(
+        err,
+        isAr ? 'تعذر إتمام الصفقة' : 'Failed to complete deal'
+      ))
+    },
   })
 
   const cancelMutation = useMutation({
-    mutationFn: () => dealService.cancel(dealId, cancelReason),
-    onSuccess: () => {
+    mutationFn: () => dealService.cancel(dealId, cancelReason.trim()),
+    onSuccess: async () => {
       toast.success(isAr ? 'تم إلغاء الصفقة' : 'Deal cancelled')
-      queryClient.invalidateQueries({ queryKey: ['deals', dealId] })
       setShowCancel(false)
+      setCancelReason('')
+      await refreshDealData()
     },
-    onError: (err) => toast.error(err?.problem?.detail || err?.message || 'Failed to cancel'),
+    onError: (err) => {
+      toast.error(getErrorMessage(
+        err,
+        isAr ? 'تعذر إلغاء الصفقة' : 'Failed to cancel deal'
+      ))
+    },
   })
 
   const disputeMutation = useMutation({
-    mutationFn: () => dealService.openDispute(dealId, Number(disputeCategory), disputeDescription),
-    onSuccess: () => {
+    mutationFn: () =>
+      dealService.openDispute(
+        dealId,
+        Number(disputeCategory),
+        disputeDescription.trim()
+      ),
+    onSuccess: async () => {
       toast.success(isAr ? 'تم فتح النزاع' : 'Dispute opened')
-      queryClient.invalidateQueries({ queryKey: ['deals', dealId] })
       setShowDispute(false)
+      setDisputeDescription('')
+      setDisputeCategory(1)
+      await refreshDealData()
     },
-    onError: (err) => toast.error(err?.problem?.detail || err?.message || 'Failed to open dispute'),
+    onError: (err) => {
+      toast.error(getErrorMessage(
+        err,
+        isAr ? 'تعذر فتح النزاع' : 'Failed to open dispute'
+      ))
+    },
   })
 
   const reviewMutation = useMutation({
-    mutationFn: () => dealService.submitReview(dealId, reviewRating, reviewComment),
-    onSuccess: () => {
+    mutationFn: () =>
+      dealService.submitReview(
+        dealId,
+        reviewRating,
+        reviewComment.trim()
+      ),
+    onSuccess: async () => {
       toast.success(isAr ? 'تم إرسال التقييم' : 'Review submitted')
-      queryClient.invalidateQueries({ queryKey: ['deals', dealId, 'reviews'] })
       setShowReview(false)
+      setReviewComment('')
+      setReviewRating(5)
+      await refreshDealData()
     },
-    onError: (err) => toast.error(err?.problem?.detail || err?.message || 'Failed to submit review'),
+    onError: (err) => {
+      toast.error(getErrorMessage(
+        err,
+        isAr ? 'تعذر إرسال التقييم' : 'Failed to submit review'
+      ))
+    },
   })
 
-  const shipmentMutation = useMutation({
-    mutationFn: () => dealService.createShipment(dealId, {
-      arrangement: shipArrangement,
-      pickupAddress: shipPickup,
-      deliveryAddress: shipDelivery,
-      carrierName: shipCarrier || undefined,
-    }),
-    onSuccess: (shipment) => {
-      toast.success(isAr ? 'تم إنشاء الشحنة' : 'Shipment created')
-      queryClient.invalidateQueries({ queryKey: ['deals', dealId, 'shipments'] })
-      setShowCreateShipment(false)
-      navigate(`/shipments/${shipment.id}`)
-    },
-    onError: (err) => toast.error(err?.problem?.detail || err?.message || 'Failed to create shipment'),
-  })
-
+  // Loading and error states
   if (isLoading) return <PageSpinner />
-  if (error || !deal) {
+
+  if (isError || !deal) {
+    const statusCode =
+      error?.status ||
+      error?.response?.status
+
+    const is404 = statusCode === 404
+
     return (
-      <div className="text-center py-16">
-        <p className="text-[#EF4444] mb-4">{isAr ? 'الصفقة غير موجودة' : 'Deal not found'}</p>
+      <div className="max-w-md mx-auto mt-8 p-8 md:p-12 text-center space-y-4 bg-white rounded-3xl border border-slate-200">
+        <div className="w-14 h-14 rounded-full bg-slate-100 flex items-center justify-center mx-auto">
+          <AlertTriangle size={28} className="text-slate-400" />
+        </div>
+
+        <h2 className="text-lg font-bold text-[#06245B]">
+          {is404
+            ? (isAr ? 'الصفقة غير موجودة' : 'Deal not found')
+            : (isAr ? 'تعذّر تحميل الصفقة' : 'Could not load deal')}
+        </h2>
+
+        <p className="text-sm text-slate-500">
+          {is404
+            ? (isAr
+              ? 'قد تكون الصفقة غير موجودة أو لا تملك صلاحية الوصول إليها.'
+              : 'The deal may not exist or you may not have access to it.')
+            : (isAr
+              ? 'تحقق من اتصالك وحاول مرة أخرى.'
+              : 'Check your connection and try again.')}
+        </p>
+
+        {!is404 && (
+          <Button variant="outline" onClick={() => refetch()}>
+            <RefreshCw size={15} className="me-2" />
+            {isAr ? 'إعادة المحاولة' : 'Retry'}
+          </Button>
+        )}
+
         <Button variant="outline" onClick={() => navigate('/deals')}>
-          {isAr ? 'العودة' : 'Back to Deals'}
+          {isAr ? 'العودة للصفقات' : 'Back to Deals'}
         </Button>
       </div>
     )
   }
 
-  const currentCompanyId = user?.company?.id || ''
-  const isBuyer = deal.buyerCompanyId === currentCompanyId
-  const isSupplier = deal.supplierCompanyId === currentCompanyId
+  // Deal participants and permissions
+  const buyerCompanyId = normalizeId(deal.buyerCompanyId)
+  const supplierCompanyId = normalizeId(deal.supplierCompanyId)
 
-  // Can confirm: buyer (Procurement/Owner/Admin) or supplier (Sales/Owner/Admin) if not yet confirmed by their side
+  const isBuyer = Boolean(
+    currentCompanyId && currentCompanyId === buyerCompanyId
+  )
+
+  const isSupplier = Boolean(
+    currentCompanyId && currentCompanyId === supplierCompanyId
+  )
+
+  const isParticipant = isBuyer || isSupplier
+
   const canConfirm =
-    (isBuyer && !deal.confirmedByBuyer && (isProcurementManager || isOwner || isAdmin)) ||
-    (isSupplier && !deal.confirmedBySupplier && (isSalesManager || isOwner || isAdmin))
+    (isBuyer &&
+      !deal.confirmedByBuyer &&
+      (isProcurementManager || isOwner || isAdmin)) ||
+    (isSupplier &&
+      !deal.confirmedBySupplier &&
+      (isSalesManager || isOwner || isAdmin))
 
-  // Can start: supplier only, after both confirmed
-  const canStart = isSupplier && deal.status === 'Confirmed' && (isSalesManager || isOwner || isAdmin)
-
-  // Can complete: either party, when InProgress
-  const canComplete = deal.status === 'InProgress' && canManageDeals
-
-  // Can cancel: when AwaitingConfirmation or Confirmed/InProgress
-  const canCancel =
-    deal.status !== 'Completed' &&
-    deal.status !== 'Cancelled' &&
-    canManageDeals
-
-  // Can open dispute: when Confirmed or InProgress
-  const canDispute =
-    (deal.status === 'Confirmed' || deal.status === 'InProgress') &&
-    canManageDeals
-
-  // Can create shipment: supplier, when Confirmed or InProgress
-  const canCreateShipment =
+  const canStart =
     isSupplier &&
-    (deal.status === 'Confirmed' || deal.status === 'InProgress') &&
-    canManageShipments
+    deal.status === 'Confirmed' &&
+    (isSalesManager || isOwner || isAdmin)
 
-  // Can review: Completed and hasn't reviewed yet
-  const hasReviewed = reviews?.some((r) => r.reviewerCompanyId === currentCompanyId)
-  const canReview = deal.status === 'Completed' && !hasReviewed && canManageDeals
+  // Either authorized party may request completion.
+  // The backend must enforce participant and status authorization.
+  const canComplete =
+    isParticipant &&
+    canManageDeals &&
+    deal.status === 'InProgress'
+
+  const canCancel =
+    isParticipant &&
+    canManageDeals &&
+    ['AwaitingConfirmation', 'Confirmed', 'InProgress'].includes(deal.status)
+
+  const canDispute =
+    isParticipant &&
+    canManageDeals &&
+    ['Confirmed', 'InProgress'].includes(deal.status)
+
+  const hasReviewed = reviews.some(
+    (review) =>
+      normalizeId(review.reviewerCompanyId) === currentCompanyId
+  )
+
+  const canReview =
+    isParticipant &&
+    canManageDeals &&
+    deal.status === 'Completed' &&
+    !hasReviewed
 
   const terms = deal.commercialTerms
+  const lineItems = toArray(terms?.items)
+  const disputes = toArray(deal.disputes)
+
+  const currentStepIndex = statusSteps.indexOf(deal.status)
+
+  const canSubmitCancel = cancelReason.trim().length >= 3
+  const canSubmitDispute = disputeDescription.trim().length >= 10
+
+  const formatStatus = (status) =>
+    status?.replace(/([A-Z])/g, ' $1').trim() || '—'
 
   return (
     <div className="max-w-5xl mx-auto space-y-6 animate-fade-in">
+
       {/* Header */}
       <div className="flex items-start justify-between flex-wrap gap-4">
-        <div className="flex items-start gap-3">
+        <div className="flex items-start gap-3 min-w-0">
           <button
+            type="button"
             onClick={() => navigate('/deals')}
-            className="mt-1 p-2 rounded-lg hover:bg-[#EAF4FF] text-[#64748B] hover:text-[#06245B] transition-colors"
+            aria-label={isAr ? 'العودة للصفقات' : 'Back to deals'}
+            className="mt-1 shrink-0 p-2 rounded-lg hover:bg-[#EAF4FF] text-[#64748B] hover:text-[#06245B] transition-colors"
           >
-            <ArrowLeft size={20} />
+            <ArrowLeft size={20} className={isAr ? 'rotate-180' : ''} />
           </button>
-          <div>
+
+          <div className="min-w-0">
             <div className="flex items-center gap-3 flex-wrap">
               <span className="text-xs font-mono text-[#64748B] bg-[#F4F7FB] px-2 py-1 rounded">
-                {deal.dealNumber}
+                {deal.dealNumber || deal.id}
               </span>
-              <Badge variant={statusVariant[deal.status]}>
-                {deal.status.replace(/([A-Z])/g, ' $1').trim()}
+
+              <Badge variant={statusMeta('deal', deal.status, isAr).variant}>
+                {statusMeta('deal', deal.status, isAr).label}
               </Badge>
             </div>
-            <h1 className="text-xl font-bold text-[#06245B] mt-1">{deal.rfqTitle}</h1>
-            <p className="text-sm text-[#64748B] mt-0.5">
-              {isAr ? 'المشتري:' : 'Buyer:'} {deal.buyerCompanyName}
-              {' · '}
-              {isAr ? 'المورد:' : 'Supplier:'} {deal.supplierCompanyName}
+
+            <h1 className="text-xl font-bold text-[#06245B] mt-2 break-words">
+              {deal.rfqTitle || (isAr ? 'صفقة' : 'Deal')}
+            </h1>
+
+            <p className="text-sm text-[#64748B] mt-1 flex flex-wrap items-center gap-x-1 gap-y-1">
+              {isAr ? 'المشتري:' : 'Buyer:'}
+              <Link
+                to={`/buyers/${deal.buyerCompanyId}`}
+                className="hover:text-[#1266D6] hover:underline font-semibold"
+              >
+                {deal.buyerCompanyName || '—'}
+              </Link>
+
+              <span className="mx-1">·</span>
+
+              {isAr ? 'المورد:' : 'Supplier:'}
+              <Link
+                to={`/suppliers/${deal.supplierCompanyId}`}
+                className="hover:text-[#1266D6] hover:underline font-semibold"
+              >
+                {deal.supplierCompanyName || '—'}
+              </Link>
             </p>
           </div>
         </div>
 
-        {/* Action buttons */}
+        {/* Actions */}
         <div className="flex items-center gap-2 flex-wrap">
           {canConfirm && (
             <Button
@@ -244,10 +431,12 @@ export default function DealDetailPage() {
               icon={<CheckCircle size={16} />}
               onClick={() => confirmMutation.mutate()}
               loading={confirmMutation.isPending}
+              disabled={confirmMutation.isPending}
             >
               {isAr ? 'تأكيد الصفقة' : 'Confirm Deal'}
             </Button>
           )}
+
           {canStart && (
             <Button
               variant="primary"
@@ -255,20 +444,12 @@ export default function DealDetailPage() {
               icon={<Play size={16} />}
               onClick={() => startMutation.mutate()}
               loading={startMutation.isPending}
+              disabled={startMutation.isPending}
             >
               {isAr ? 'بدء التنفيذ' : 'Start Fulfillment'}
             </Button>
           )}
-          {canCreateShipment && (
-            <Button
-              variant="secondary"
-              size="sm"
-              icon={<Truck size={16} />}
-              onClick={() => setShowCreateShipment(true)}
-            >
-              {isAr ? 'إنشاء شحنة' : 'Create Shipment'}
-            </Button>
-          )}
+
           {canComplete && (
             <Button
               variant="outline"
@@ -279,6 +460,7 @@ export default function DealDetailPage() {
               {isAr ? 'إتمام الصفقة' : 'Complete Deal'}
             </Button>
           )}
+
           {canReview && (
             <Button
               variant="outline"
@@ -289,6 +471,7 @@ export default function DealDetailPage() {
               {isAr ? 'تقييم الطرف الآخر' : 'Leave Review'}
             </Button>
           )}
+
           {canDispute && (
             <Button
               variant="outline"
@@ -299,6 +482,7 @@ export default function DealDetailPage() {
               {isAr ? 'فتح نزاع' : 'Open Dispute'}
             </Button>
           )}
+
           {canCancel && (
             <Button
               variant="danger"
@@ -315,145 +499,260 @@ export default function DealDetailPage() {
       {/* Status Timeline */}
       <Card>
         <CardHeader title={isAr ? 'حالة الصفقة' : 'Deal Status'} />
+
         <div className="flex items-center gap-2 flex-wrap">
-          {(['AwaitingConfirmation', 'Confirmed', 'InProgress', 'Completed']).map((s, i) => {
-            const isCurrentOrPast =
-              ['AwaitingConfirmation', 'Confirmed', 'InProgress', 'Completed'].indexOf(deal.status) >= i ||
-              deal.status === 'Completed'
-            const isCurrent = deal.status === s
+          {statusSteps.map((status, index) => {
+            const isCurrent = deal.status === status
+            const isPast =
+              currentStepIndex >= 0 && index < currentStepIndex
+
             return (
-              <div key={s} className="flex items-center gap-2">
-                <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
-                  isCurrent
-                    ? 'bg-[#06245B] text-white'
-                    : isCurrentOrPast
-                    ? 'bg-[#D1FAE5] text-[#059669]'
-                    : 'bg-[#F4F7FB] text-[#94A3B8]'
-                }`}>
-                  {isCurrentOrPast && !isCurrent && <CheckCircle size={12} />}
-                  {s.replace(/([A-Z])/g, ' $1').trim()}
+              <div key={status} className="flex items-center gap-2">
+                <div
+                  className={`flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-medium ${
+                    isCurrent
+                      ? 'bg-[#06245B] text-white'
+                      : isPast
+                        ? 'bg-[#D1FAE5] text-[#059669]'
+                        : 'bg-[#F4F7FB] text-[#94A3B8]'
+                  }`}
+                >
+                  {isPast && <CheckCircle size={12} />}
+                  {isAr
+                    ? ({
+                        AwaitingConfirmation: 'بانتظار التأكيد',
+                        Confirmed: 'تم التأكيد',
+                        InProgress: 'قيد التنفيذ',
+                        Completed: 'مكتملة',
+                      }[status])
+                    : formatStatus(status)}
                 </div>
-                {i < 3 && <span className="text-[#CBD5E1] text-xs">→</span>}
+
+                {index < statusSteps.length - 1 && (
+                  <span className="text-[#CBD5E1] text-xs">→</span>
+                )}
               </div>
             )
           })}
+
           {deal.status === 'Disputed' && (
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-[#FEE2E2] text-[#DC2626]">
-              <AlertTriangle size={12} />
-              Disputed
-            </div>
+            <Badge variant="error">
+              <AlertTriangle size={12} className="inline me-1" />
+              {isAr ? 'متنازع عليها' : 'Disputed'}
+            </Badge>
           )}
+
           {deal.status === 'Cancelled' && (
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-[#F4F7FB] text-[#EF4444]">
-              Cancelled
-            </div>
+            <Badge variant="warning">
+              {isAr ? 'ملغاة' : 'Cancelled'}
+            </Badge>
           )}
         </div>
 
-        {/* Confirmation status */}
         {deal.status === 'AwaitingConfirmation' && (
-          <div className="mt-4 grid grid-cols-2 gap-3">
-            <div className={`p-3 rounded-lg text-sm ${deal.confirmedByBuyer ? 'bg-[#D1FAE5]' : 'bg-[#FEF3C7]'}`}>
-              <div className="font-medium text-[#1E293B]">
-                {isAr ? 'المشتري' : 'Buyer'}: {deal.buyerCompanyName}
+          <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {[
+              {
+                label: isAr ? 'المشتري' : 'Buyer',
+                name: deal.buyerCompanyName,
+                confirmed: deal.confirmedByBuyer,
+              },
+              {
+                label: isAr ? 'المورد' : 'Supplier',
+                name: deal.supplierCompanyName,
+                confirmed: deal.confirmedBySupplier,
+              },
+            ].map((party) => (
+              <div
+                key={party.label}
+                className={`p-3 rounded-lg ${
+                  party.confirmed ? 'bg-[#D1FAE5]' : 'bg-[#FEF3C7]'
+                }`}
+              >
+                <div className="font-medium text-sm text-[#1E293B]">
+                  {party.label}: {party.name || '—'}
+                </div>
+                <div className={`text-xs mt-1 ${
+                  party.confirmed ? 'text-[#059669]' : 'text-[#D97706]'
+                }`}>
+                  {party.confirmed
+                    ? (isAr ? 'تم التأكيد' : 'Confirmed')
+                    : (isAr ? 'بانتظار التأكيد' : 'Pending confirmation')}
+                </div>
               </div>
-              <div className={`text-xs mt-0.5 ${deal.confirmedByBuyer ? 'text-[#059669]' : 'text-[#D97706]'}`}>
-                {deal.confirmedByBuyer
-                  ? (isAr ? '✓ تم التأكيد' : '✓ Confirmed')
-                  : (isAr ? 'بانتظار التأكيد' : 'Pending confirmation')}
-              </div>
-            </div>
-            <div className={`p-3 rounded-lg text-sm ${deal.confirmedBySupplier ? 'bg-[#D1FAE5]' : 'bg-[#FEF3C7]'}`}>
-              <div className="font-medium text-[#1E293B]">
-                {isAr ? 'المورد' : 'Supplier'}: {deal.supplierCompanyName}
-              </div>
-              <div className={`text-xs mt-0.5 ${deal.confirmedBySupplier ? 'text-[#059669]' : 'text-[#D97706]'}`}>
-                {deal.confirmedBySupplier
-                  ? (isAr ? '✓ تم التأكيد' : '✓ Confirmed')
-                  : (isAr ? 'بانتظار التأكيد' : 'Pending confirmation')}
-              </div>
-            </div>
+            ))}
           </div>
         )}
       </Card>
 
-      {/* Commercial Terms Snapshot */}
+      {/* Commercial Terms */}
       {terms && (
         <Card>
           <CardHeader
-            title={isAr ? 'الشروط التجارية المُجمّدة' : 'Frozen Commercial Terms'}
+            title={isAr ? 'الشروط التجارية المتفق عليها' : 'Agreed Commercial Terms'}
             subtitle={isAr
-              ? 'هذه الشروط محمية وتمثل الاتفاقية التجارية الملزمة'
-              : 'These terms are immutable and represent the binding commercial agreement'}
+              ? 'نسخة الشروط التجارية المسجلة عند إنشاء الصفقة'
+              : 'The commercial terms recorded when this deal was created'}
           />
+
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
             <div>
-              <p className="text-[#64748B] text-xs mb-0.5">{isAr ? 'المبلغ الإجمالي' : 'Total Amount'}</p>
-              <p className="font-bold text-[#06245B] text-lg">{formatCurrency(terms.totalAmount)}</p>
-            </div>
-            <div>
-              <p className="text-[#64748B] text-xs mb-0.5">{isAr ? 'العملة' : 'Currency'}</p>
-              <p className="font-medium text-[#1E293B]">{terms.currency}</p>
-            </div>
-            <div>
-              <p className="text-[#64748B] text-xs mb-0.5">{isAr ? 'مهلة التسليم' : 'Lead Time'}</p>
-              <p className="font-medium text-[#1E293B]">{terms.deliveryLeadTimeDays} {isAr ? 'يوم' : 'days'}</p>
-            </div>
-            <div>
-              <p className="text-[#64748B] text-xs mb-0.5">{isAr ? 'الشحن مشمول' : 'Shipping'}</p>
-              <p className="font-medium text-[#1E293B]">
-                {terms.shippingIncluded ? (isAr ? 'مشمول' : 'Included') : (isAr ? 'غير مشمول' : 'Not Included')}
+              <p className="text-[#64748B] text-xs mb-1">
+                {isAr ? 'المبلغ الإجمالي' : 'Total Amount'}
+              </p>
+              <p className="font-bold text-[#06245B] text-lg">
+                {formatCurrency(terms.totalAmount)}
               </p>
             </div>
+
             <div>
-              <p className="text-[#64748B] text-xs mb-0.5">{isAr ? 'شروط الدفع' : 'Payment Terms'}</p>
-              <p className="font-medium text-[#1E293B]">{terms.paymentTerms}</p>
+              <p className="text-[#64748B] text-xs mb-1">
+                {isAr ? 'العملة' : 'Currency'}
+              </p>
+              <p className="font-medium text-[#1E293B]">
+                {terms.currency || '—'}
+              </p>
             </div>
+
             <div>
-              <p className="text-[#64748B] text-xs mb-0.5">{isAr ? 'صالحية العرض' : 'Offer Validity'}</p>
-              <p className="font-medium text-[#1E293B]">{formatDate(terms.validityDateUtc)}</p>
+              <p className="text-[#64748B] text-xs mb-1">
+                {isAr ? 'مهلة التسليم' : 'Lead Time'}
+              </p>
+              <p className="font-medium text-[#1E293B]">
+                {terms.deliveryLeadTimeDays ?? '—'} {isAr ? 'يوم' : 'days'}
+              </p>
+            </div>
+
+            <div>
+              <p className="text-[#64748B] text-xs mb-1">
+                {isAr ? 'الشحن' : 'Shipping'}
+              </p>
+              <p className="font-medium text-[#1E293B]">
+                {terms.shippingIncluded
+                  ? (isAr ? 'مشمول' : 'Included')
+                  : (isAr ? 'غير مشمول' : 'Not Included')}
+              </p>
+            </div>
+
+            <div>
+              <p className="text-[#64748B] text-xs mb-1">
+                {isAr ? 'شروط الدفع' : 'Payment Terms'}
+              </p>
+              <p className="font-medium text-[#1E293B]">
+                {terms.paymentTerms || '—'}
+              </p>
+            </div>
+
+            <div>
+              <p className="text-[#64748B] text-xs mb-1">
+                {isAr ? 'صلاحية العرض' : 'Offer Validity'}
+              </p>
+              <p className="font-medium text-[#1E293B]">
+                {terms.validityDateUtc
+                  ? formatDate(terms.validityDateUtc)
+                  : '—'}
+              </p>
             </div>
           </div>
 
           <CardDivider />
 
-          {/* Line items */}
           <h4 className="text-sm font-semibold text-[#06245B] mb-3">
             {isAr ? 'بنود الصفقة' : 'Deal Line Items'}
           </h4>
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-[#64748B] text-xs border-b border-[rgba(6,36,91,0.06)]">
-                <th className="text-start pb-2">{isAr ? 'المادة' : 'Material'}</th>
-                <th className="text-end pb-2">{isAr ? 'الكمية' : 'Qty'}</th>
-                <th className="text-end pb-2">{isAr ? 'سعر الوحدة' : 'Unit Price'}</th>
-                <th className="text-end pb-2">{isAr ? 'الإجمالي' : 'Total'}</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[rgba(6,36,91,0.04)]">
-              {terms.items.map((item, i) => (
-                <tr key={i} className="text-[#1E293B]">
-                  <td className="py-2">{item.materialName}</td>
-                  <td className="py-2 text-end text-[#64748B]">{item.offeredQuantity}</td>
-                  <td className="py-2 text-end">{formatCurrency(item.unitPrice)}</td>
-                  <td className="py-2 text-end font-semibold">{formatCurrency(item.totalPrice)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+
+          {lineItems.length === 0 ? (
+            <p className="text-sm text-slate-500 py-4 text-center">
+              {isAr ? 'لا توجد بنود مسجلة' : 'No line items available'}
+            </p>
+          ) : (
+            <div className="overflow-x-auto -mx-2 px-2">
+              <table className="w-full min-w-[600px] text-sm">
+                <thead>
+                  <tr className="text-[#64748B] text-xs border-b border-slate-200">
+                    <th className="text-start pb-3 pe-3">
+                      {isAr ? 'المادة' : 'Material'}
+                    </th>
+                    <th className="text-end pb-3 px-3">
+                      {isAr ? 'الكمية' : 'Quantity'}
+                    </th>
+                    <th className="text-end pb-3 px-3">
+                      {isAr ? 'سعر الوحدة' : 'Unit Price'}
+                    </th>
+                    <th className="text-end pb-3 ps-3">
+                      {isAr ? 'الإجمالي' : 'Total'}
+                    </th>
+                  </tr>
+                </thead>
+
+                <tbody className="divide-y divide-slate-100">
+                  {lineItems.map((item, index) => (
+                    <tr key={item.id || index} className="text-[#1E293B]">
+                      <td className="py-3 pe-3 font-medium">
+                        {item.materialName || item.productName || '—'}
+                      </td>
+                      <td className="py-3 px-3 text-end text-slate-600">
+                        {item.offeredQuantity ?? item.quantity ?? '—'}
+                      </td>
+                      <td className="py-3 px-3 text-end">
+                        {item.unitPrice != null
+                          ? formatCurrency(item.unitPrice)
+                          : '—'}
+                      </td>
+                      <td className="py-3 ps-3 text-end font-semibold">
+                        {item.totalPrice != null
+                          ? formatCurrency(item.totalPrice)
+                          : '—'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </Card>
       )}
 
       {/* Shipments */}
       <Card>
-        <CardHeader
-          title={isAr ? 'الشحنات' : 'Shipments'}
-          subtitle={isAr ? 'تتبع شحنات هذه الصفقة' : 'Track shipments for this deal'}
-        />
-        {!shipments || shipments.length === 0 ? (
+        <div className="flex items-start justify-between gap-3">
+          <CardHeader
+            title={isAr ? 'الشحنات' : 'Shipments'}
+            subtitle={isAr
+              ? 'الشحنات المرتبطة بهذه الصفقة'
+              : 'Shipments associated with this deal'}
+          />
+
+          <button
+            type="button"
+            onClick={() => refetchShipments()}
+            disabled={shipmentsLoading}
+            className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 disabled:opacity-50"
+            aria-label={isAr ? 'تحديث الشحنات' : 'Refresh shipments'}
+          >
+            <RefreshCw size={16} className={shipmentsLoading ? 'animate-spin' : ''} />
+          </button>
+        </div>
+
+        {shipmentsLoading ? (
+          <p className="text-sm text-slate-500 text-center py-6">
+            {isAr ? 'جاري تحميل الشحنات...' : 'Loading shipments...'}
+          </p>
+        ) : shipmentsError ? (
+          <div className="text-center py-6">
+            <p className="text-sm text-red-600 mb-3">
+              {isAr ? 'تعذر تحميل الشحنات' : 'Could not load shipments'}
+            </p>
+            <Button variant="outline" size="sm" onClick={() => refetchShipments()}>
+              {isAr ? 'إعادة المحاولة' : 'Retry'}
+            </Button>
+          </div>
+        ) : shipments.length === 0 ? (
           <div className="text-center py-8">
             <Truck size={40} className="mx-auto text-[#CBD5E1] mb-3" />
-            <p className="text-sm text-[#64748B]">{isAr ? 'لا توجد شحنات بعد' : 'No shipments yet'}</p>
+            <p className="text-sm text-[#64748B]">
+              {isAr ? 'لا توجد شحنات مسجلة لهذه الصفقة' : 'No shipments recorded for this deal'}
+            </p>
           </div>
         ) : (
           <div className="space-y-3">
@@ -461,15 +760,22 @@ export default function DealDetailPage() {
               <Link
                 key={shipment.id}
                 to={`/shipments/${shipment.id}`}
-                className="flex items-center justify-between p-3 bg-[#F4F7FB] rounded-lg hover:bg-[#EAF4FF] transition-colors"
+                className="flex items-center justify-between gap-3 p-3 bg-[#F4F7FB] rounded-xl hover:bg-[#EAF4FF] transition-colors"
               >
-                <div>
-                  <span className="font-medium text-sm text-[#06245B]">{shipment.shipmentNumber}</span>
-                  <p className="text-xs text-[#64748B] mt-0.5">
-                    {shipment.arrangement === 'SupplierArranged' ? (isAr ? 'بترتيب المورد' : 'Supplier Arranged') : (isAr ? 'بترتيب ديل زون' : 'DealZone Arranged')}
+                <div className="min-w-0">
+                  <span className="font-medium text-sm text-[#06245B]">
+                    {shipment.shipmentNumber || (isAr ? 'شحنة' : 'Shipment')}
+                  </span>
+                  <p className="text-xs text-[#64748B] mt-1">
+                    {shipment.arrangement === 'SupplierArranged'
+                      ? (isAr ? 'بترتيب المورد' : 'Supplier Arranged')
+                      : (isAr ? 'بترتيب ديل زون' : 'DealZone Arranged')}
                   </p>
                 </div>
-                <Badge variant="info">{shipment.status}</Badge>
+
+                <Badge variant="info">
+                  {shipment.status || '—'}
+                </Badge>
               </Link>
             ))}
           </div>
@@ -477,25 +783,51 @@ export default function DealDetailPage() {
       </Card>
 
       {/* Disputes */}
-      {deal.disputes && deal.disputes.length > 0 && (
+      {disputes.length > 0 && (
         <Card>
           <CardHeader title={isAr ? 'النزاعات' : 'Disputes'} />
+
           <div className="space-y-3">
-            {deal.disputes.map((dispute) => (
-              <div key={dispute.id} className="p-4 bg-[#FEF2F2] rounded-lg border border-[#FECACA]">
-                <div className="flex items-center justify-between gap-2 mb-2">
-                  <span className="font-medium text-sm text-[#06245B]">{dispute.category}</span>
-                  <Badge variant={dispute.status === 'Open' ? 'error' : dispute.status === 'Resolved' ? 'success' : 'warning'}>
-                    {dispute.status}
+            {disputes.map((dispute) => (
+              <div
+                key={dispute.id}
+                className="p-4 bg-red-50 rounded-xl border border-red-100"
+              >
+                <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
+                  <span className="font-medium text-sm text-[#06245B]">
+                    {dispute.category || (isAr ? 'نزاع' : 'Dispute')}
+                  </span>
+
+                  <Badge
+                    variant={
+                      dispute.status === 'Open'
+                        ? 'error'
+                        : dispute.status === 'Resolved'
+                          ? 'success'
+                          : 'warning'
+                    }
+                  >
+                    {dispute.status || '—'}
                   </Badge>
                 </div>
-                <p className="text-sm text-[#475569]">{dispute.description}</p>
-                <p className="text-xs text-[#64748B] mt-1">
-                  {isAr ? 'بواسطة:' : 'By:'} {dispute.openedByCompanyName} · {formatDate(dispute.openedAtUtc)}
+
+                <p className="text-sm text-[#475569] whitespace-pre-wrap break-words">
+                  {dispute.description || '—'}
                 </p>
+
+                <p className="text-xs text-[#64748B] mt-2">
+                  {isAr ? 'بواسطة:' : 'By:'}{' '}
+                  {dispute.openedByCompanyName || '—'}
+                  {' · '}
+                  {dispute.openedAtUtc
+                    ? formatDate(dispute.openedAtUtc)
+                    : '—'}
+                </p>
+
                 {dispute.resolutionNotes && (
-                  <p className="text-sm text-[#059669] mt-2 font-medium">
-                    {isAr ? 'القرار:' : 'Resolution:'} {dispute.resolutionNotes}
+                  <p className="text-sm text-emerald-700 mt-3 font-medium">
+                    {isAr ? 'قرار النزاع:' : 'Resolution:'}{' '}
+                    {dispute.resolutionNotes}
                   </p>
                 )}
               </div>
@@ -505,243 +837,307 @@ export default function DealDetailPage() {
       )}
 
       {/* Reviews */}
-      {deal.status === 'Completed' && reviews && reviews.length > 0 && (
+      {deal.status === 'Completed' && (
         <Card>
           <CardHeader title={isAr ? 'التقييمات' : 'Reviews'} />
-          <div className="space-y-3">
-            {reviews.map((review) => (
-              <div key={review.id} className="p-4 bg-[#F4F7FB] rounded-lg">
-                <div className="flex items-center gap-2 mb-1">
-                  <div className="flex">
-                    {Array.from({ length: 5 }).map((_, i) => (
-                      <Star
-                        key={i}
-                        size={16}
-                        className={i < review.rating ? 'text-[#F59E0B] fill-[#F59E0B]' : 'text-[#CBD5E1]'}
-                      />
-                    ))}
+
+          {reviewsLoading ? (
+            <p className="text-sm text-slate-500 text-center py-6">
+              {isAr ? 'جاري تحميل التقييمات...' : 'Loading reviews...'}
+            </p>
+          ) : reviewsError ? (
+            <p className="text-sm text-red-600 text-center py-6">
+              {isAr ? 'تعذر تحميل التقييمات' : 'Could not load reviews'}
+            </p>
+          ) : reviews.length === 0 ? (
+            <p className="text-sm text-slate-500 text-center py-6">
+              {isAr ? 'لم يتم إرسال تقييمات بعد' : 'No reviews submitted yet'}
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {reviews.map((review) => (
+                <div key={review.id} className="p-4 bg-[#F4F7FB] rounded-xl">
+                  <div className="flex items-center gap-2 mb-2 flex-wrap">
+                    <div
+                      className="flex"
+                      role="img"
+                      aria-label={`${review.rating} ${isAr ? 'من 5 نجوم' : 'out of 5 stars'}`}
+                    >
+                      {Array.from({ length: 5 }).map((_, index) => (
+                        <Star
+                          key={index}
+                          size={16}
+                          aria-hidden="true"
+                          className={
+                            index < review.rating
+                              ? 'text-[#F59E0B] fill-[#F59E0B]'
+                              : 'text-[#CBD5E1]'
+                          }
+                        />
+                      ))}
+                    </div>
+
+                    <span className="text-sm font-medium text-[#06245B]">
+                      {review.reviewerCompanyName || '—'}
+                    </span>
                   </div>
-                  <span className="text-sm font-medium text-[#06245B]">{review.reviewerCompanyName}</span>
+
+                  {review.comment && (
+                    <p className="text-sm text-[#475569] whitespace-pre-wrap break-words">
+                      {review.comment}
+                    </p>
+                  )}
+
+                  <p className="text-xs text-[#94A3B8] mt-2">
+                    {review.createdAtUtc
+                      ? formatDate(review.createdAtUtc)
+                      : '—'}
+                  </p>
                 </div>
-                <p className="text-sm text-[#475569]">{review.comment}</p>
-                <p className="text-xs text-[#94A3B8] mt-1">{formatDate(review.createdAtUtc)}</p>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </Card>
       )}
 
       {/* Cancel Modal */}
-      <Modal isOpen={showCancel} onClose={() => setShowCancel(false)} title={isAr ? 'إلغاء الصفقة' : 'Cancel Deal'}>
+      <Modal
+        isOpen={showCancel}
+        onClose={() => !cancelMutation.isPending && setShowCancel(false)}
+        title={isAr ? 'إلغاء الصفقة' : 'Cancel Deal'}
+      >
         <div className="space-y-4 mb-6">
-          <p className="text-[#475569] text-sm">{isAr ? 'الرجاء تقديم سبب الإلغاء.' : 'Please provide a reason for cancellation.'}</p>
+          <p className="text-sm text-[#475569]">
+            {isAr
+              ? 'يرجى توضيح سبب إلغاء الصفقة. سيتم تسجيل السبب ضمن تفاصيل الصفقة.'
+              : 'Please explain why you want to cancel this deal. The reason will be recorded.'}
+          </p>
+
           <textarea
             value={cancelReason}
-            onChange={(e) => setCancelReason(e.target.value)}
+            onChange={(event) => setCancelReason(event.target.value)}
             placeholder={isAr ? 'سبب الإلغاء...' : 'Cancellation reason...'}
-            rows={3}
-            required
-            className="w-full px-3 py-2.5 rounded-lg border border-[rgba(6,36,91,0.12)] text-sm
-                       focus:outline-none focus:border-[#1266D6] resize-none text-[#1E293B]"
+            rows={4}
+            maxLength={1000}
+            disabled={cancelMutation.isPending}
+            className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm focus:outline-none focus:border-[#1266D6] resize-y text-[#1E293B] disabled:bg-slate-50"
           />
+
+          <p className="text-xs text-slate-400 text-end">
+            {cancelReason.length}/1000
+          </p>
         </div>
+
         <div className="flex justify-end gap-3">
-          <Button variant="outline" onClick={() => setShowCancel(false)}>
-            {isAr ? 'تراجع' : 'Go Back'}
+          <Button
+            variant="outline"
+            onClick={() => setShowCancel(false)}
+            disabled={cancelMutation.isPending}
+          >
+            {isAr ? 'رجوع' : 'Go Back'}
           </Button>
+
           <Button
             variant="danger"
             onClick={() => cancelMutation.mutate()}
             loading={cancelMutation.isPending}
-            disabled={!cancelReason.trim()}
+            disabled={!canSubmitCancel || cancelMutation.isPending}
           >
-            {isAr ? 'إلغاء الصفقة' : 'Cancel Deal'}
+            {isAr ? 'تأكيد الإلغاء' : 'Confirm Cancellation'}
           </Button>
         </div>
       </Modal>
 
       {/* Complete Modal */}
-      <Modal isOpen={showComplete} onClose={() => setShowComplete(false)} title={isAr ? 'إتمام الصفقة' : 'Complete Deal'}>
-        <p className="text-[#475569] mb-6">
-          {isAr ? 'بمجرد إتمام الصفقة، سيتمكن الطرفان من تقييم بعضهما البعض.' : 'Once completed, both parties can leave reviews.'}
-        </p>
+      <Modal
+        isOpen={showComplete}
+        onClose={() => !completeMutation.isPending && setShowComplete(false)}
+        title={isAr ? 'إتمام الصفقة' : 'Complete Deal'}
+      >
+        <div className="space-y-4 mb-6">
+          <div className="p-4 rounded-xl bg-amber-50 border border-amber-100">
+            <div className="flex items-start gap-2">
+              <AlertTriangle size={19} className="text-amber-600 shrink-0 mt-0.5" />
+              <p className="text-sm text-amber-800">
+                {isAr
+                  ? 'تأكد من استلام أو تسليم المنتجات والاتفاق على إتمام الصفقة قبل المتابعة.'
+                  : 'Make sure the goods have been delivered or received and both parties are ready to close the deal.'}
+              </p>
+            </div>
+          </div>
+
+          <p className="text-sm text-[#475569]">
+            {isAr
+              ? 'بعد إتمام الصفقة ستصبح مؤهلة للتقييم، ولن يكون بالإمكان تعديل حالتها من هذه الصفحة.'
+              : 'After completion, the deal becomes eligible for reviews and cannot be reopened from this page.'}
+          </p>
+        </div>
+
         <div className="flex justify-end gap-3">
-          <Button variant="outline" onClick={() => setShowComplete(false)}>
-            {isAr ? 'إلغاء' : 'Cancel'}
+          <Button
+            variant="outline"
+            onClick={() => setShowComplete(false)}
+            disabled={completeMutation.isPending}
+          >
+            {isAr ? 'رجوع' : 'Go Back'}
           </Button>
+
           <Button
             variant="primary"
+            icon={<CheckCircle size={16} />}
             onClick={() => completeMutation.mutate()}
             loading={completeMutation.isPending}
+            disabled={!canComplete || completeMutation.isPending}
           >
-            {isAr ? 'إتمام الصفقة' : 'Complete Deal'}
+            {isAr ? 'تأكيد إتمام الصفقة' : 'Confirm Completion'}
           </Button>
         </div>
       </Modal>
 
       {/* Dispute Modal */}
-      <Modal isOpen={showDispute} onClose={() => setShowDispute(false)} title={isAr ? 'فتح نزاع' : 'Open Dispute'}>
+      <Modal
+        isOpen={showDispute}
+        onClose={() => !disputeMutation.isPending && setShowDispute(false)}
+        title={isAr ? 'فتح نزاع' : 'Open Dispute'}
+      >
         <div className="space-y-4 mb-6">
           <div>
-            <label className="block text-sm font-medium text-[#475569] mb-1">
+            <label className="block text-sm font-medium text-[#475569] mb-2">
               {isAr ? 'نوع النزاع' : 'Dispute Category'}
             </label>
+
             <select
               value={disputeCategory}
-              onChange={(e) => setDisputeCategory(Number(e.target.value))}
-              className="w-full px-3 py-2.5 rounded-lg border border-[rgba(6,36,91,0.12)] text-sm focus:outline-none focus:border-[#1266D6] bg-white text-[#1E293B]"
+              onChange={(event) => setDisputeCategory(Number(event.target.value))}
+              disabled={disputeMutation.isPending}
+              className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm focus:outline-none focus:border-[#1266D6] bg-white text-[#1E293B]"
             >
-              {disputeCategories.map((c) => (
-                <option key={c.value} value={c.value}>{isAr ? c.labelAr : c.label}</option>
+              {disputeCategories.map((category) => (
+                <option key={category.value} value={category.value}>
+                  {isAr ? category.labelAr : category.label}
+                </option>
               ))}
             </select>
           </div>
+
           <div>
-            <label className="block text-sm font-medium text-[#475569] mb-1">
+            <label className="block text-sm font-medium text-[#475569] mb-2">
               {isAr ? 'وصف النزاع *' : 'Description *'}
             </label>
+
             <textarea
               value={disputeDescription}
-              onChange={(e) => setDisputeDescription(e.target.value)}
-              placeholder={isAr ? 'وصف مفصل لسبب النزاع...' : 'Detailed description of the dispute...'}
-              rows={4}
-              className="w-full px-3 py-2.5 rounded-lg border border-[rgba(6,36,91,0.12)] text-sm
-                         focus:outline-none focus:border-[#1266D6] resize-none text-[#1E293B]"
+              onChange={(event) => setDisputeDescription(event.target.value)}
+              placeholder={isAr
+                ? 'اشرح المشكلة والتفاصيل المتعلقة بها...'
+                : 'Describe the issue and relevant details...'}
+              rows={5}
+              maxLength={3000}
+              disabled={disputeMutation.isPending}
+              className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm focus:outline-none focus:border-[#1266D6] resize-y text-[#1E293B] disabled:bg-slate-50"
             />
+
+            <p className="text-xs text-slate-400 text-end mt-1">
+              {disputeDescription.length}/3000
+            </p>
           </div>
         </div>
+
         <div className="flex justify-end gap-3">
-          <Button variant="outline" onClick={() => setShowDispute(false)}>
+          <Button
+            variant="outline"
+            onClick={() => setShowDispute(false)}
+            disabled={disputeMutation.isPending}
+          >
             {isAr ? 'إلغاء' : 'Cancel'}
           </Button>
+
           <Button
             variant="danger"
             onClick={() => disputeMutation.mutate()}
             loading={disputeMutation.isPending}
-            disabled={!disputeDescription.trim()}
+            disabled={!canSubmitDispute || disputeMutation.isPending}
           >
-            {isAr ? 'فتح النزاع' : 'Open Dispute'}
+            {isAr ? 'إرسال النزاع' : 'Submit Dispute'}
           </Button>
         </div>
       </Modal>
 
       {/* Review Modal */}
-      <Modal isOpen={showReview} onClose={() => setShowReview(false)} title={isAr ? 'تقييم الطرف الآخر' : 'Leave a Review'}>
-        <div className="space-y-4 mb-6">
+      <Modal
+        isOpen={showReview}
+        onClose={() => !reviewMutation.isPending && setShowReview(false)}
+        title={isAr ? 'تقييم الطرف الآخر' : 'Leave a Review'}
+      >
+        <div className="space-y-5 mb-6">
           <div>
-            <label className="block text-sm font-medium text-[#475569] mb-2">
-              {isAr ? 'التقييم' : 'Rating'}
+            <label className="block text-sm font-medium text-[#475569] mb-3">
+              {isAr ? 'تقييمك للصفقة' : 'Your Rating'}
             </label>
-            <div className="flex gap-2">
+
+            <div className="flex gap-2" dir="ltr">
               {[1, 2, 3, 4, 5].map((star) => (
                 <button
                   key={star}
                   type="button"
                   onClick={() => setReviewRating(star)}
-                  className="p-1"
+                  disabled={reviewMutation.isPending}
+                  aria-label={`${star} ${isAr ? 'نجوم' : 'stars'}`}
+                  aria-pressed={reviewRating === star}
+                  className="p-1 rounded-lg hover:bg-amber-50 focus:outline-none focus:ring-2 focus:ring-amber-400 disabled:opacity-50"
                 >
                   <Star
-                    size={28}
-                    className={star <= reviewRating ? 'text-[#F59E0B] fill-[#F59E0B]' : 'text-[#CBD5E1]'}
+                    size={30}
+                    className={
+                      star <= reviewRating
+                        ? 'text-[#F59E0B] fill-[#F59E0B]'
+                        : 'text-[#CBD5E1]'
+                    }
                   />
                 </button>
               ))}
             </div>
           </div>
+
           <div>
-            <label className="block text-sm font-medium text-[#475569] mb-1">
-              {isAr ? 'التعليق' : 'Comment'}
+            <label className="block text-sm font-medium text-[#475569] mb-2">
+              {isAr ? 'التعليق (اختياري)' : 'Comment (Optional)'}
             </label>
+
             <textarea
               value={reviewComment}
-              onChange={(e) => setReviewComment(e.target.value)}
-              placeholder={isAr ? 'شاركنا تجربتك...' : 'Share your experience...'}
-              rows={3}
-              className="w-full px-3 py-2.5 rounded-lg border border-[rgba(6,36,91,0.12)] text-sm
-                         focus:outline-none focus:border-[#1266D6] resize-none text-[#1E293B]"
+              onChange={(event) => setReviewComment(event.target.value)}
+              placeholder={isAr
+                ? 'شاركنا تجربتك مع الطرف الآخر...'
+                : 'Share your experience with the other party...'}
+              rows={4}
+              maxLength={1000}
+              disabled={reviewMutation.isPending}
+              className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm focus:outline-none focus:border-[#1266D6] resize-y text-[#1E293B] disabled:bg-slate-50"
             />
+
+            <p className="text-xs text-slate-400 text-end mt-1">
+              {reviewComment.length}/1000
+            </p>
           </div>
         </div>
+
         <div className="flex justify-end gap-3">
-          <Button variant="outline" onClick={() => setShowReview(false)}>
+          <Button
+            variant="outline"
+            onClick={() => setShowReview(false)}
+            disabled={reviewMutation.isPending}
+          >
             {isAr ? 'إلغاء' : 'Cancel'}
           </Button>
+
           <Button
             variant="primary"
             onClick={() => reviewMutation.mutate()}
             loading={reviewMutation.isPending}
+            disabled={reviewMutation.isPending}
           >
             {isAr ? 'إرسال التقييم' : 'Submit Review'}
-          </Button>
-        </div>
-      </Modal>
-
-      {/* Create Shipment Modal */}
-      <Modal isOpen={showCreateShipment} onClose={() => setShowCreateShipment(false)} title={isAr ? 'إنشاء شحنة' : 'Create Shipment'}>
-        <div className="space-y-4 mb-6">
-          <div>
-            <label className="block text-sm font-medium text-[#475569] mb-1">
-              {isAr ? 'ترتيب الشحن' : 'Shipping Arrangement'}
-            </label>
-            <select
-              value={shipArrangement}
-              onChange={(e) => setShipArrangement(Number(e.target.value))}
-              className="w-full px-3 py-2.5 rounded-lg border border-[rgba(6,36,91,0.12)] text-sm focus:outline-none focus:border-[#1266D6] bg-white text-[#1E293B]"
-            >
-              <option value={1}>{isAr ? 'بترتيب المورد' : 'Supplier Arranged'}</option>
-              <option value={2}>{isAr ? 'بترتيب ديل زون' : 'DealZone Arranged'}</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-[#475569] mb-1">
-              {isAr ? 'عنوان الاستلام *' : 'Pickup Address *'}
-            </label>
-            <input
-              type="text"
-              value={shipPickup}
-              onChange={(e) => setShipPickup(e.target.value)}
-              placeholder={isAr ? 'عنوان الاستلام...' : 'Pickup address...'}
-              className="w-full px-3 py-2.5 rounded-lg border border-[rgba(6,36,91,0.12)] text-sm focus:outline-none focus:border-[#1266D6] text-[#1E293B]"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-[#475569] mb-1">
-              {isAr ? 'عنوان التسليم *' : 'Delivery Address *'}
-            </label>
-            <input
-              type="text"
-              value={shipDelivery}
-              onChange={(e) => setShipDelivery(e.target.value)}
-              placeholder={isAr ? 'عنوان التسليم...' : 'Delivery address...'}
-              className="w-full px-3 py-2.5 rounded-lg border border-[rgba(6,36,91,0.12)] text-sm focus:outline-none focus:border-[#1266D6] text-[#1E293B]"
-            />
-          </div>
-          {shipArrangement === 1 && (
-            <div>
-              <label className="block text-sm font-medium text-[#475569] mb-1">
-                {isAr ? 'الناقل (اختياري)' : 'Carrier (optional)'}
-              </label>
-              <input
-                type="text"
-                value={shipCarrier}
-                onChange={(e) => setShipCarrier(e.target.value)}
-                placeholder={isAr ? 'اسم الناقل...' : 'Carrier name...'}
-                className="w-full px-3 py-2.5 rounded-lg border border-[rgba(6,36,91,0.12)] text-sm focus:outline-none focus:border-[#1266D6] text-[#1E293B]"
-              />
-            </div>
-          )}
-        </div>
-        <div className="flex justify-end gap-3">
-          <Button variant="outline" onClick={() => setShowCreateShipment(false)}>
-            {isAr ? 'إلغاء' : 'Cancel'}
-          </Button>
-          <Button
-            variant="primary"
-            onClick={() => shipmentMutation.mutate()}
-            loading={shipmentMutation.isPending}
-            disabled={!shipPickup.trim() || !shipDelivery.trim()}
-          >
-            {isAr ? 'إنشاء شحنة' : 'Create Shipment'}
           </Button>
         </div>
       </Modal>

@@ -10,9 +10,11 @@ using DealZone.Domain.Deals;
 using DealZone.Domain.Exceptions;
 using DealZone.Domain.Notifications;
 using DealZone.Domain.Purchasing;
+using DealZone.Infrastructure.Options;
 using DealZone.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace DealZone.Infrastructure.Services;
 
@@ -22,6 +24,7 @@ public class PurchasingService : IPurchasingService
     private readonly ICurrentUser _currentUser;
     private readonly IDateTimeProvider _dateTimeProvider;
     private readonly INotificationService _notificationService;
+    private readonly PricingSettings _pricingSettings;
     private readonly ILogger<PurchasingService> _logger;
 
     public PurchasingService(
@@ -29,12 +32,14 @@ public class PurchasingService : IPurchasingService
         ICurrentUser currentUser,
         IDateTimeProvider dateTimeProvider,
         INotificationService notificationService,
+        IOptions<PricingSettings> pricingOptions,
         ILogger<PurchasingService> logger)
     {
         _context = context;
         _currentUser = currentUser;
         _dateTimeProvider = dateTimeProvider;
         _notificationService = notificationService;
+        _pricingSettings = pricingOptions.Value;
         _logger = logger;
     }
 
@@ -44,6 +49,7 @@ public class PurchasingService : IPurchasingService
     {
         var now = _dateTimeProvider.UtcNow;
         var (buyerCompany, buyerMember) = await RequireApprovedCompanyAsync(cancellationToken);
+        buyerCompany.AssertCanOperateAsBuyer();
 
         // Role check: Buyer owner, admin, or procurement manager
         if (buyerMember.Role is not (CompanyRole.Owner or CompanyRole.Admin or CompanyRole.ProcurementManager))
@@ -51,9 +57,33 @@ public class PurchasingService : IPurchasingService
             throw new ForbiddenException("Only company Owners, Admins, and Procurement Managers can place direct purchase orders.");
         }
 
-        // Fetch catalog product with category, material, and supplier company
+        // Idempotency: check if client provided ClientRequestId and we already created this purchase for this buyer company
+        if (!string.IsNullOrWhiteSpace(request.ClientRequestId))
+        {
+            var trimmedReqId = request.ClientRequestId.Trim();
+            var existing = await _context.DirectPurchases
+                .AsNoTracking()
+                .Include(p => p.CatalogProduct)
+                    .ThenInclude(cp => cp.Material)
+                        .ThenInclude(m => m.DefaultUnit)
+                .Include(p => p.CatalogProduct)
+                    .ThenInclude(cp => cp.Unit)
+                .Include(p => p.BuyerCompany)
+                .Include(p => p.SupplierCompany)
+                .Include(p => p.Deal)
+                .FirstOrDefaultAsync(p => p.BuyerCompanyId == buyerCompany.Id && p.ClientRequestId == trimmedReqId, cancellationToken);
+
+            if (existing != null)
+            {
+                _logger.LogInformation("Returning existing direct purchase {PurchaseNumber} for idempotency key {ClientRequestId}", existing.PurchaseNumber, trimmedReqId);
+                return MapDirectPurchase(existing, existing.CatalogProduct, existing.BuyerCompany, existing.SupplierCompany, existing.Deal);
+            }
+        }
+
+        // Fetch catalog product with category, unit, material, and supplier company
         var product = await _context.CatalogProducts
             .Include(p => p.Category)
+            .Include(p => p.Unit)
             .Include(p => p.Material)
                 .ThenInclude(m => m!.Category)
             .Include(p => p.Material)
@@ -92,7 +122,9 @@ public class PurchasingService : IPurchasingService
             throw new ConflictException("A company cannot purchase its own catalog products.");
         }
 
-        var unitName = product.Unit ?? product.Material?.DefaultUnit?.SymbolEn ?? "units";
+        var unitName = product.Unit?.Code ?? product.Material?.DefaultUnit?.Code ?? "ton";
+        var unitNameAr = product.Unit?.NameAr ?? product.Material?.DefaultUnit?.NameAr ?? unitName;
+        var unitNameEn = product.Unit?.NameEn ?? product.Material?.DefaultUnit?.NameEn ?? unitName;
 
         // Quantity constraints validation
         if (request.Quantity <= 0)
@@ -107,19 +139,30 @@ public class PurchasingService : IPurchasingService
                 $"Requested quantity ({request.Quantity:G29}) is less than the minimum order quantity ({product.MinimumOrderQuantity:G29} {unitName}).");
         }
 
-        if (request.Quantity > product.AvailableQuantity)
+        if (product.PricingMode != ProductPricingMode.Fixed || !product.UnitPrice.HasValue)
+        {
+            throw new ValidationException(nameof(product.PricingMode), "This product is only available via price negotiation. Direct purchase is not supported.");
+        }
+
+        if (product.AvailableQuantity.HasValue && request.Quantity > product.AvailableQuantity.Value)
         {
             throw new ConflictException(
-                $"Requested quantity ({request.Quantity:G29}) exceeds available stock ({product.AvailableQuantity:G29} {unitName}).");
+                $"Requested quantity ({request.Quantity:G29}) exceeds available stock ({product.AvailableQuantity.Value:G29} {unitName}).");
         }
 
         // Server-side calculation — NEVER trust client-submitted prices
-        var unitPrice = product.UnitPrice;
-        var totalPrice = Math.Round(unitPrice * request.Quantity, 2);
+        var vatRate = _pricingSettings.VatRate;
+        var unitPrice = product.UnitPrice.Value;
+        var subtotal = Math.Round(unitPrice * request.Quantity, 2);
+        var vatAmount = Math.Round(subtotal * vatRate, 2);
+        var totalPrice = subtotal + vatAmount;
         var currency = string.IsNullOrWhiteSpace(product.Currency) ? "EGP" : product.Currency.Trim().ToUpperInvariant();
 
         // Concurrency token & stock deduction
-        product.AvailableQuantity -= request.Quantity;
+        if (product.AvailableQuantity.HasValue)
+        {
+            product.AvailableQuantity -= request.Quantity;
+        }
 
         var purchaseNumber = $"DP-{now:yyyyMM}-{Guid.NewGuid().ToString("N")[..6].ToUpperInvariant()}";
         var dealNumber = $"DEAL-{now:yyyyMM}-{Guid.NewGuid().ToString("N")[..6].ToUpperInvariant()}";
@@ -128,19 +171,22 @@ public class PurchasingService : IPurchasingService
         // Build product snapshot JSON
         var productSnapshot = new DirectPurchaseItemSnapshot(
             product.Id,
-            product.Sku,
+            product.Sku ?? string.Empty,
             product.NameAr,
-            product.NameEn,
-            product.MaterialId.GetValueOrDefault(),
-            product.Material?.Code ?? product.Sku,
+            product.NameEn ?? product.NameAr,
+            product.MaterialId,
+            product.Material?.Code ?? (product.Sku ?? string.Empty),
             product.Material?.NameAr ?? product.NameAr,
-            product.Material?.NameEn ?? product.NameEn,
-            product.Material?.DefaultUnit?.Code ?? product.Unit,
-            product.Material?.DefaultUnit?.NameAr ?? product.Unit,
-            product.Material?.DefaultUnit?.NameEn ?? product.Unit,
+            product.Material?.NameEn ?? (product.NameEn ?? product.NameAr),
+            unitName,
+            unitNameAr,
+            unitNameEn,
             categoryCode,
             request.Quantity,
             unitPrice,
+            subtotal,
+            vatRate,
+            vatAmount,
             totalPrice,
             currency,
             product.DeliveryLeadTimeDays,
@@ -151,12 +197,16 @@ public class PurchasingService : IPurchasingService
         var directPurchase = new DirectPurchase
         {
             PurchaseNumber = purchaseNumber,
+            ClientRequestId = request.ClientRequestId?.Trim(),
             BuyerCompanyId = buyerCompany.Id,
             BuyerUserId = _currentUser.Id!.Value,
             SupplierCompanyId = product.SupplierCompanyId,
             CatalogProductId = product.Id,
             Quantity = request.Quantity,
             UnitPrice = unitPrice,
+            Subtotal = subtotal,
+            VatRate = vatRate,
+            VatAmount = vatAmount,
             TotalPrice = totalPrice,
             Currency = currency,
             DeliveryLeadTimeDays = product.DeliveryLeadTimeDays,
@@ -274,6 +324,8 @@ public class PurchasingService : IPurchasingService
             .Include(p => p.CatalogProduct)
                 .ThenInclude(cp => cp.Material)
                     .ThenInclude(m => m.DefaultUnit)
+            .Include(p => p.CatalogProduct)
+                .ThenInclude(cp => cp.Unit)
             .Include(p => p.BuyerCompany)
             .Include(p => p.SupplierCompany)
             .Include(p => p.Deal)
@@ -312,6 +364,8 @@ public class PurchasingService : IPurchasingService
             .Include(p => p.CatalogProduct)
                 .ThenInclude(cp => cp.Material)
                     .ThenInclude(m => m.DefaultUnit)
+            .Include(p => p.CatalogProduct)
+                .ThenInclude(cp => cp.Unit)
             .Include(p => p.BuyerCompany)
             .Include(p => p.SupplierCompany)
             .Include(p => p.Deal)
@@ -320,7 +374,7 @@ public class PurchasingService : IPurchasingService
 
         if (purchase.BuyerCompanyId != company.Id && purchase.SupplierCompanyId != company.Id)
         {
-            throw new ForbiddenException("You do not have permission to view this purchase order.");
+            throw new NotFoundException($"Direct purchase {id} was not found.");
         }
 
         return MapDirectPurchase(purchase, purchase.CatalogProduct, purchase.BuyerCompany, purchase.SupplierCompany, purchase.Deal);
@@ -351,25 +405,32 @@ public class PurchasingService : IPurchasingService
         Company supplier,
         Deal? deal)
     {
+        var unitCode = prod?.Unit?.Code ?? prod?.Material?.DefaultUnit?.Code ?? "ton";
+        var unitNameAr = prod?.Unit?.NameAr ?? prod?.Material?.DefaultUnit?.NameAr ?? unitCode;
+        var unitNameEn = prod?.Unit?.NameEn ?? prod?.Material?.DefaultUnit?.NameEn ?? unitCode;
+
         return new DirectPurchaseResponse(
             p.Id,
             p.PurchaseNumber,
             p.BuyerCompanyId,
-            buyer.LegalName,
+            buyer?.LegalName ?? string.Empty,
             p.SupplierCompanyId,
-            supplier.LegalName,
-            prod.Id,
-            prod.Sku,
-            prod.NameAr,
-            prod.NameEn,
-            prod.Material?.Code ?? prod.Sku,
-            prod.Material?.NameAr ?? prod.NameAr,
-            prod.Material?.NameEn ?? prod.NameEn,
-            prod.Material?.DefaultUnit?.Code ?? prod.Unit,
-            prod.Material?.DefaultUnit?.NameAr ?? prod.Unit,
-            prod.Material?.DefaultUnit?.NameEn ?? prod.Unit,
+            supplier?.LegalName ?? string.Empty,
+            prod?.Id ?? Guid.Empty,
+            prod?.Sku ?? string.Empty,
+            prod?.NameAr ?? string.Empty,
+            prod?.NameEn ?? string.Empty,
+            prod?.Material?.Code ?? prod?.Sku ?? string.Empty,
+            prod?.Material?.NameAr ?? prod?.NameAr ?? string.Empty,
+            prod?.Material?.NameEn ?? prod?.NameEn ?? string.Empty,
+            unitCode,
+            unitNameAr,
+            unitNameEn,
             p.Quantity,
             p.UnitPrice,
+            p.Subtotal,
+            p.VatRate,
+            p.VatAmount,
             p.TotalPrice,
             p.Currency,
             p.DeliveryLeadTimeDays,

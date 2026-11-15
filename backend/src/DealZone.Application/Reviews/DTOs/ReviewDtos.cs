@@ -4,7 +4,7 @@ namespace DealZone.Application.Reviews.DTOs;
 
 public record CreateReviewRequest(
     int Rating,
-    string Comment);
+    string? Comment = null);
 
 public record ReviewResponse(
     Guid Id,
