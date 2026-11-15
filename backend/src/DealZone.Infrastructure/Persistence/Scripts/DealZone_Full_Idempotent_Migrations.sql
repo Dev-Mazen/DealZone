@@ -2743,7 +2743,7 @@ BEGIN
                     IF @DefaultMaterialId IS NULL
                         SET @DefaultMaterialId = (SELECT TOP 1 Id FROM Materials);
                     IF @DefaultMaterialId IS NOT NULL
-                        UPDATE CatalogProducts SET MaterialId = @DefaultMaterialId WHERE MaterialId IS NULL;
+                        EXEC(N'UPDATE CatalogProducts SET MaterialId = ''' + CAST(@DefaultMaterialId AS nvarchar(36)) + ''' WHERE MaterialId IS NULL');
                 
 END;
 
@@ -2783,14 +2783,14 @@ BEGIN
                     IF @DefaultUnitId IS NULL
                         SET @DefaultUnitId = (SELECT TOP 1 Id FROM UnitsOfMeasure);
                     IF @DefaultUnitId IS NOT NULL
-                        UPDATE CatalogProducts SET UnitId = @DefaultUnitId WHERE UnitId IS NULL OR UnitId = '00000000-0000-0000-0000-000000000000';
+                        EXEC(N'UPDATE CatalogProducts SET UnitId = ''' + CAST(@DefaultUnitId AS nvarchar(36)) + ''' WHERE UnitId IS NULL OR UnitId = ''00000000-0000-0000-0000-000000000000''');
 
                     -- Backfill existing DirectPurchases subtotal and VAT
-                    UPDATE DirectPurchases
+                    EXEC(N'UPDATE DirectPurchases
                     SET VatRate = 0.14,
                         Subtotal = ROUND(TotalPrice / 1.14, 2),
                         VatAmount = ROUND(TotalPrice - (TotalPrice / 1.14), 2)
-                    WHERE Subtotal = 0 AND TotalPrice > 0;
+                    WHERE Subtotal = 0 AND TotalPrice > 0');
                 
 END;
 

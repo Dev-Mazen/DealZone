@@ -56,3 +56,4 @@ export const governorateOptions = (isAr) =>
   )
 
 export const getGovernorateOptions = governorateOptions
+
