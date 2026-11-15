@@ -55,7 +55,10 @@ namespace DealZone.Infrastructure.Persistence.Migrations
                 IF @DefaultMaterialId IS NULL
                     SET @DefaultMaterialId = (SELECT TOP 1 Id FROM Materials);
                 IF @DefaultMaterialId IS NOT NULL
-                    EXEC(N'UPDATE CatalogProducts SET MaterialId = ''' + CAST(@DefaultMaterialId AS nvarchar(36)) + ''' WHERE MaterialId IS NULL');
+                BEGIN
+                    DECLARE @sqlMat nvarchar(max) = N'UPDATE CatalogProducts SET MaterialId = @MatId WHERE MaterialId IS NULL';
+                    EXEC sp_executesql @sqlMat, N'@MatId uniqueidentifier', @MatId = @DefaultMaterialId;
+                END;
             ");
 
             migrationBuilder.AlterColumn<Guid>(
@@ -81,14 +84,18 @@ namespace DealZone.Infrastructure.Persistence.Migrations
                 IF @DefaultUnitId IS NULL
                     SET @DefaultUnitId = (SELECT TOP 1 Id FROM UnitsOfMeasure);
                 IF @DefaultUnitId IS NOT NULL
-                    EXEC(N'UPDATE CatalogProducts SET UnitId = ''' + CAST(@DefaultUnitId AS nvarchar(36)) + ''' WHERE UnitId IS NULL OR UnitId = ''00000000-0000-0000-0000-000000000000''');
+                BEGIN
+                    DECLARE @sqlUnit nvarchar(max) = N'UPDATE CatalogProducts SET UnitId = @UId WHERE UnitId IS NULL OR UnitId = ''00000000-0000-0000-0000-000000000000''';
+                    EXEC sp_executesql @sqlUnit, N'@UId uniqueidentifier', @UId = @DefaultUnitId;
+                END;
 
                 -- Backfill existing DirectPurchases subtotal and VAT
-                EXEC(N'UPDATE DirectPurchases
+                DECLARE @sqlDirect nvarchar(max) = N'UPDATE DirectPurchases
                 SET VatRate = 0.14,
                     Subtotal = ROUND(TotalPrice / 1.14, 2),
                     VatAmount = ROUND(TotalPrice - (TotalPrice / 1.14), 2)
-                WHERE Subtotal = 0 AND TotalPrice > 0');
+                WHERE Subtotal = 0 AND TotalPrice > 0';
+                EXEC sp_executesql @sqlDirect;
             ");
 
             migrationBuilder.CreateIndex(
