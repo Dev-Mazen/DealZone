@@ -264,4 +264,58 @@ public class CatalogIntegrationTests
         Assert.Null(fetchedProduct.MaterialId);
         Assert.Equal("kg", fetchedProduct.Unit, ignoreCase: true);
     }
+
+    [Fact]
+    public async Task GetProducts_AsSystemAdminWithNoCompany_ReturnsOk()
+    {
+        await using var factory = new DealZoneWebApplicationFactory();
+        var client = factory.CreateClient();
+
+        var adminEmail = $"admin-nocompany-{Guid.NewGuid():N}@dealzone.eg";
+        var token = await CreateAdminAndLoginAsync(factory, client, adminEmail);
+
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        var response = await client.GetAsync("/api/v1/catalog/products");
+
+        var content = await response.Content.ReadAsStringAsync();
+        Assert.True(response.StatusCode == HttpStatusCode.OK, $"Expected OK but got {response.StatusCode}. Body: {content}");
+    }
+
+    [Fact]
+    public async Task GetAdminProducts_AsSystemAdminWithNoCompany_Returns200WithPagedResult()
+    {
+        await using var factory = new DealZoneWebApplicationFactory();
+        var client = factory.CreateClient();
+
+        var adminEmail = $"admin-products-{Guid.NewGuid():N}@dealzone.eg";
+        var token = await CreateAdminAndLoginAsync(factory, client, adminEmail);
+
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        var response = await client.GetAsync("/api/v1/admin/catalog/products?pageNumber=1&pageSize=10");
+        var content = await response.Content.ReadAsStringAsync();
+
+        Assert.True(
+            response.StatusCode == HttpStatusCode.OK,
+            $"Expected 200 OK but got {response.StatusCode}. Body: {content}");
+
+        var paged = await System.Text.Json.JsonDocument.ParseAsync(
+            await response.Content.ReadAsStreamAsync());
+
+        // Must have paged-result shape: items array + totalCount
+        Assert.True(paged.RootElement.TryGetProperty("items", out var items), "Response must contain 'items'.");
+        Assert.Equal(System.Text.Json.JsonValueKind.Array, items.ValueKind);
+        Assert.True(paged.RootElement.TryGetProperty("totalCount", out _), "Response must contain 'totalCount'.");
+    }
+
+    [Fact]
+    public async Task GetAdminProducts_AsAnonymous_Returns401()
+    {
+        await using var factory = new DealZoneWebApplicationFactory();
+        var client = factory.CreateClient();
+
+        var response = await client.GetAsync("/api/v1/admin/catalog/products");
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
 }

@@ -29,6 +29,8 @@ public interface ICatalogService
 
     // Purchasable Catalog Products
     Task<PagedResult<CatalogProductResponse>> GetProductsAsync(CatalogProductFilter filter, CancellationToken cancellationToken = default);
+    /// <summary>Returns ALL catalog products for the platform admin view — no active/verified filters, no marketplace-category filter.</summary>
+    Task<PagedResult<CatalogProductResponse>> GetAllProductsForAdminAsync(int pageNumber = 1, int pageSize = 50, CancellationToken cancellationToken = default);
     /// <summary>Returns all products belonging to the current authenticated supplier (including inactive/archived). For the supplier's own management view.</summary>
     Task<PagedResult<CatalogProductResponse>> GetMyProductsAsync(int pageNumber = 1, int pageSize = 100, CancellationToken cancellationToken = default);
     Task<CatalogProductResponse> GetProductByIdAsync(Guid id, CancellationToken cancellationToken = default);

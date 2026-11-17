@@ -80,4 +80,8 @@ export const adminService = {
 
   createDealShipment: (dealId, data) =>
     api.post(`/deals/${dealId}/shipments`, data).then((r) => r.data),
+
+  // Admin catalog products (all products, no active/verified filter)
+  getAdminProducts: (params) =>
+    api.get('/admin/catalog/products', { params }).then((r) => r.data),
 }

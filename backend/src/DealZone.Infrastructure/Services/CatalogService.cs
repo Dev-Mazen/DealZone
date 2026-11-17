@@ -818,6 +818,37 @@ public class CatalogService : ICatalogService
         return PagedResult<CatalogProductResponse>.Create(items, pageNumber, pageSize, totalCount);
     }
 
+    public async Task<PagedResult<CatalogProductResponse>> GetAllProductsForAdminAsync(
+        int pageNumber = 1,
+        int pageSize = 50,
+        CancellationToken cancellationToken = default)
+    {
+        // No active/verified/marketplace-category filters — show everything to the admin
+        var query = _context.CatalogProducts
+            .AsNoTracking()
+            .Include(p => p.Category)
+            .Include(p => p.Unit)
+            .Include(p => p.Material)
+                .ThenInclude(m => m!.Category)
+            .Include(p => p.Material)
+                .ThenInclude(m => m!.DefaultUnit)
+            .Include(p => p.SupplierCompany)
+            .OrderByDescending(p => p.CreatedAtUtc)
+            .AsQueryable();
+
+        var totalCount = await query.CountAsync(cancellationToken);
+        pageNumber = Math.Max(1, pageNumber);
+        pageSize = Math.Clamp(pageSize, 1, 200);
+
+        var products = await query
+            .Skip((pageNumber - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+
+        var items = products.Select(p => MapProduct(p, 0m)).ToList();
+        return PagedResult<CatalogProductResponse>.Create(items, pageNumber, pageSize, totalCount);
+    }
+
     public async Task<CatalogProductResponse> GetProductByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         var product = await _context.CatalogProducts

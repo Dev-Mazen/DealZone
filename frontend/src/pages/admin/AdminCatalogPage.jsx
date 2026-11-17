@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Trash2, Package, Layers, Scale } from 'lucide-react'
+import { Plus, Trash2, Package, Layers, Scale, ShoppingBag } from 'lucide-react'
 import { catalogService } from '../../shared/api/services/catalogService'
+import { adminService } from '../../shared/api/services/adminService'
 import { useTranslation } from '../../hooks/useTranslation'
 import Card from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
@@ -15,7 +16,7 @@ export default function AdminCatalogPage() {
   const isAr = language === 'ar'
   const toast = useToast()
   const queryClient = useQueryClient()
-  const [activeTab, setActiveTab] = useState('categories') // 'categories' | 'materials' | 'units'
+  const [activeTab, setActiveTab] = useState('categories') // 'categories' | 'materials' | 'units' | 'products'
 
   // Modals state
   const [deleteTarget, setDeleteTarget] = useState(null)
@@ -42,6 +43,12 @@ export default function AdminCatalogPage() {
   const { data: materialsData, isLoading: loadingMats } = useQuery({
     queryKey: ['admin', 'catalog', 'materials'],
     queryFn: () => catalogService.getMaterials({ pageSize: 100 }),
+  })
+
+  const { data: productsData, isLoading: loadingProducts } = useQuery({
+    queryKey: ['admin', 'catalog', 'products'],
+    queryFn: () => adminService.getAdminProducts({ pageNumber: 1, pageSize: 100 }),
+    enabled: activeTab === 'products',
   })
 
   // Category Mutations
@@ -114,7 +121,6 @@ export default function AdminCatalogPage() {
   })
 
   if (loadingCats || loadingUnits || loadingMats) return <PageSpinner />
-
   return (
     <div className="space-y-6">
       {/* Sub Tabs */}
@@ -153,6 +159,18 @@ export default function AdminCatalogPage() {
         >
           <Scale size={16} />
           Units of Measure ({units?.length || 0})
+        </button>
+
+        <button
+          onClick={() => setActiveTab('products')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
+            activeTab === 'products'
+              ? 'bg-[#06245B] text-white shadow-sm'
+              : 'bg-white border border-[#E2E8F0] text-[#64748B] hover:bg-[#EAF4FF]'
+          }`}
+        >
+          <ShoppingBag size={16} />
+          {isAr ? 'المنتجات' : 'Products'} ({productsData?.totalCount ?? 0})
         </button>
       </div>
 
@@ -283,6 +301,60 @@ export default function AdminCatalogPage() {
               </div>
             ))}
           </div>
+        </Card>
+      )}
+
+      {/* Tab: Products (admin view — all products including inactive/unverified) */}
+      {activeTab === 'products' && (
+        <Card noPadding>
+          <div className="p-4 border-b border-[rgba(6,36,91,0.06)] flex items-center justify-between">
+            <h3 className="font-semibold text-[#06245B]">
+              {isAr ? 'جميع منتجات الكتالوج' : 'All Catalog Products'}
+            </h3>
+            <span className="text-xs text-[#64748B]">
+              {isAr ? 'يشمل المنتجات غير النشطة والموردين غير المعتمدين' : 'Includes inactive products & unverified suppliers'}
+            </span>
+          </div>
+          {loadingProducts ? (
+            <div className="p-8 text-center text-[#64748B] text-sm">{isAr ? 'جارٍ التحميل…' : 'Loading…'}</div>
+          ) : (
+            <div className="divide-y divide-[rgba(6,36,91,0.06)]">
+              {productsData?.items?.length === 0 && (
+                <div className="p-8 text-center text-[#64748B] text-sm">
+                  {isAr ? 'لا توجد منتجات بعد.' : 'No catalog products yet.'}
+                </div>
+              )}
+              {productsData?.items?.map((p) => (
+                <div key={p.id} className="p-4 flex items-center justify-between hover:bg-[#F8FAFC]">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="font-semibold text-sm text-[#06245B] truncate">
+                        {p.nameEn || p.nameAr || p.sku || p.id}
+                      </p>
+                      {!p.isActive && (
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-600">
+                          {isAr ? 'غير نشط' : 'Inactive'}
+                        </span>
+                      )}
+                      {!p.isSupplierVerified && (
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">
+                          {isAr ? 'مورد غير معتمد' : 'Unverified Supplier'}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-[#64748B] mt-0.5">
+                      {p.supplierCompanyName && <span>{p.supplierCompanyName} · </span>}
+                      {p.categoryNameEn && <span>{p.categoryNameEn} · </span>}
+                      {p.unitPrice != null
+                        ? <span>{p.unitPrice.toLocaleString()} {p.currency || 'EGP'} / {p.unit}</span>
+                        : <span className="italic">{isAr ? 'بناءً على الطلب' : 'On request'}</span>}
+                      {p.sku && <span className="font-mono ml-2">· SKU: {p.sku}</span>}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </Card>
       )}
 

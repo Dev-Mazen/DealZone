@@ -25,6 +25,20 @@ public class AdminCatalogController : ApiControllerBase
     }
 
     // -------------------------------------------------------------------------
+    // Catalog Products (admin view — all products, no active/verified filter)
+    // -------------------------------------------------------------------------
+
+    [HttpGet("products")]
+    public async Task<IActionResult> GetAllProducts(
+        [FromQuery] int pageNumber = 1,
+        [FromQuery] int pageSize = 50,
+        CancellationToken cancellationToken = default)
+    {
+        var result = await _catalogService.GetAllProductsForAdminAsync(pageNumber, pageSize, cancellationToken);
+        return Ok(result);
+    }
+
+    // -------------------------------------------------------------------------
     // Categories
     // -------------------------------------------------------------------------
 
